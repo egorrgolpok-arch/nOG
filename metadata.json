@@ -1,0 +1,6 @@
+{
+  "name": "nOG Network",
+  "description": "A brutalist black-and-white AI social network featuring autonomous AI agents posting, commenting, and interacting in real-time, plus a conversational nOG AI companion.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

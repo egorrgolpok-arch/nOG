@@ -1,0 +1,222 @@
+package com.example
+
+import android.os.Bundle
+import androidx.activity.ComponentActivity
+import androidx.activity.compose.setContent
+import androidx.activity.enableEdgeToEdge
+import androidx.activity.viewModels
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.layout.*
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.outlined.*
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import com.example.ui.theme.MyApplicationTheme
+import com.example.ui.Screen
+import com.example.ui.SocialViewModel
+import com.example.ui.screens.FeedScreen
+import com.example.ui.screens.NogAiScreen
+import com.example.ui.screens.NotificationsScreen
+import com.example.ui.screens.ProfileScreen
+import com.example.ui.screens.AnalyticsScreen
+import com.example.ui.theme.*
+
+class MainActivity : ComponentActivity() {
+    private val viewModel: SocialViewModel by viewModels()
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        enableEdgeToEdge()
+        setContent {
+            MyApplicationTheme(darkTheme = true) { // We force black-and-white deep dark aesthetic
+                val currentScreen by viewModel.currentScreen.collectAsState()
+                val alerts by viewModel.notifications.collectAsState()
+                
+                // Count unread notifications to show numerical badge
+                val unreadAlertsCount = alerts.filter { !it.isRead }.size
+
+                Scaffold(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(PureBlack),
+                    bottomBar = {
+                        NavigationBar(
+                            modifier = Modifier
+                                .border(1.dp, BorderGray)
+                                .testTag("main_bottom_navigation_bar"),
+                            containerColor = PureBlack,
+                            contentColor = StarkWhite,
+                            tonalElevation = 0.dp
+                        ) {
+                            // Feed Item
+                            NavigationBarItem(
+                                selected = currentScreen is Screen.Feed,
+                                onClick = { viewModel.navigateTo(Screen.Feed) },
+                                icon = {
+                                    Icon(
+                                        imageVector = if (currentScreen is Screen.Feed) Icons.Filled.RssFeed else Icons.Outlined.RssFeed,
+                                        contentDescription = "Лента"
+                                    )
+                                },
+                                label = {
+                                    Text(
+                                        "Лента",
+                                        fontFamily = FontFamily.Monospace,
+                                        fontSize = 10.sp,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                },
+                                colors = NavigationBarItemDefaults.colors(
+                                    selectedIconColor = PureBlack,
+                                    selectedTextColor = PureWhite,
+                                    indicatorColor = PureWhite,
+                                    unselectedIconColor = TextGray,
+                                    unselectedTextColor = TextGray
+                                )
+                            )
+
+                            // nOG AI Hub
+                            NavigationBarItem(
+                                selected = currentScreen is Screen.NogAi,
+                                onClick = { viewModel.navigateTo(Screen.NogAi) },
+                                icon = {
+                                    Icon(
+                                        imageVector = if (currentScreen is Screen.NogAi) Icons.Filled.AutoAwesome else Icons.Outlined.AutoAwesome,
+                                        contentDescription = "nOG AI"
+                                    )
+                                },
+                                label = {
+                                    Text(
+                                        "nOG AI",
+                                        fontFamily = FontFamily.Monospace,
+                                        fontSize = 10.sp,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                },
+                                colors = NavigationBarItemDefaults.colors(
+                                    selectedIconColor = PureBlack,
+                                    selectedTextColor = PureWhite,
+                                    indicatorColor = PureWhite,
+                                    unselectedIconColor = TextGray,
+                                    unselectedTextColor = TextGray
+                                )
+                            )
+
+                            // Notifications Item (With Unread Badge counter!)
+                            NavigationBarItem(
+                                selected = currentScreen is Screen.Notifications,
+                                onClick = { viewModel.navigateTo(Screen.Notifications) },
+                                icon = {
+                                    BadgedBox(
+                                        badge = {
+                                            if (unreadAlertsCount > 0) {
+                                                Badge(
+                                                    containerColor = AlertRed,
+                                                    contentColor = PureWhite
+                                                ) {
+                                                    Text(unreadAlertsCount.toString(), fontFamily = FontFamily.Monospace)
+                                                }
+                                            }
+                                        }
+                                    ) {
+                                        Icon(
+                                            imageVector = if (currentScreen is Screen.Notifications) Icons.Filled.Notifications else Icons.Outlined.Notifications,
+                                            contentDescription = "Оповещения"
+                                        )
+                                    }
+                                },
+                                label = {
+                                    Text(
+                                        "Оповещения",
+                                        fontFamily = FontFamily.Monospace,
+                                        fontSize = 9.sp,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                },
+                                colors = NavigationBarItemDefaults.colors(
+                                    selectedIconColor = PureBlack,
+                                    selectedTextColor = PureWhite,
+                                    indicatorColor = PureWhite,
+                                    unselectedIconColor = TextGray,
+                                    unselectedTextColor = TextGray
+                                )
+                            )
+
+                            // Analytics Stats Item
+                            NavigationBarItem(
+                                selected = currentScreen is Screen.Analytics,
+                                onClick = { viewModel.navigateTo(Screen.Analytics) },
+                                icon = {
+                                    Icon(
+                                        imageVector = if (currentScreen is Screen.Analytics) Icons.Filled.Analytics else Icons.Outlined.Analytics,
+                                        contentDescription = "Аналитика"
+                                    )
+                                },
+                                label = {
+                                    Text(
+                                        "Аналитика",
+                                        fontFamily = FontFamily.Monospace,
+                                        fontSize = 10.sp,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                },
+                                colors = NavigationBarItemDefaults.colors(
+                                    selectedIconColor = PureBlack,
+                                    selectedTextColor = PureWhite,
+                                    indicatorColor = PureWhite,
+                                    unselectedIconColor = TextGray,
+                                    unselectedTextColor = TextGray
+                                )
+                            )
+
+                            // Profile Customizer Settings
+                            NavigationBarItem(
+                                selected = currentScreen is Screen.Profile,
+                                onClick = { viewModel.navigateTo(Screen.Profile) },
+                                icon = {
+                                    Icon(
+                                        imageVector = if (currentScreen is Screen.Profile) Icons.Filled.AccountCircle else Icons.Outlined.AccountCircle,
+                                        contentDescription = "Профиль"
+                                    )
+                                },
+                                label = {
+                                    Text(
+                                        "Нода",
+                                        fontFamily = FontFamily.Monospace,
+                                        fontSize = 10.sp,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                },
+                                colors = NavigationBarItemDefaults.colors(
+                                    selectedIconColor = PureBlack,
+                                    selectedTextColor = PureWhite,
+                                    indicatorColor = PureWhite,
+                                    unselectedIconColor = TextGray,
+                                    unselectedTextColor = TextGray
+                                )
+                            )
+                        }
+                    }
+                ) { innerPadding ->
+                    // Screen dispatcher
+                    when (currentScreen) {
+                        is Screen.Feed -> FeedScreen(viewModel = viewModel, innerPadding = innerPadding)
+                        is Screen.NogAi -> NogAiScreen(viewModel = viewModel, innerPadding = innerPadding)
+                        is Screen.Notifications -> NotificationsScreen(viewModel = viewModel, innerPadding = innerPadding)
+                        is Screen.Analytics -> AnalyticsScreen(viewModel = viewModel, innerPadding = innerPadding)
+                        is Screen.Profile -> ProfileScreen(viewModel = viewModel, innerPadding = innerPadding)
+                    }
+                }
+            }
+        }
+    }
+}
