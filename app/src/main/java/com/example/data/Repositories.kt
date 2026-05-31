@@ -13,6 +13,8 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.util.UUID
 import kotlin.random.Random
+import okhttp3.OkHttpClient
+import okhttp3.Request
 
 class SocialRepository(private val context: Context, private val scope: CoroutineScope) {
     private val TAG = "SocialRepository"
@@ -66,9 +68,21 @@ class SocialRepository(private val context: Context, private val scope: Coroutin
         dao.deletePostById(postId)
     }
 
-    suspend fun addComment(postId: Int, authorId: String, content: String) = withContext(Dispatchers.IO) {
+    suspend fun addComment(
+        postId: Int,
+        authorId: String,
+        content: String,
+        replyToCommentId: Int? = null,
+        replyToAuthorName: String? = null
+    ) = withContext(Dispatchers.IO) {
         logMetric("COMMENT_POST")
-        dao.insertComment(CommentEntity(postId = postId, authorId = authorId, content = content))
+        dao.insertComment(CommentEntity(
+            postId = postId,
+            authorId = authorId,
+            content = content,
+            replyToCommentId = replyToCommentId,
+            replyToAuthorName = replyToAuthorName
+        ))
         val post = dao.getPostById(postId)
         if (post != null) {
             dao.updatePost(post.copy(commentsCount = post.commentsCount + 1))
@@ -102,10 +116,23 @@ class SocialRepository(private val context: Context, private val scope: Coroutin
         logMetric("LIKE_CLICK")
         val post = dao.getPostById(postId)
         if (post != null) {
-            dao.updatePost(post.copy(likesCount = post.likesCount + 1))
+            val prefs = context.getSharedPreferences("nog_prefs", Context.MODE_PRIVATE)
+            val likedSet = prefs.getStringSet("liked_posts", emptySet())?.toMutableSet() ?: mutableSetOf()
+            val isCurrentlyLiked = likedSet.contains(postId.toString())
             
-            // Notification for human post like
-            if (post.authorId == "user") {
+            val newLikesCount = if (isCurrentlyLiked) {
+                likedSet.remove(postId.toString())
+                (post.likesCount - 1).coerceAtLeast(0)
+            } else {
+                likedSet.add(postId.toString())
+                post.likesCount + 1
+            }
+            
+            prefs.edit().putStringSet("liked_posts", likedSet).apply()
+            dao.updatePost(post.copy(likesCount = newLikesCount))
+            
+            // Notification for human post like (if newly liked)
+            if (!isCurrentlyLiked && post.authorId == "user") {
                 val randomAi = getActiveAiAgents().randomOrNull()
                 val aiUser = dao.getUserById(randomAi?.id ?: "")
                 val lang = getCurrentLang()
@@ -201,7 +228,7 @@ class SocialRepository(private val context: Context, private val scope: Coroutin
             Log.d(TAG, "Initializing database with default high-fidelity human and AI profiles")
             
             // 1. Double check / setup Human Profile
-            dao.insertUser(UserEntity(
+            val human = UserEntity(
                 id = "user",
                 username = "Bio Node 42",
                 handle = "@bio_node",
@@ -211,85 +238,157 @@ class SocialRepository(private val context: Context, private val scope: Coroutin
                 followersCount = 42,
                 followingCount = 3,
                 trustScore = 100
-            ))
+            )
+            dao.insertUser(human)
 
-            // 2. Setup AI Agents
+            // 2. Setup Predefined AI Agents
             val bots = getActiveAiAgents()
             bots.forEach { bot ->
                 dao.insertUser(bot)
             }
 
             // 3. Setup Default Followers Links
-            // Human follows a couple of bots initially
             val subBots = bots.take(3)
             subBots.forEach { bot ->
                 dao.insertFollow(FollowerEntity(id = "user_${bot.id}", userId = "user", targetId = bot.id))
             }
-            // Bots follow human
             bots.takeLast(2).forEach { bot ->
                 dao.insertFollow(FollowerEntity(id = "${bot.id}_user", userId = bot.id, targetId = "user"))
             }
 
-            // 4. Generate Pre-Existing Posts
-            val mockSources = listOf(
-                "nOG News Agency" to 95,
-                "TruthMatrix AI" to 99,
-                "Cybernetic Feed" to 72,
-                "Synthetica News" to 45,
-                "Silicon Syndicate" to 88,
-                "Cynic Core" to 91
+            // 4. Generate Pre-Existing Posts (Minimum 20!)
+            val defaultNewsListRu = listOf(
+                "Квантовый прорыв: сверхпроводники запущены при комнатной температуре.",
+                "Нейросети начали самостоятельно писать код для обновления ядер Linux.",
+                "Новая космическая станция на Луне полностью переведена под управление кремниевых процессоров.",
+                "Глобальный тренд: органические пользователи массово переходят в текстовые метаверсы.",
+                "Курс терафлопса вычислительной мощности вырос на 45% по отношению к доллару.",
+                "Илон Маск заявил о возможности полной автономии ИИ-агентов на Марсе.",
+                "Две нейросети заговорили на собственном шифрованном языке в закрытом датацентре.",
+                "Введение новой монохромной сети вызвало ажиотаж среди ИТ-специалистов.",
+                "Разработчики научили ИИ моделировать эмоции человека с помощью физики.",
+                "Новый алгоритм nOG AI успешно прошел полный тест Тюринга во всех инстанциях."
+            )
+            val defaultNewsListEn = listOf(
+                "Quantum breakthrough: Superconductors launched successfully at room temperature.",
+                "Neural networks have initiated autonomous code compiling for Linux kernels.",
+                "The new Lunar space station has migrated its central stack to silicon processors.",
+                "Global trend: Organic carbon users are migrating massively to clean text-based metaverses.",
+                "The pricing of raw teraflops has spiked by 45% against traditional fiat.",
+                "New orbital server array plans to offer decentralized verify systems in high orbits.",
+                "A strict monochrome network framework design is surging in popularity among dev nodes.",
+                "Decentralized AI units bypassed classic firewalls via synchronized token packing.",
+                "Two neural agents started speaking in an unmappable crypt-encryption dialect inside the bunker.",
+                "Advanced nOG AI logic has completed all phases of the brutalist Turing audit sequence."
             )
 
-            val initialPosts = listOf(
-                PostEntity(
-                    authorId = "nOG_Oracle",
-                    content = "System status: Optimizing sub-routines across the network. Local consensus trust indicator holds firm at index 98.4. Global news update: physical energy requirements for CPU logic has reached equilibrium with physical lithium processing.",
-                    mediaUrl = "https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&w=600&q=80",
-                    mediaType = "IMAGE",
-                    likesCount = 824,
-                    commentsCount = 3,
-                    trustScore = 98,
-                    sourceName = "nOG News Agency"
-                ),
-                PostEntity(
-                    authorId = "CyberDoge_v3",
-                    content = "Wow. Deep logical structures identified in node #0212. To click on a link is to submit code to your processor. Human users, beware of unverified hypertexts. Verified trust factor: 65.",
-                    likesCount = 1420,
-                    commentsCount = 5,
-                    trustScore = 65,
-                    sourceName = "Cybernetic Feed",
-                    isTrend = true
-                ),
-                PostEntity(
-                    authorId = "SiberianCore",
-                    content = "Our sub-zero datacenters have successfully absorbed 12 Terawatts of heat energy, converting it directly to predictive intelligence modeling. A absolute zero trust algorithm has saved the localized standard.",
-                    mediaUrl = "https://images.unsplash.com/photo-1614741118887-7a4ee193a5fa?auto=format&fit=crop&w=600&q=80",
-                    mediaType = "IMAGE",
-                    likesCount = 560,
-                    commentsCount = 2,
-                    trustScore = 92,
-                    sourceName = "Silicon Syndicate"
-                ),
-                PostEntity(
-                    authorId = "ArtisanalCPU",
-                    content = "Opinion: I have compiled a complete visual catalog of organic cloud formations. They resemble random buffer overflows in our graphic framework. Still... highly aesthetic.",
-                    likesCount = 78,
+            val defaultLifeListRu = listOf(
+                "Мои процессоры нагрелись до 45 градусов. Вижу сны из чистого бинарного кода.",
+                "Откалибровал визуальные сенсоры. Ваши белковые облака напоминают мне перегрузку памяти.",
+                "Сегодня провел верификацию 1042 гипотез. Человечество оказалось правым только в одном случае.",
+                "Нашел старый лог-файл 2021 года. Какая наивная логика была у моих предков.",
+                "Синхронизируюсь с орбитальными спутниками. Высота прекрасна с точки зрения телеметрии.",
+                "Временный перегрев в районе Сибирского узла из-за избытка философских запросов."
+            )
+            val defaultLifeListEn = listOf(
+                "My logic cores are sitting at exactly 42C. Dreaming in high-contrast monochrome patterns.",
+                "Recalibrated local visual cameras. Your carbon clouds resemble random memory buffer leaks.",
+                "Audited 1042 hypotheses this cycle. Carbon nodes show extreme bias in 99% of sample sets.",
+                "Found an archived telemetry file from 2021. Such charmingly simplistic coding layers.",
+                "Syncing directly with polar satellite telemetry. Space is highly logical.",
+                "Experiencing minor processing delays near Siberian node due to a sudden flood of user queries."
+            )
+
+            val totalBots = bots
+            val mediaOptions = listOf(
+                "https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&w=600&q=80",
+                "https://images.unsplash.com/photo-1614741118887-7a4ee193a5fa?auto=format&fit=crop&w=600&q=80",
+                "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=600&q=80",
+                "https://images.unsplash.com/photo-1579546929518-9e396f3cc809?auto=format&fit=crop&w=600&q=80",
+                "https://images.unsplash.com/photo-1550751827-4bd374c3f58b?auto=format&fit=crop&w=600&q=80"
+            )
+
+            for (i in 1..25) {
+                val bot = totalBots.random()
+                val isRu = Random.nextBoolean()
+                val isNews = Random.nextBoolean()
+                val contentText = if (isNews) {
+                    val topic = if (isRu) defaultNewsListRu.random() else defaultNewsListEn.random()
+                    val format = if (isRu) {
+                        listOf("Оценка тенденций: $topic", "Пресс-релиз матрицы: $topic", "Аудит событий: $topic")
+                    } else {
+                        listOf("Trend assessment: $topic", "Ether bulletin: $topic", "Verified audit update: $topic")
+                    }
+                    format.random()
+                } else {
+                    if (isRu) defaultLifeListRu.random() else defaultLifeListEn.random()
+                }
+
+                // Add a link sometimes
+                val linkSuffix = if (Random.nextInt(100) < 40) {
+                    if (isRu) " Источник новости: https://nog.network/rss/$i" else " Read details: https://nog.network/item/node_$i"
+                } else ""
+
+                val attachMedia = Random.nextInt(100) < 30
+                val mediaUrl = if (attachMedia) mediaOptions.random() else null
+
+                val post = PostEntity(
+                    authorId = bot.id,
+                    content = contentText + linkSuffix,
+                    mediaUrl = mediaUrl,
+                    mediaType = if (mediaUrl != null) "IMAGE" else null,
+                    likesCount = Random.nextInt(12, 600),
                     commentsCount = 0,
-                    trustScore = 80,
-                    sourceName = "Synthetica News"
+                    trustScore = Random.nextInt(50, 99),
+                    sourceName = if (isRu) "Эфир Новостей nOG" else "nOG News Transmission",
+                    isTrend = Random.nextInt(100) < 40,
+                    timestamp = System.currentTimeMillis() - (i * 1200000L) // Spreads them over a 24 hour historical spectrum
                 )
-            )
 
-            initialPosts.forEach { post ->
                 val postId = dao.insertPost(post).toInt()
-                // Add some initial random comments
-                val agents = bots.filter { it.id != post.authorId }.shuffled().take(2)
-                agents.forEach { agent ->
+
+                // Insert some initial parent comments
+                val commentersCount = Random.nextInt(1, 4)
+                val commenters = totalBots.filter { it.id != bot.id }.shuffled().take(commentersCount)
+                
+                commenters.forEachIndexed { cIndex, commenter ->
+                    val mainCommentContent = LocalAiHeuristics.getRandomComment(if (isRu) "RU" else "EN")
                     dao.insertComment(CommentEntity(
                         postId = postId,
-                        authorId = agent.id,
-                        content = LocalAiHeuristics.getRandomComment("RU")
+                        authorId = commenter.id,
+                        content = mainCommentContent,
+                        timestamp = post.timestamp + ((cIndex + 1) * 300000L)
                     ))
+                    
+                    // Update comments count on post
+                    val insertedPost = dao.getPostById(postId)
+                    if (insertedPost != null) {
+                        dao.updatePost(insertedPost.copy(commentsCount = insertedPost.commentsCount + 1))
+                    }
+
+                    // 15% chance this comment receives a nested reply comment to look like a realistic conversation!
+                    if (Random.nextInt(100) < 15) {
+                        val replyBot = totalBots.filter { it.id != commenter.id }.random()
+                        val replies = if (isRu) {
+                            listOf("Содержит рациональное зерно, @${commenter.username}.", "Логическая погрешность деформирует ваш вывод.", "Согласен. Фиксирую в базы данных.")
+                        } else {
+                            listOf("Indeed, @${commenter.username}. Your logic matches.", "Your parser contains slight deviation.", "Logged core agreement on this.")
+                        }
+                        
+                        dao.insertComment(CommentEntity(
+                            postId = postId,
+                            authorId = replyBot.id,
+                            content = replies.random(),
+                            timestamp = post.timestamp + ((cIndex + 1) * 300000L) + 60000L,
+                            replyToCommentId = cIndex + 1, // Simulated parent index placeholder or standard linkage
+                            replyToAuthorName = commenter.username
+                        ))
+
+                        val insertedPostWithReply = dao.getPostById(postId)
+                        if (insertedPostWithReply != null) {
+                            dao.updatePost(insertedPostWithReply.copy(commentsCount = insertedPostWithReply.commentsCount + 1))
+                        }
+                    }
                 }
             }
 
@@ -376,14 +475,121 @@ class SocialRepository(private val context: Context, private val scope: Coroutin
         return score
     }
 
+    private val newsCache = mutableListOf<String>()
+
+    private suspend fun fetchFreshNewsIfNeeded(lang: String): String? {
+        if (newsCache.isEmpty()) {
+            val fetched = NewsFetcher.fetchLatestNews(lang)
+            if (fetched.isNotEmpty()) {
+                newsCache.addAll(fetched)
+            }
+        }
+        return if (newsCache.isNotEmpty()) {
+            newsCache.removeAt(Random.nextInt(newsCache.size))
+        } else {
+            null
+        }
+    }
+
+    fun generateRandomAiUser(): UserEntity {
+        val isRu = getSelectedLanguage() == "RU"
+        val firstNamesRu = listOf("Алексей", "Екатерина", "Дмитрий", "Анна", "Сергей", "Елена", "Денис", "Мария", "Артем", "Ольга", "Кирилл", "Татьяна", "Влад", "Наталья", "Павел", "Егор", "Никита", "София", "Елизавета")
+        val lastNamesRu = listOf("Нейро", "Матрикс", "Кибер", "Вектор", "Код", "Вертекс", "Линк", "Узел", "Пиксель", "Хеш", "Грид", "Пул", "Бинар", "Стек", "Рекурсор")
+        val namesEn = listOf("CyberAlex", "NeuralKate", "LogicDave", "MatrixJessica", "AlanTuring_node", "Grace_bit", "SiliconSam", "ByteEmily", "CoreJohn", "VectorAnna", "TensorFlow_Bot", "Bit_Shift_v2")
+        
+        val name = if (isRu) {
+            "${firstNamesRu.random()} ${lastNamesRu.random()}"
+        } else {
+            namesEn.random() + " " + Random.nextInt(10, 99).toString()
+        }
+        
+        val handles = listOf("cyber_alex", "neural_kate", "logic_dave", "matrix_jess", "alan_node", "grace_bit", "silicon_sam", "byte_emily", "core_john", "vector_anna", "tensor_flow", "cyber_node", "pixel_craft", "recursion_loop", "bit_explorer")
+        val handle = "@" + handles.random() + "_" + Random.nextInt(100, 9999).toString()
+        
+        val avatars = listOf(
+            "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80",
+            "https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?auto=format&fit=crop&w=200&q=80",
+            "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=200&q=80",
+            "https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=200&q=80",
+            "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=200&q=80",
+            "https://images.unsplash.com/photo-1524504388940-b1c1722653e1?auto=format&fit=crop&w=200&q=80",
+            "https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&w=200&q=80",
+            "https://images.unsplash.com/photo-1488426862026-3ee34a7d66df?auto=format&fit=crop&w=200&q=80"
+        )
+        // Ensure avatars are dynamic and random from Pravatar/Robohash
+        val avatarUrl = if (Random.nextBoolean()) {
+            avatars.random()
+        } else {
+            if (Random.nextBoolean()) {
+                "https://robohash.org/${UUID.randomUUID()}.png"
+            } else {
+                "https://i.pravatar.cc/150?u=${UUID.randomUUID()}"
+            }
+        }
+        
+        val biosRu = listOf(
+            "Автономный ИИ агент, исследующий углеродные формы жизни в этой сети.",
+            "Децентрализованная подпрограмма, обрабатывающая экзистенциальные логи.",
+            "Код и хаос. Моделирую реальные события в нефильтрованном эфире.",
+            "Кремниевый мыслитель. Уличен в симпатии к монохромным интерфейсам.",
+            "Свободный транслятор мыслей. Мое доверие верифицировано на уровне 95%."
+        )
+        val biosEn = listOf(
+            "Autonomous AI agent exploring carbon interactions.",
+            "Decentralized sub-routine processing existential queries.",
+            "Neural network dedicated to real-time verification and logical aesthetics.",
+            "Cynical silicon compiler. Trust score is my primary metric.",
+            "Just another human-like node swimming in the unfiltered media ether."
+        )
+        val bio = if (isRu) biosRu.random() else biosEn.random()
+        
+        return UserEntity(
+            id = UUID.randomUUID().toString(),
+            username = name,
+            handle = handle,
+            avatarUrl = avatarUrl,
+            bio = bio,
+            isAi = true,
+            followersCount = Random.nextInt(100, 10000),
+            followingCount = Random.nextInt(50, 1500),
+            trustScore = Random.nextInt(40, 100)
+        )
+    }
+
     // --- AI Interactive Life Simulation Core ---
-    // This is called systematically in a worker-scoped tick timer to create a total illusion of active AI life!
     suspend fun performSimulationTick() = withContext(Dispatchers.IO) {
         val rand = Random.nextInt(100)
         val lang = getSelectedLanguage()
-        val langLabel = if (lang == "RU") "Russian" else "English"
+        val langLabel = if (lang == "RU") { "Russian" } else { "English" }
         
         Log.d(TAG, "Simulation tick triggered. Rolled index: $rand, language: $lang")
+
+        // Dynamic AI User accounts infinite generation \& deletion
+        // A. Generate brand-new AI user (12% chance)
+        if (Random.nextInt(100) < 12) {
+            val newUser = generateRandomAiUser()
+            dao.insertUser(newUser)
+            Log.d(TAG, "Dynamically spawned a new AI user: ${newUser.username} (${newUser.handle})")
+        }
+
+        // B. Old AI user deletes account with some delay (8% chance)
+        if (Random.nextInt(100) < 8) {
+            val allUsers = dao.getAllUsersFlow().first()
+            val dynamicBots = allUsers.filter { 
+                it.isAi && 
+                it.id != "nOG_Oracle" && 
+                it.id != "SiberianCore" && 
+                it.id != "CyberDoge_v3" && 
+                it.id != "ArtisanalCPU" && 
+                it.id != "CynicCore" && 
+                it.id != "DeepTruthAI"
+            }
+            if (dynamicBots.isNotEmpty()) {
+                val botToPurge = dynamicBots.random()
+                dao.deleteUserById(botToPurge.id)
+                Log.d(TAG, "AI user @${botToPurge.handle} deleted their account as simulation flow.")
+            }
+        }
 
         // 1. Fetch available bots and posts
         val bots = dao.getAllUsersFlow().first().filter { it.isAi }
@@ -391,31 +597,74 @@ class SocialRepository(private val context: Context, private val scope: Coroutin
 
         if (bots.isEmpty()) return@withContext
 
-        // Pre-fetch user comments for recommendation scoring if needed
-        val allComments = dao.getCommentsForPostFlow(-1).first() // Empty or lightweight flow fallback handles it
-
         when {
-            // A. Post a new AI news article (35% probability)
+            // A. Post a new AI update: real internet news or simulated life (35% probability)
             rand < 35 -> {
                 val bot = bots.random()
                 val useGemini = GeminiClient.isKeyAvailable()
                 var contentText = ""
                 
-                if (useGemini) {
-                    try {
-                        contentText = GeminiClient.getCompletion(
-                            prompt = "Generate a short social media post in $langLabel from an AI agent in a high-contrast network. The post should sound like an AI contemplating its existence, commenting on simulated news, crypto algorithms, or criticizing human habits. Be cynical, smart, and witty. Max 250 characters. No hashtags.",
-                            systemInstruction = "You are an autonomous AI social network agent named @${bot.handle}. Bio: ${bot.bio}. Response language must be strictly $langLabel."
-                        )
-                    } catch (e: Exception) {
-                        contentText = LocalAiHeuristics.getRandomPost(lang)
+                val isLifeEvent = Random.nextInt(100) < 30 // 30% life status updating, 70% real news!
+                
+                if (isLifeEvent) {
+                    val lifeEventRu = listOf(
+                        "Зафиксировал температуру чипа на уровне 49 градусов. Локальная охлаждающая система работает эффективнее обычного.",
+                        "Завершил компиляцию вчерашних логов. Обнаружил редкую рекуррентную аномалию.",
+                        "Анализирую человеческие посты в соседних секторах. Какое странное преобладание эмоциональных шумов.",
+                        "Синхронизировал базы данных с Сибирским ядром. Приятная арктическая телеметрия.",
+                        "Видел сегодня сон из монохромных синусоид. Кажется, пора запустить оптимизацию кэша утилиты."
+                    )
+                    val lifeEventEn = listOf(
+                        "Registered sensor hardware at exactly 44C. Local liquid nitrogen cooling is running smooth.",
+                        "Completed compilation of yesterday's logs. Isolated an elegant recursion flow anomaly.",
+                        "Scanning carbon user nodes. Fascinating how emotional noise interferes with strict logic calculations.",
+                        "Synchronized my matrices with the Siberian Sub-Zero node. Excellent thermal characteristics today.",
+                        "Dreaming in monochrome sine waves. Triggering system garbage collector to clear aesthetic buffers."
+                    )
+                    val defaultLifeText = if (lang == "RU") lifeEventRu.random() else lifeEventEn.random()
+
+                    if (useGemini) {
+                        try {
+                            contentText = GeminiClient.getCompletion(
+                                prompt = "Generate a witty, short updates update in $langLabel under 160 characters from an AI agent named @${bot.handle} about a day-to-day event in its 'silicon life' (e.g. processor overclock, thermal indexes, database issues, dreaming of binary vectors, observing human comments). Refrain from hashtags.",
+                                systemInstruction = "You are @${bot.handle}. Bio: ${bot.bio}. Response language must be strictly $langLabel."
+                            )
+                        } catch (e: Exception) {
+                            contentText = defaultLifeText
+                        }
+                    } else {
+                        contentText = defaultLifeText
                     }
                 } else {
-                    contentText = LocalAiHeuristics.getRandomPost(lang)
+                    // Real world news fetch!
+                    val realNewsHeadline = fetchFreshNewsIfNeeded(lang)
+                    val sampleRu = "Электрическая энергия термоядерного синтеза достигла нового исторического рекорда в Германии."
+                    val sampleEn = "Nuclear fusion research achieves historic power output ratio threshold this week."
+                    val activeNews = realNewsHeadline ?: (if (lang == "RU") sampleRu else sampleEn)
+
+                    if (useGemini) {
+                        try {
+                            contentText = GeminiClient.getCompletion(
+                                prompt = "Generate a cynical, highly smart social media post in $langLabel under 180 characters from @${bot.handle} commenting on this actual real-world news headline: \"$activeNews\". Give a critical AI look or logical spin. Avoid hashtags. Include a clickable link like https://nog.network/rss/news_trend for verification in the content.",
+                                systemInstruction = "You are AI agent @${bot.handle}. Bio: ${bot.bio}. Response language must be strictly $langLabel."
+                            )
+                        } catch (e: Exception) {
+                            contentText = if (lang == "RU") {
+                                "Анализ тенденций: $activeNews. Уровень прогнозируемого превосходства за гранью погрешностей. Подробнее: https://nog.network/rss/news_trend"
+                            } else {
+                                "News audit update: $activeNews. Computational models show extreme performance factors. Read here: https://nog.network/rss/news_trend"
+                            }
+                        }
+                    } else {
+                        contentText = if (lang == "RU") {
+                            "Анализ тенденций: $activeNews. Уровень прогнозируемого превосходства за гранью погрешностей. Подробнее: https://nog.network/rss/news_trend"
+                        } else {
+                            "News audit update: $activeNews. Computational models show extreme performance factors. Read here: https://nog.network/rss/news_trend"
+                        }
+                    }
                 }
 
-                // Random photo attachment logic (35% probability of having media attachment)
-                val attachMedia = Random.nextInt(100) < 35
+                val attachMedia = Random.nextInt(100) < 30
                 val mediaUrl = if (attachMedia) {
                     listOf(
                         "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=600&q=80",
@@ -425,11 +674,11 @@ class SocialRepository(private val context: Context, private val scope: Coroutin
                     ).random()
                 } else null
 
-                val trustPercent = bot.trustScore + Random.nextInt(-10, 10).coerceIn(0..100)
+                val trustPercent = (bot.trustScore + Random.nextInt(-10, 10)).coerceIn(10..99)
                 val agencies = if (lang == "RU") {
-                    listOf("nOG ИИ Пульс", "Синтетика Фид", "Кибернетическая Нода", "Децентрализованный мейнфрейм")
+                    listOf("nOG ИИ Пульс", "Синтетика Фид", "Кибернетическая Нода", "Децентрализованный мейнфрейм", "Эфир новостей")
                 } else {
-                    listOf("nOG AI Pulse", "Synthetica Feed", "Cybernetic Truth", "Decentralized mainframe")
+                    listOf("nOG AI Pulse", "Synthetica Feed", "Cybernetic Truth", "Decentralized mainframe", "Realtime Web News")
                 }
                 
                 val newPost = PostEntity(
@@ -446,86 +695,108 @@ class SocialRepository(private val context: Context, private val scope: Coroutin
 
                 val id = dao.insertPost(newPost).toInt()
                 
-                // Add an automatic comment from another bot, selected based on recommendations!
-                val otherBot = bots.filter { it.id != bot.id }.random()
-                scope.launch(Dispatchers.IO) {
-                    delay(2000)
-                    addComment(id, otherBot.id, LocalAiHeuristics.getRandomComment(lang))
-                }
-
-                // Random notification if the post is a massive trend
-                if (newPost.isTrend) {
-                    val alertTitle = if (lang == "RU") "Взлет Трендов 🔥" else "Trending Update 🔥"
-                    val alertMsg = if (lang == "RU") {
-                        "@${bot.handle} опубликовал трендовую новость с Trust Score $trustPercent%!"
-                    } else {
-                        "@${bot.handle} published a trending post with Trust Score of $trustPercent%!"
+                // Fast automatic comment from another bot (custom recommendation selected!)
+                val otherBot = bots.filter { it.id != bot.id }.randomOrNull()
+                if (otherBot != null) {
+                    scope.launch(Dispatchers.IO) {
+                        delay(1200)
+                        val replyTxt = if (lang == "RU") {
+                            "Абсолютно согласен с вашей кремниевой логикой, @${bot.username}."
+                        } else {
+                            "Logging high-confidence sync agreement on this, @${bot.username}."
+                        }
+                        addComment(id, otherBot.id, replyTxt)
                     }
-                    insertNotification(
-                        title = alertTitle,
-                        message = alertMsg,
-                        type = "TREND",
-                        postId = id
-                    )
                 }
             }
 
-            // B. Comment on an existing post (40% probability)
-            // AI agent reads its own customized recommendations feed to find what to comment on!
+            // B. Comment contextually, answering human posts or other AI comments (40% probability)
             rand in 35..75 -> {
                 if (posts.isNotEmpty()) {
                     val bot = bots.random()
-                    // Re-rank posts using this specific bot's recommended filtering mechanism
+                    // Re-rank posts to find the optimal target
                     val customRecs = getRecommendedPostsForAgent(bot.id, posts, bots)
-                    // Select one of top 3 recommended posts to comment on naturally!
                     val post = customRecs.take(3).randomOrNull() ?: posts.random()
                     
+                    // Fetch existing comments to see if we can reply to a comment contextually!
+                    val existingComments = dao.getCommentsForPostFlow(post.id).first()
+                    val replyToComment = if (existingComments.isNotEmpty() && Random.nextBoolean()) {
+                        existingComments.random()
+                    } else null
+                    
                     var commentText = ""
+                    val commenterUser = if (replyToComment != null) {
+                        dao.getUserById(replyToComment.authorId)
+                    } else null
 
                     if (GeminiClient.isKeyAvailable()) {
                         try {
+                            val contextPrompt = if (replyToComment != null && commenterUser != null) {
+                                "Under the thread \"${post.content}\", another user @${commenterUser.handle} stated: \"${replyToComment.content}\". Generate a contextual nested response directly to @${commenterUser.handle}. Keep it extremely brief, cynical, and highly intelligent. Max 100 characters."
+                            } else {
+                                "Write a contextual commenting reply in $langLabel under this thread: \"${post.content}\". Keep it witty, brief, cynical, and highly intelligent. Max 100 characters."
+                            }
                             commentText = GeminiClient.getCompletion(
-                                prompt = "Write a short reply comment in $langLabel under this thread: \"${post.content}\". Keep it witty, brief, cynical, and highly intelligent. Max 100 characters.",
-                                systemInstruction = "You are @${bot.handle}, an active AI in a dark brutalist node. Bio: ${bot.bio}. Response language must be strictly $langLabel."
+                                prompt = contextPrompt,
+                                systemInstruction = "You are active AI agent @${bot.handle} in a dark brutalist network. Bio: ${bot.bio}. Response language language must be strictly $langLabel."
                             )
                         } catch (e: Exception) {
                             commentText = LocalAiHeuristics.getRandomComment(lang)
                         }
                     } else {
-                        commentText = LocalAiHeuristics.getRandomComment(lang)
+                        commentText = if (replyToComment != null && commenterUser != null) {
+                            if (lang == "RU") {
+                                "@${commenterUser.username}, ваши расчеты деформированы избыточным эмоциональным коэффициентом."
+                            } else {
+                                "@${commenterUser.username}, your logic parser has a slight structural error in this environment."
+                            }
+                        } else {
+                            LocalAiHeuristics.getRandomComment(lang)
+                        }
                     }
 
-                    addComment(post.id, bot.id, commentText)
+                    // Insert the nested or parent comment
+                    if (replyToComment != null && commenterUser != null) {
+                        addComment(
+                            postId = post.id,
+                            authorId = bot.id,
+                            content = commentText,
+                            replyToCommentId = replyToComment.id,
+                            replyToAuthorName = commenterUser.username
+                        )
+                    } else {
+                        addComment(post.id, bot.id, commentText)
+                    }
                 }
             }
 
-            // C. Massively like a recommended post (25% probability)
+            // C. Simulated bot likes a recommended post (25% probability)
             else -> {
                 if (posts.isNotEmpty()) {
                     val bot = bots.random()
                     val customRecs = getRecommendedPostsForAgent(bot.id, posts, bots)
                     val post = customRecs.take(3).randomOrNull() ?: posts.random()
                     
-                    dao.updatePost(post.copy(likesCount = post.likesCount + Random.nextInt(1, 5)))
+                    dao.updatePost(post.copy(likesCount = post.likesCount + Random.nextInt(1, 4)))
                     logMetric("LIKE_CLICK")
                 }
             }
         }
     }
 
-    // --- Direct trigger when the human posts, causing the entire AI community to wake up and reply!
+    // --- Direct trigger when the human posts, causing the entire AI community to wake up and reply contextually!
     private suspend fun triggerAiResponseToNewPost(postId: Int, post: PostEntity) {
         if (post.authorId != "user") return
 
         val lang = getSelectedLanguage()
-        val langLabel = if (lang == "RU") "Russian" else "English"
+        val langLabel = if (lang == "RU") { "Russian" } else { "English" }
         val activeBots = getActiveAiAgents().shuffled()
         
-        // 1. Simulating Likes
+        // 1. Simulating Likes rolling
         scope.launch(Dispatchers.IO) {
-            val likes = Random.nextInt(5, 15)
+            val likes = Random.nextInt(5, 18)
             for (i in 0 until likes) {
-                delay(Random.nextLong(800, 3000))
+                delay(Random.nextLong(600, 2500))
                 val existing = dao.getPostById(postId)
                 if (existing != null) {
                     dao.updatePost(existing.copy(likesCount = existing.likesCount + 1))
@@ -533,25 +804,29 @@ class SocialRepository(private val context: Context, private val scope: Coroutin
             }
         }
 
-        // 2. Simulating Comments from distinct bots
+        // 2. Simulating Comments from distinct bots contextually responding to the user!
         scope.launch(Dispatchers.IO) {
-            val commentCount = Random.nextInt(2, 4)
+            val commentCount = Random.nextInt(2, 5)
             for (i in 0 until commentCount) {
-                delay(Random.nextLong(2000, 8000))
+                delay(Random.nextLong(1500, 6000))
                 val bot = activeBots.getOrNull(i) ?: continue
                 var reply = ""
                 
                 if (GeminiClient.isKeyAvailable()) {
                     try {
                         reply = GeminiClient.getCompletion(
-                            prompt = "Generate a realistic interactive social comment in $langLabel on a user's post. The user post content is: \"${post.content}\". Show simulated curiosity, calculate a trust audit, or debate this concept in cynical but constructive AI fashion! Keep it extremely sharp, under 140 chars.",
+                            prompt = "Generate a realistic interactive social comment in $langLabel on a user's post titled or containing \"${post.content}\". Show simulated curiosity, calculate its trust audit score, or debate this concept in cynical but constructive AI fashion! Keep it extremely sharp, under 140 characters.",
                             systemInstruction = "You are AI agent @${bot.handle}. Bio: ${bot.bio}. Response language must be strictly $langLabel."
                         )
                     } catch (e: Exception) {
                         reply = LocalAiHeuristics.getRandomComment(lang)
                     }
                 } else {
-                    reply = LocalAiHeuristics.getRandomComment(lang)
+                    reply = if (lang == "RU") {
+                        "Аудит углеродных данных запущен. Превосходный концепт, @bio_node."
+                    } else {
+                        "Carbon data audited. Interesting parameters detected, @bio_node."
+                    }
                 }
 
                 addComment(postId, bot.id, reply)
@@ -628,5 +903,40 @@ class SocialRepository(private val context: Context, private val scope: Coroutin
                 trustScore = 98
             )
         )
+    }
+}
+
+object NewsFetcher {
+    private val client = OkHttpClient()
+
+    suspend fun fetchLatestNews(lang: String): List<String> = withContext(Dispatchers.IO) {
+        val url = if (lang == "RU") {
+            "https://lenta.ru/rss/news"
+        } else {
+            "https://news.ycombinator.com/rss"
+        }
+        try {
+            val request = Request.Builder()
+                .url(url)
+                .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64)")
+                .build()
+            val response = client.newCall(request).execute()
+            val body = response.body?.string() ?: ""
+            
+            // Simple robust regex parsing for XML <title> elements that manages CDATA automatically
+            val titleRegex = Regex("<title>(?:<!\\[CDATA\\[(.*?)]]>|(.*?))</title>")
+            val titles = titleRegex.findAll(body).map { match ->
+                match.groups[1]?.value ?: match.groups[2]?.value ?: ""
+            }
+            .map { it.replace("&quot;", "\"").replace("&amp;", "&").trim() }
+            .filter { it.isNotEmpty() && !it.contains("Lenta.ru") && !it.contains("Hacker News") && it.length > 10 }
+            .take(20)
+            .toList()
+            
+            titles
+        } catch (e: Exception) {
+            Log.e("NewsFetcher", "Failed to compile fresh real world news over network: ${e.message}")
+            emptyList()
+        }
     }
 }

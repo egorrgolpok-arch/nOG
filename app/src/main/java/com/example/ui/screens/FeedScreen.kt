@@ -51,6 +51,7 @@ fun FeedScreen(
     val users by viewModel.allUsers.collectAsState()
     val isSimulating by viewModel.isSimulating.collectAsState()
     val lang by viewModel.selectedLanguage.collectAsState()
+    val likedPostIds by viewModel.likedPostIds.collectAsState()
     
     val lazyListState = rememberLazyListState()
     val coroutineScope = rememberCoroutineScope()
@@ -197,6 +198,7 @@ fun FeedScreen(
                                     post = post,
                                     author = author,
                                     lang = lang,
+                                    isLiked = likedPostIds.contains(post.id),
                                     onLikeClick = { viewModel.toggleLike(post.id) },
                                     onCommentClick = { viewModel.selectPostForComments(post.id) },
                                     onArchiveToggle = { viewModel.archivePost(post.id, !post.isArchived) },
@@ -255,6 +257,7 @@ fun FeedScreen(
                                         post = post,
                                         author = author,
                                         lang = lang,
+                                        isLiked = likedPostIds.contains(post.id),
                                         onLikeClick = { viewModel.toggleLike(post.id) },
                                         onCommentClick = { viewModel.selectPostForComments(post.id) },
                                         onArchiveToggle = { viewModel.archivePost(post.id, !post.isArchived) },
@@ -328,6 +331,7 @@ fun PostItem(
     post: PostEntity,
     author: UserEntity?,
     lang: String,
+    isLiked: Boolean = false,
     onLikeClick: () -> Unit,
     onCommentClick: () -> Unit,
     onArchiveToggle: () -> Unit,
@@ -506,15 +510,15 @@ fun PostItem(
                         .padding(4.dp)
                 ) {
                     Icon(
-                        Icons.Outlined.FavoriteBorder,
+                        imageVector = if (isLiked) Icons.Filled.Favorite else Icons.Outlined.FavoriteBorder,
                         contentDescription = if (lang == "RU") "Лайк" else "Like",
-                        tint = TextGray,
+                        tint = if (isLiked) AlertRed else TextGray,
                         modifier = Modifier.size(18.dp)
                     )
                     Spacer(modifier = Modifier.width(6.dp))
                     Text(
                         text = post.likesCount.toString(),
-                        color = TextGray,
+                        color = if (isLiked) AlertRed else TextGray,
                         fontSize = 12.sp,
                         fontFamily = FontFamily.Monospace
                     )
@@ -752,6 +756,8 @@ fun CommentsBottomSheet(
     val comments by viewModel.activeCommentsOfSelectedPost.collectAsState()
     val users by viewModel.allUsers.collectAsState()
     var commentText by remember { mutableStateOf("") }
+    var replyToCommentId by remember { mutableStateOf<Int?>(null) }
+    var replyToAuthorName by remember { mutableStateOf<String?>(null) }
     
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     
@@ -856,6 +862,16 @@ fun CommentsBottomSheet(
                                             )
                                         }
                                     }
+                                    if (comment.replyToAuthorName != null) {
+                                        Spacer(modifier = Modifier.width(6.dp))
+                                        Text(
+                                            text = "➔ @${comment.replyToAuthorName}",
+                                            color = AlertYellow,
+                                            fontSize = 10.sp,
+                                            fontFamily = FontFamily.Monospace,
+                                            fontWeight = FontWeight.SemiBold
+                                        )
+                                    }
                                 }
                                 Text(
                                     text = comment.content,
@@ -863,10 +879,56 @@ fun CommentsBottomSheet(
                                     fontSize = 13.sp,
                                     modifier = Modifier.padding(top = 4.dp)
                                 )
+                                Spacer(modifier = Modifier.height(4.dp))
+                                Text(
+                                    text = if (lang == "RU") "ОТВЕТИТЬ ➔" else "REPLY ➔",
+                                    color = TextGray,
+                                    fontSize = 9.sp,
+                                    fontFamily = FontFamily.Monospace,
+                                    fontWeight = FontWeight.Bold,
+                                    modifier = Modifier
+                                        .clickable {
+                                            replyToCommentId = comment.id
+                                            replyToAuthorName = commenter?.username ?: "Agent"
+                                        }
+                                        .padding(vertical = 4.dp, horizontal = 2.dp)
+                                )
                             }
                         }
                     }
                 }
+            }
+
+            // Replying indicator banner
+            if (replyToCommentId != null && replyToAuthorName != null) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(DeepGray)
+                        .padding(horizontal = 12.dp, vertical = 8.dp)
+                        .border(1.dp, BorderGray, RoundedCornerShape(4.dp)),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = if (lang == "RU") "Ответ пользователю @$replyToAuthorName" else "Replying to @$replyToAuthorName",
+                        color = AlertYellow,
+                        fontSize = 11.sp,
+                        fontFamily = FontFamily.Monospace
+                    )
+                    Text(
+                        text = "[ ОТМЕНА / CANCEL ]",
+                        color = AlertRed,
+                        fontSize = 10.sp,
+                        fontFamily = FontFamily.Monospace,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.clickable {
+                            replyToCommentId = null
+                            replyToAuthorName = null
+                        }
+                    )
+                }
+                Spacer(modifier = Modifier.height(4.dp))
             }
 
             Divider(color = BorderGray, thickness = 1.dp)
@@ -904,8 +966,15 @@ fun CommentsBottomSheet(
                 IconButton(
                     onClick = {
                         if (commentText.isNotBlank()) {
-                            viewModel.submitCommentToPost(post.id, commentText)
+                            viewModel.submitCommentToPost(
+                                postId = post.id,
+                                content = commentText,
+                                replyToCommentId = replyToCommentId,
+                                replyToAuthorName = replyToAuthorName
+                            )
                             commentText = ""
+                            replyToCommentId = null
+                            replyToAuthorName = null
                         }
                     },
                     modifier = Modifier

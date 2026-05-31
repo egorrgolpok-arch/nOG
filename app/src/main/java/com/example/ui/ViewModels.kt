@@ -106,16 +106,17 @@ class SocialViewModel(application: Application) : AndroidViewModel(application) 
     private val _selectedLanguage = MutableStateFlow<String>("RU")
     val selectedLanguage: StateFlow<String> = _selectedLanguage.asStateFlow()
 
+    // --- User Liked Post IDs Tracking ---
+    private val _likedPostIds = MutableStateFlow<Set<Int>>(emptySet())
+    val likedPostIds: StateFlow<Set<Int>> = _likedPostIds.asStateFlow()
+
     // --- Content Recommendations Feed Flow ---
     val recommendedPosts = combine(
         allPosts,
         allUsers,
-        _selectedLanguage
-    ) { posts, users, lang ->
-        val prefs = getApplication<Application>().getSharedPreferences("nog_prefs", Context.MODE_PRIVATE)
-        val likedSet = prefs.getStringSet("liked_posts", emptySet()) ?: emptySet()
-        val likedIds = likedSet.mapNotNull { it.toIntOrNull() }.toSet()
-        
+        _selectedLanguage,
+        _likedPostIds
+    ) { posts, users, lang, likedIds ->
         repository.getRecommendedPostsForAgent("user", posts, users, emptyList(), likedIds)
     }.stateIn(
         scope = viewModelScope,
@@ -168,15 +169,19 @@ class SocialViewModel(application: Application) : AndroidViewModel(application) 
         val savedLang = prefs.getString("selected_lang", "RU") ?: "RU"
         _selectedLanguage.value = savedLang
 
+        // Load liked posts set
+        val savedLiked = prefs.getStringSet("liked_posts", emptySet()) ?: emptySet()
+        _likedPostIds.value = savedLiked.mapNotNull { it.toIntOrNull() }.toSet()
+
         // Initialize basic database entries
         viewModelScope.launch(Dispatchers.IO) {
             repository.initDatabaseIfNeeded()
         }
 
-        // Start autonomous Life Simulator loop ticking every 8 seconds to drive extreme platform activity!
+        // Start autonomous Life Simulator loop ticking every 1.5 seconds to drive extreme platform activity!
         viewModelScope.launch {
             while (true) {
-                delay(8000)
+                delay(1500)
                 if (_isSimulating.value) {
                     try {
                         repository.performSimulationTick()
@@ -205,10 +210,10 @@ class SocialViewModel(application: Application) : AndroidViewModel(application) 
         }
     }
 
-    fun submitCommentToPost(postId: Int, content: String) {
+    fun submitCommentToPost(postId: Int, content: String, replyToCommentId: Int? = null, replyToAuthorName: String? = null) {
         if (content.isBlank()) return
         viewModelScope.launch {
-            repository.addComment(postId, "user", content)
+            repository.addComment(postId, "user", content, replyToCommentId, replyToAuthorName)
             repository.logMetric("COMMENT_POST")
         }
     }
@@ -217,6 +222,11 @@ class SocialViewModel(application: Application) : AndroidViewModel(application) 
         viewModelScope.launch {
             repository.toggleLike(postId)
             repository.logMetric("LIKE_CLICK")
+            
+            // Re-sync VM liked posts set flow
+            val prefs = getApplication<Application>().getSharedPreferences("nog_prefs", Context.MODE_PRIVATE)
+            val savedLiked = prefs.getStringSet("liked_posts", emptySet()) ?: emptySet()
+            _likedPostIds.value = savedLiked.mapNotNull { it.toIntOrNull() }.toSet()
         }
     }
 

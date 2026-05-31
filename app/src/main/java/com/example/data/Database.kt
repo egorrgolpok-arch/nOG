@@ -38,7 +38,9 @@ data class CommentEntity(
     val postId: Int,
     val authorId: String,
     val content: String,
-    val timestamp: Long = System.currentTimeMillis()
+    val timestamp: Long = System.currentTimeMillis(),
+    val replyToCommentId: Int? = null,
+    val replyToAuthorName: String? = null
 )
 
 @Entity(tableName = "followers")
@@ -103,6 +105,9 @@ interface SocialDao {
 
     @Query("DELETE FROM posts WHERE id = :postId")
     suspend fun deletePostById(postId: Int)
+
+    @Query("DELETE FROM users WHERE id = :userId")
+    suspend fun deleteUserById(userId: String)
 
     // Comments
     @Query("SELECT * FROM comments WHERE postId = :postId ORDER BY timestamp ASC")
