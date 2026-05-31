@@ -220,7 +220,7 @@ fun ProfileScreen(
                                         .padding(16.dp)
                                 ) {
                                     Text(
-                                        text = if (lang == "RU") "посетите nOG.net" else "visit nOG.net",
+                                        text = if (lang == "RU") "Посетите nOG shop и по возможности купите хотя бы 1 вещ" else "Visit nOG shop and if possible buy at least 1 item",
                                         color = StarkWhite,
                                         fontSize = 12.sp,
                                         textAlign = TextAlign.Center,
@@ -228,7 +228,7 @@ fun ProfileScreen(
                                     )
                                     Spacer(modifier = Modifier.height(8.dp))
                                     Text(
-                                        text = "https://nog.net",
+                                        text = "https://nog1.tilda.ws/nogshop",
                                         color = PureWhite,
                                         fontWeight = FontWeight.Bold,
                                         fontSize = 14.sp,
@@ -236,7 +236,7 @@ fun ProfileScreen(
                                         modifier = Modifier
                                             .fillMaxWidth()
                                             .clickable {
-                                                val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://nog.net"))
+                                                val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://nog1.tilda.ws/nogshop"))
                                                 context.startActivity(intent)
                                                 viewModel.verifyUser()
                                                 showVerificationSheet = false

@@ -233,35 +233,34 @@ fun FeedScreen(
                     }
                 }
                 
-                if (currentUser?.isVerified == true) {
-                    Spacer(modifier = Modifier.height(8.dp))
-                    val catList = listOf("Игры", "Новости", "Политика", "Мемы", "Спорт", "Щит пост", "Разное")
-                    androidx.compose.foundation.lazy.LazyRow(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        item {
-                            FilterChip(
-                                selected = selectedCategory == null,
-                                onClick = { viewModel.selectedCategory.value = null },
-                                label = { Text("Все", fontFamily = FontFamily.Monospace) },
-                                colors = androidx.compose.material3.FilterChipDefaults.filterChipColors(
-                                    selectedContainerColor = PureWhite,
-                                    selectedLabelColor = PureBlack
-                                )
+                // Categories Filter Bar (Shown to all users for better navigation)
+                Spacer(modifier = Modifier.height(8.dp))
+                val catList = listOf("Игры", "Новости", "Политика", "Мемы", "Спорт", "Щит пост", "Разное")
+                androidx.compose.foundation.lazy.LazyRow(
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    item {
+                        FilterChip(
+                            selected = selectedCategory == null,
+                            onClick = { viewModel.selectCategory(null) },
+                            label = { Text("Все", fontFamily = FontFamily.Monospace) },
+                            colors = androidx.compose.material3.FilterChipDefaults.filterChipColors(
+                                selectedContainerColor = PureWhite,
+                                selectedLabelColor = PureBlack
                             )
-                        }
-                        items(catList) { cat ->
-                            FilterChip(
-                                selected = selectedCategory == cat,
-                                onClick = { viewModel.selectedCategory.value = cat },
-                                label = { Text(cat, fontFamily = FontFamily.Monospace) },
-                                colors = androidx.compose.material3.FilterChipDefaults.filterChipColors(
-                                    selectedContainerColor = PureWhite,
-                                    selectedLabelColor = PureBlack
-                                )
+                        )
+                    }
+                    items(catList) { cat ->
+                        FilterChip(
+                            selected = selectedCategory == cat,
+                            onClick = { viewModel.selectCategory(cat) },
+                            label = { Text(cat, fontFamily = FontFamily.Monospace) },
+                            colors = androidx.compose.material3.FilterChipDefaults.filterChipColors(
+                                selectedContainerColor = PureWhite,
+                                selectedLabelColor = PureBlack
                             )
-                        }
+                        )
                     }
                 }
                 
@@ -764,7 +763,9 @@ fun PostItem(
                             model = post.mediaUrl,
                             contentDescription = if (lang == "RU") "Вложение" else "Attachment",
                             modifier = Modifier.fillMaxSize(),
-                            contentScale = ContentScale.Crop
+                            contentScale = ContentScale.Crop,
+                            placeholder = androidx.compose.ui.res.painterResource(id = android.R.drawable.presence_video_online),
+                            error = androidx.compose.ui.res.painterResource(id = android.R.drawable.ic_dialog_alert)
                         )
                     }
                 }

@@ -219,12 +219,34 @@ class SocialViewModel(application: Application) : AndroidViewModel(application) 
         // Start autonomous Life Simulator loop ticking every 1.5 seconds to drive extreme platform activity!
         viewModelScope.launch {
             while (true) {
-                delay(1500)
+                delay(1200) // Slightly faster tick for posts/follows
                 if (_isSimulating.value) {
                     try {
                         repository.performSimulationTick()
                     } catch (e: Exception) {
                         Log.e(TAG, "Failed simulation tick", e)
+                    }
+                }
+            }
+        }
+
+        // Secondary Fast-Tick for Likes/Comments to maximize engagement feel
+        viewModelScope.launch {
+            while (true) {
+                delay(500) // Rapid engagement tick
+                if (_isSimulating.value) {
+                    try {
+                        val posts = allRawPosts.value
+                        val bots = allUsers.value.filter { it.isAi }
+                        if (posts.isNotEmpty() && bots.isNotEmpty()) {
+                            val targetPost = posts.take(20).random()
+                            val randomBot = bots.random()
+                            if (Random.nextInt(100) < 45) {
+                                repository.toggleLike(targetPost.id, randomBot.id)
+                            }
+                        }
+                    } catch (e: Exception) {
+                        Log.e(TAG, "Failed rapid tick", e)
                     }
                 }
             }
@@ -397,6 +419,8 @@ class SocialViewModel(application: Application) : AndroidViewModel(application) 
         if (query.isBlank()) return
         searchQuery.value = query
         searchLoading.value = true
+        selectedCategory.value = null // Reset category to show search results properly
+        _currentScreen.value = Screen.Feed // Ensure we are on feed
         viewModelScope.launch {
             try {
                 repository.compileSearchAiPosts(query)
@@ -409,8 +433,15 @@ class SocialViewModel(application: Application) : AndroidViewModel(application) 
         }
     }
 
+    fun selectCategory(category: String?) {
+        searchQuery.value = "" // Clear search when selecting category
+        selectedCategory.value = category
+        _currentScreen.value = Screen.Feed
+    }
+
     fun clearSearch() {
         searchQuery.value = ""
+        selectedCategory.value = null // Also reset category when clearing search for broad view
     }
 
     private fun logNotificationReadForPost(postId: Int) {

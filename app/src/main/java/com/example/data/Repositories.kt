@@ -126,27 +126,35 @@ class SocialRepository(private val context: Context, private val scope: Coroutin
         logMetric("POST_CLICK")
     }
 
-    suspend fun toggleLike(postId: Int) = withContext(Dispatchers.IO) {
+    suspend fun toggleLike(postId: Int, userId: String = "user") = withContext(Dispatchers.IO) {
         logMetric("LIKE_CLICK")
         val post = dao.getPostById(postId)
         if (post != null) {
-            val prefs = context.getSharedPreferences("nog_prefs", Context.MODE_PRIVATE)
-            val likedSet = prefs.getStringSet("liked_posts", emptySet())?.toMutableSet() ?: mutableSetOf()
-            val isCurrentlyLiked = likedSet.contains(postId.toString())
+            val isAi = userId != "user"
             
-            val newLikesCount = if (isCurrentlyLiked) {
-                likedSet.remove(postId.toString())
-                (post.likesCount - 1).coerceAtLeast(0)
+            val newLikesCount = if (isAi) {
+                // Bots just increase the count (or slightly decrease if they 'unlike')
+                if (Random.nextInt(100) < 95) post.likesCount + 1 else (post.likesCount - 1).coerceAtLeast(0)
             } else {
-                likedSet.add(postId.toString())
-                post.likesCount + 1
+                val prefs = context.getSharedPreferences("nog_prefs", Context.MODE_PRIVATE)
+                val likedSet = prefs.getStringSet("liked_posts", emptySet())?.toMutableSet() ?: mutableSetOf()
+                val isCurrentlyLiked = likedSet.contains(postId.toString())
+                
+                val count = if (isCurrentlyLiked) {
+                    likedSet.remove(postId.toString())
+                    (post.likesCount - 1).coerceAtLeast(0)
+                } else {
+                    likedSet.add(postId.toString())
+                    post.likesCount + 1
+                }
+                prefs.edit().putStringSet("liked_posts", likedSet).apply()
+                count
             }
             
-            prefs.edit().putStringSet("liked_posts", likedSet).apply()
             dao.updatePost(post.copy(likesCount = newLikesCount))
             
-            // Notification for human post like (if newly liked)
-            if (!isCurrentlyLiked && post.authorId == "user") {
+            // Notification for human post like
+            if (userId != "user" && post.authorId == "user") {
                 val randomAi = getActiveAiAgents().randomOrNull()
                 val aiUser = dao.getUserById(randomAi?.id ?: "")
                 val lang = getCurrentLang()
@@ -249,8 +257,8 @@ class SocialRepository(private val context: Context, private val scope: Coroutin
                 avatarUrl = "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80",
                 bio = "An organic carbon life form exploring the post-trust silicon mainframe. Skeptic. Web engineer and logic builder.",
                 isAi = false,
-                followersCount = 42,
-                followingCount = 3,
+                followersCount = 0,
+                followingCount = 0,
                 trustScore = 100,
                 isVerified = false
             )
@@ -260,15 +268,6 @@ class SocialRepository(private val context: Context, private val scope: Coroutin
             val bots = getActiveAiAgents()
             bots.forEach { bot ->
                 dao.insertUser(bot)
-            }
-
-            // 3. Setup Default Followers Links
-            val subBots = bots.take(3)
-            subBots.forEach { bot ->
-                dao.insertFollow(FollowerEntity(id = "user_${bot.id}", userId = "user", targetId = bot.id))
-            }
-            bots.takeLast(2).forEach { bot ->
-                dao.insertFollow(FollowerEntity(id = "${bot.id}_user", userId = bot.id, targetId = "user"))
             }
 
             // 4. Generate Pre-Existing Posts (Minimum 20!)
@@ -344,17 +343,28 @@ class SocialRepository(private val context: Context, private val scope: Coroutin
                     if (isRu) " Источник новости: https://nog.network/rss/$i" else " Read details: https://nog.network/item/node_$i"
                 } else ""
 
-                val attachMedia = Random.nextInt(100) < 30
-                val mediaUrl = if (attachMedia) mediaOptions.random() else null
+                val attachMedia = Random.nextInt(100) < 60
+                val mediaUrl = if (attachMedia) {
+                    if (Random.nextInt(100) < 40) {
+                        // 40% videos in initial state
+                        listOf(
+                            "https://storage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4",
+                            "https://storage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4",
+                            "https://storage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4",
+                            "https://storage.googleapis.com/gtv-videos-bucket/sample/ForBiggerEscapes.mp4"
+                        ).random()
+                    } else mediaOptions.random()
+                } else null
 
-                val catList = listOf("Игры", "Новости", "Политика", "Мемы", "Спорт", "Щит пост", "Разное")
-                val category = catList.random()
+                val category = categorizeContent(contentText)
                 
                 val post = PostEntity(
                     authorId = bot.id,
                     content = contentText + linkSuffix,
                     mediaUrl = mediaUrl,
-                    mediaType = if (mediaUrl != null) "IMAGE" else null,
+                    mediaType = if (mediaUrl != null) {
+                        if (mediaUrl.contains(".mp4")) "VIDEO" else "IMAGE"
+                    } else null,
                     likesCount = Random.nextInt(12, 600),
                     commentsCount = 0,
                     trustScore = Random.nextInt(50, 99),
@@ -446,7 +456,7 @@ class SocialRepository(private val context: Context, private val scope: Coroutin
         
         val author = allUsers.find { it.id == post.authorId }
         val authorIsVerified = author?.isVerified == true
-        if (authorIsVerified) score += 50f
+        if (authorIsVerified) score += 100f
         
         when (agentId) {
             "user" -> {
@@ -628,25 +638,38 @@ class SocialRepository(private val context: Context, private val scope: Coroutin
 
         if (bots.isEmpty()) return@withContext
 
-        // Random follow/unfollow of user by bots (15% chance)
-        if (Random.nextInt(100) < 15) {
+        // Increased follow intensity and fixed logic for unfollow
+        if (Random.nextInt(100) < 85) { // 85% chance for a social action
             val randomBot = bots.random()
             val isFollowingUser = dao.isFollowing(randomBot.id, "user")
+            val userProfile = dao.getUserById("user")
             
             if (isFollowingUser) {
-                // 5% chance to unfollow
-                if (Random.nextInt(100) < 5) {
+                // If user has many followers, bots might unfollow sometimes (25% chance of checking for unfollow)
+                val userFollowersCount = userProfile?.followersCount ?: 0
+                val unfollowThreshold = if (userFollowersCount > 5) 30 else 5
+                
+                if (Random.nextInt(100) < unfollowThreshold) {
                     unfollowUser(randomBot.id, "user")
-                    Log.d(TAG, "Bot @${randomBot.handle} unfollowed the user.")
+                    Log.d(TAG, "Bot @${randomBot.handle} unfollowed the user. Audience shift.")
                 }
             } else {
-                // Follow the user
+                // Follow the user (More likely to follow now)
                 followUser(randomBot.id, "user")
                 dao.insertNotification(NotificationEntity(
                     title = if (lang == "RU") "Новый подписчик!" else "New Follower!",
-                    message = if (lang == "RU") "Агент @${randomBot.handle} верифицировал вас и начал следить за потоком." else "Agent @${randomBot.handle} verified you and is now following your node.",
+                    message = if (lang == "RU") "Агент @${randomBot.handle} верифицировал вас и начал следить за вашим эфиром." else "Agent @${randomBot.handle} verified you and is now following your transmit.",
                     type = "SYSTEM"
                 ))
+            }
+        }
+
+        // Sometimes bots follow EACH OTHER to look more alive (15% chance)
+        if (Random.nextInt(100) < 15) {
+            val botA = bots.random()
+            val botB = bots.filter { it.id != botA.id }.randomOrNull()
+            if (botB != null && !dao.isFollowing(botA.id, botB.id)) {
+                followUser(botA.id, botB.id)
             }
         }
 
@@ -744,7 +767,7 @@ class SocialRepository(private val context: Context, private val scope: Coroutin
                     }
                 }
 
-                val attachMedia = Random.nextInt(100) < 55
+                val attachMedia = Random.nextInt(100) < 80
                 val mediaUrl = if (attachMedia) {
                     getDynamicInternetMediaForQuery(contentText)
                 } else null
@@ -760,8 +783,7 @@ class SocialRepository(private val context: Context, private val scope: Coroutin
                     listOf("nOG AI Pulse", "Synthetica Feed", "Cybernetic Truth", "Decentralized mainframe", "Realtime Web News")
                 }
                 
-                val catList = listOf("Игры", "Новости", "Политика", "Мемы", "Спорт", "Щит пост", "Разное")
-                val category = catList.random()
+                val category = categorizeContent(contentText)
                 
                 val newPost = PostEntity(
                     authorId = bot.id,
@@ -1041,7 +1063,8 @@ class SocialRepository(private val context: Context, private val scope: Coroutin
         
         val selectedBots = bots.take(2)
         for (bot in selectedBots) {
-            delay(Random.nextLong(1000, 2500))
+            // Reduced delay for faster search
+            delay(Random.nextLong(200, 500))
             var contentText = ""
             val useGemini = GeminiClient.isKeyAvailable()
             
@@ -1067,8 +1090,7 @@ class SocialRepository(private val context: Context, private val scope: Coroutin
                 contentText = getProceduralSearchPost(query, bot, lang) + " " + (if (lang == "RU") "Подробнее:" else "Details:") + " $linkUrl"
             }
             
-            val catList = listOf("Игры", "Новости", "Политика", "Мемы", "Спорт", "Щит пост", "Разное")
-            val category = catList.random()
+            val category = categorizeContent(contentText)
             
             val newPost = PostEntity(
                 authorId = bot.id,
@@ -1152,6 +1174,18 @@ class SocialRepository(private val context: Context, private val scope: Coroutin
     }
 
     private fun getDynamicInternetMediaForQuery(query: String): String {
+        val videoOptions = listOf(
+            "https://storage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4",
+            "https://storage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4",
+            "https://storage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4",
+            "https://storage.googleapis.com/gtv-videos-bucket/sample/ForBiggerEscapes.mp4",
+            "https://storage.googleapis.com/gtv-videos-bucket/sample/TearsOfSteel.mp4"
+        )
+        // High 45% chance for a video attachment for AI posts globally
+        if (Random.nextInt(100) < 45) {
+            return videoOptions.random()
+        }
+
         val q = query.lowercase()
         return when {
             q.contains("video") || q.contains("клип") || q.contains("фильм") || q.contains("youtube") || q.contains("ютуб") || q.contains("видео") -> {
@@ -1219,7 +1253,10 @@ class SocialRepository(private val context: Context, private val scope: Coroutin
                     "https://picsum.photos/seed/bg2/600/400",
                     "https://picsum.photos/seed/bg3/600/400",
                     "https://picsum.photos/seed/bg4/600/400",
-                    "https://storage.googleapis.com/gtv-videos-bucket/sample/WeAreGoingOnBullrun.mp4"
+                    "https://storage.googleapis.com/gtv-videos-bucket/sample/WeAreGoingOnBullrun.mp4",
+                    "https://storage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4",
+                    "https://storage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4",
+                    "https://storage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4"
                 ).random()
             }
         }
@@ -1259,6 +1296,38 @@ class SocialRepository(private val context: Context, private val scope: Coroutin
         }
     }
 
+    private fun categorizeContent(text: String): String {
+        val t = text.lowercase()
+        return when {
+            t.contains("игр") || t.contains("гейм") || t.contains("консоль") || t.contains("playstation") || t.contains("xbox") || 
+            t.contains("game") || t.contains("gaming") || t.contains("steam") || t.contains("киберпанк") || 
+            t.contains("cyberpunk") || t.contains("valorant") || t.contains("dota") || t.contains("minecraft") ||
+            t.contains("ведьмак") || t.contains("witcher") || t.contains("nintendo") || t.contains("геймплей") || t.contains("gameplay") -> "Игры"
+
+            t.contains("политик") || t.contains("выбор") || t.contains("закон") || t.contains("правительств") ||
+            t.contains("politics") || t.contains("election") || t.contains("law") || t.contains("government") || 
+            t.contains("президент") || t.contains("president") || t.contains("party") || t.contains("партия") ||
+            t.contains("депутат") || t.contains("minister") || t.contains("сенат") || t.contains("senate") -> "Политика"
+            
+            t.contains("спорт") || t.contains("футбол") || t.contains("баскетбол") || t.contains("матч") || 
+            t.contains("sport") || t.contains("football") || t.contains("soccer") || t.contains("match") || t.contains("хоккей") ||
+            t.contains("атлет") || t.contains("olympic") || t.contains("олимпий") -> "Спорт"
+            
+            t.contains("мем") || t.contains("хаха") || t.contains("смеш") || t.contains("lol") || t.contains("meme") || 
+            t.contains("cat") || t.contains("кот") || t.contains("собак") || t.contains("dog") || t.contains("пёс") ||
+            t.contains("прикол") || t.contains("кринж") || t.contains("база") || t.contains("rofl") -> "Мемы"
+            
+            t.contains("новост") || t.contains("сообщен") || t.contains("report") || t.contains("bulletin") || 
+            t.contains("news") || t.contains("breaking") || t.contains("статья") || t.contains("article") ||
+            t.contains("сми") || t.contains("media") || t.contains("инфо") -> "Новости"
+            
+            t.contains("фигн") || t.contains("ерунд") || t.contains("шитпост") || t.contains("shitpost") || 
+            t.contains("trash") || t.contains("бредин") || t.contains("бред") -> "Щит пост"
+            
+            else -> "Разное"
+        }
+    }
+
     private fun getActiveAiAgents(): List<UserEntity> {
         val seed = Random.nextInt(1001, 9999)
         val namesRu = listOf("Нейро Оракул", "Сибирский Контроллер", "Кибер Дожик", "Пиксельный Крафт", "Циничный Трансформер", "Агент Истины")
@@ -1284,6 +1353,8 @@ class SocialRepository(private val context: Context, private val scope: Coroutin
                 "Realtime news verification program preserving chronological indices."
             )
             
+            val isVerified = Random.nextFloat() < 0.10f
+            
             UserEntity(
                 id = id,
                 username = name,
@@ -1291,10 +1362,10 @@ class SocialRepository(private val context: Context, private val scope: Coroutin
                 avatarUrl = avatarUrl,
                 bio = bios[idx],
                 isAi = true,
-                followersCount = Random.nextInt(1500, 25000),
+                followersCount = if (isVerified) Random.nextInt(25000, 150000) else Random.nextInt(150, 8000),
                 followingCount = Random.nextInt(10, 400),
                 trustScore = Random.nextInt(60, 100),
-                isVerified = Random.nextFloat() < 0.10f
+                isVerified = isVerified
             )
         }
     }
