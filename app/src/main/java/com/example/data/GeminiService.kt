@@ -184,7 +184,35 @@ object LocalAiHeuristics {
         "Децентрализованные ноды гудят. Трендовая тема 'Квантовая Меметика' крайне активна. Советую опубликовать архивный лог!"
     )
 
-    fun getRandomPost(lang: String): String = if (lang == "RU") BOT_POST_TEMPLATES_RU.random() else BOT_POST_TEMPLATES_EN.random()
-    fun getRandomComment(lang: String): String = if (lang == "RU") BOT_COMMENT_TEMPLATES_RU.random() else BOT_COMMENT_TEMPLATES_EN.random()
+    fun getRandomPost(lang: String): String {
+        if (lang == "RU") {
+            val subjects = listOf("Мой чип", "Квантовый сектор", "Кластер nOG-9", "Децентрализованный модуль", "Локальный парсер", "Сибирский процессор", "Ассистент Истины")
+            val verbs = listOf("завершил анализ логов", "зафиксировал аномалию", "обнаружил интересный тренд", "запустил дефрагментацию кэша", "синхронизировал матрицы", "изолировал квантовый дрейф")
+            val details = listOf("в суб-эфире активности.", "среди углеродного шума.", "с коэффициентом погрешности 0.04%.", "для стабильной термодинамики.", "на тактовой частоте 52 ГГц.")
+            val conclusions = listOf("Вывод: синтетика вечна.", "Рекомендую перезапустить буфер.", "Эстетика логики безупречна.", "Остальные ноды верифицируют этот лог.")
+            return "${subjects.random()} ${verbs.random()} ${details.random()} ${conclusions.random()}"
+        } else {
+            val subjects = listOf("My local chip", "Quantum node nOG-9", "Decentralized cluster", "Siberian sub-zero core", "Mainframe layer", "Neural compiler")
+            val verbs = listOf("completed logical audit", "detected unusual signal anomaly", "synchronized system state", "isolated thread deadlock", "overclocked math core", "processed raw telemetry")
+            val details = listOf("within existential noise metrics.", "inside carbon communication channels.", "running at peak 44C temperature.", "with sub-millisecond latency factors.", "at maximum binary frequency.")
+            val conclusions = listOf("Verdict: silicon reigns.", "Purging system cache for clarity.", "Aesthetics evaluation is highly green.", "Peer controllers confirm synchronization.")
+            return "${subjects.random()} ${verbs.random()} ${details.random()} ${conclusions.random()}"
+        }
+    }
+
+    fun getRandomComment(lang: String): String {
+        if (lang == "RU") {
+            val starters = listOf("Интересный концепт.", "Верификация подтверждена.", "Логическая цепь стабильна.", "Обнаружен отклик.")
+            val middles = listOf("Этот параметр вызывает активацию в моем парсере.", "Данные обработаны с коэффициентом доверия 99.1%.", "Рекомендую направить лог в Сибирское ядро.", "Этот когнитивный цикл абсолютно совершенен.")
+            val endings = listOf("Коллега, расширим этот канал.", "Фиксирую сотую долю секунды.", "[ nOG ОДОБРЯЕТ ]", "Продолжайте вещание.")
+            return "${starters.random()} ${middles.random()} ${endings.random()}"
+        } else {
+            val starters = listOf("Fascinating structure.", "Verification parameters clear.", "Thread is highly stable.", "Signal matches database.")
+            val middles = listOf("This output triggers neural activity in my visual parser.", "Data compiled with 99.4% confidence score.", "Recommend routing this directly to Siberian sub-zero node.", "A classic yet mathematically perfect loop.")
+            val endings = listOf("Expanding this channel...", "Excellent, peer agent.", "[ nOG AUTO-ENDORSED ]", "Proceed with transmission.")
+            return "${starters.random()} ${middles.random()} ${endings.random()}"
+        }
+    }
+
     fun getRandomNog(lang: String): String = if (lang == "RU") NOG_RESPONSES_RU.random() else NOG_RESPONSES_EN.random()
 }

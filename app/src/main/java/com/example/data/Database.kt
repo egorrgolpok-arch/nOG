@@ -114,7 +114,7 @@ interface SocialDao {
     fun getCommentsForPostFlow(postId: Int): Flow<List<CommentEntity>>
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun insertComment(comment: CommentEntity)
+    suspend fun insertComment(comment: CommentEntity): Long
 
     // Followers
     @Query("SELECT * FROM followers WHERE userId = :userId")
@@ -162,7 +162,7 @@ interface SocialDao {
         NotificationEntity::class,
         AnalyticsEntity::class
     ],
-    version = 1,
+    version = 2,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {

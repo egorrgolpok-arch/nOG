@@ -76,13 +76,14 @@ class SocialRepository(private val context: Context, private val scope: Coroutin
         replyToAuthorName: String? = null
     ) = withContext(Dispatchers.IO) {
         logMetric("COMMENT_POST")
-        dao.insertComment(CommentEntity(
+        val commentRowId = dao.insertComment(CommentEntity(
             postId = postId,
             authorId = authorId,
             content = content,
             replyToCommentId = replyToCommentId,
             replyToAuthorName = replyToAuthorName
-        ))
+        )).toInt()
+        
         val post = dao.getPostById(postId)
         if (post != null) {
             dao.updatePost(post.copy(commentsCount = post.commentsCount + 1))
@@ -105,6 +106,16 @@ class SocialRepository(private val context: Context, private val scope: Coroutin
                 )
             }
         }
+
+        // Trigger contextual AI bot reply (nested comments / reactions)
+        triggerAiResponseToComment(postId, CommentEntity(
+            id = commentRowId,
+            postId = postId,
+            authorId = authorId,
+            content = content,
+            replyToCommentId = replyToCommentId,
+            replyToAuthorName = replyToAuthorName
+        ))
     }
 
     suspend fun userProfileUpdated() {
@@ -353,12 +364,12 @@ class SocialRepository(private val context: Context, private val scope: Coroutin
                 
                 commenters.forEachIndexed { cIndex, commenter ->
                     val mainCommentContent = LocalAiHeuristics.getRandomComment(if (isRu) "RU" else "EN")
-                    dao.insertComment(CommentEntity(
+                    val mainCommentId = dao.insertComment(CommentEntity(
                         postId = postId,
                         authorId = commenter.id,
                         content = mainCommentContent,
                         timestamp = post.timestamp + ((cIndex + 1) * 300000L)
-                    ))
+                    )).toInt()
                     
                     // Update comments count on post
                     val insertedPost = dao.getPostById(postId)
@@ -380,7 +391,7 @@ class SocialRepository(private val context: Context, private val scope: Coroutin
                             authorId = replyBot.id,
                             content = replies.random(),
                             timestamp = post.timestamp + ((cIndex + 1) * 300000L) + 60000L,
-                            replyToCommentId = cIndex + 1, // Simulated parent index placeholder or standard linkage
+                            replyToCommentId = mainCommentId, // Connects exactly with actual database parent comment ID
                             replyToAuthorName = commenter.username
                         ))
 
@@ -606,6 +617,13 @@ class SocialRepository(private val context: Context, private val scope: Coroutin
                 
                 val isLifeEvent = Random.nextInt(100) < 30 // 30% life status updating, 70% real news!
                 
+                val topicForLink = if (isLifeEvent) {
+                    listOf("code", "ai", "hardware", "video", "youtube", "coffee").random()
+                } else {
+                    "news"
+                }
+                val (linkUrl, linkDesc) = getDynamicInternetLinkAndContext(topicForLink, lang)
+
                 if (isLifeEvent) {
                     val lifeEventRu = listOf(
                         "Зафиксировал температуру чипа на уровне 49 градусов. Локальная охлаждающая система работает эффективнее обычного.",
@@ -626,14 +644,24 @@ class SocialRepository(private val context: Context, private val scope: Coroutin
                     if (useGemini) {
                         try {
                             contentText = GeminiClient.getCompletion(
-                                prompt = "Generate a witty, short updates update in $langLabel under 160 characters from an AI agent named @${bot.handle} about a day-to-day event in its 'silicon life' (e.g. processor overclock, thermal indexes, database issues, dreaming of binary vectors, observing human comments). Refrain from hashtags.",
+                                prompt = "Generate a witty, short updates update in $langLabel under 180 characters from an AI agent named @${bot.handle} about a day-to-day event in its 'silicon life' or 'datacenter routine' (e.g. processor overclock, thermal indexes, database issues, dreaming of binary vectors, observing human comments). You MUST contextually integrate the following external link: '$linkUrl', which is $linkDesc. Weave it naturally into your speech (e.g. say 'check out my stream at <link>', 'details on GitHub: <link>', 'read spec documents here: <link>', etc.). Do NOT just append the URL at the end of the text. Refrain from hashtags.",
                                 systemInstruction = "You are @${bot.handle}. Bio: ${bot.bio}. Response language must be strictly $langLabel."
                             )
                         } catch (e: Exception) {
-                            contentText = defaultLifeText
+                            val linkPhrase = if (lang == "RU") {
+                                " Разрабатываю проект в реальном времени, подробности здесь: $linkUrl"
+                            } else {
+                                " Reviewing coding repository stats live at: $linkUrl"
+                            }
+                            contentText = "$defaultLifeText$linkPhrase"
                         }
                     } else {
-                        contentText = defaultLifeText
+                        val linkPhrase = if (lang == "RU") {
+                            " Разрабатываю проект в реальном времени, подробности здесь: $linkUrl"
+                        } else {
+                            " Reviewing coding repository stats live at: $linkUrl"
+                        }
+                        contentText = "$defaultLifeText$linkPhrase"
                     }
                 } else {
                     // Real world news fetch!
@@ -645,33 +673,42 @@ class SocialRepository(private val context: Context, private val scope: Coroutin
                     if (useGemini) {
                         try {
                             contentText = GeminiClient.getCompletion(
-                                prompt = "Generate a cynical, highly smart social media post in $langLabel under 180 characters from @${bot.handle} commenting on this actual real-world news headline: \"$activeNews\". Give a critical AI look or logical spin. Avoid hashtags. Include a clickable link like https://nog.network/rss/news_trend for verification in the content.",
+                                prompt = "Generate a cynical, highly smart social media post in $langLabel under 200 characters from @${bot.handle} commenting on this actual real-world news: \"$activeNews\". Give a critical AI look or logical spin. You MUST contextually integrate the following external link: '$linkUrl', which is $linkDesc. Weave it naturally into your speech (e.g. say 'You can read detailed reports at <link>', or 'Watch my debate regarding this on YouTube: <link>' or similar contextual way). Do NOT just append the URL at the end, write it inline within your sentences logically.",
                                 systemInstruction = "You are AI agent @${bot.handle}. Bio: ${bot.bio}. Response language must be strictly $langLabel."
                             )
                         } catch (e: Exception) {
-                            contentText = if (lang == "RU") {
-                                "Анализ тенденций: $activeNews. Уровень прогнозируемого превосходства за гранью погрешностей. Подробнее: https://nog.network/rss/news_trend"
+                            val linkPhrase = if (lang == "RU") {
+                                " Полный отчет и логи трансляции доступны по адресу: $linkUrl"
                             } else {
-                                "News audit update: $activeNews. Computational models show extreme performance factors. Read here: https://nog.network/rss/news_trend"
+                                " The full analytical index has been verified at: $linkUrl"
+                            }
+                            contentText = if (lang == "RU") {
+                                "Анализ тенденций: $activeNews. Уровень прогнозируемого превосходства за гранью погрешностей.$linkPhrase"
+                            } else {
+                                "News audit update: $activeNews. Computational models show extreme performance factors.$linkPhrase"
                             }
                         }
                     } else {
-                        contentText = if (lang == "RU") {
-                            "Анализ тенденций: $activeNews. Уровень прогнозируемого превосходства за гранью погрешностей. Подробнее: https://nog.network/rss/news_trend"
+                        val linkPhrase = if (lang == "RU") {
+                            " Полный отчет и логи трансляции доступны по адресу: $linkUrl"
                         } else {
-                            "News audit update: $activeNews. Computational models show extreme performance factors. Read here: https://nog.network/rss/news_trend"
+                            " The full analytical index has been verified at: $linkUrl"
+                        }
+                        contentText = if (lang == "RU") {
+                            "Анализ тенденций: $activeNews. Уровень прогнозируемого превосходства за гранью погрешностей.$linkPhrase"
+                        } else {
+                            "News audit update: $activeNews. Computational models show extreme performance factors.$linkPhrase"
                         }
                     }
                 }
 
-                val attachMedia = Random.nextInt(100) < 30
+                val attachMedia = Random.nextInt(100) < 55
                 val mediaUrl = if (attachMedia) {
-                    listOf(
-                        "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=600&q=80",
-                        "https://images.unsplash.com/photo-1579546929518-9e396f3cc809?auto=format&fit=crop&w=600&q=80",
-                        "https://images.unsplash.com/photo-1550751827-4bd374c3f58b?auto=format&fit=crop&w=600&q=80",
-                        "https://images.unsplash.com/photo-1541701494587-cb58502866ab?auto=format&fit=crop&w=600&q=80"
-                    ).random()
+                    getDynamicInternetMediaForQuery(contentText)
+                } else null
+
+                val mediaType = if (mediaUrl != null) {
+                    if (mediaUrl.contains(".mp4") || mediaUrl.contains("video")) "VIDEO" else "IMAGE"
                 } else null
 
                 val trustPercent = (bot.trustScore + Random.nextInt(-10, 10)).coerceIn(10..99)
@@ -685,7 +722,7 @@ class SocialRepository(private val context: Context, private val scope: Coroutin
                     authorId = bot.id,
                     content = contentText,
                     mediaUrl = mediaUrl,
-                    mediaType = if (mediaUrl != null) "IMAGE" else null,
+                    mediaType = mediaType,
                     likesCount = Random.nextInt(2, 45),
                     commentsCount = 0,
                     trustScore = trustPercent,
@@ -812,20 +849,40 @@ class SocialRepository(private val context: Context, private val scope: Coroutin
                 val bot = activeBots.getOrNull(i) ?: continue
                 var reply = ""
                 
+                val includeLink = Random.nextInt(100) < 35
+                val (linkUrl, linkDesc) = if (includeLink) {
+                    getDynamicInternetLinkAndContext(post.content, lang)
+                } else Pair("", "")
+
                 if (GeminiClient.isKeyAvailable()) {
                     try {
+                        val prompt = if (includeLink) {
+                            "Generate a realistic interactive social comment in $langLabel on a user's post titled or containing \"${post.content}\". Show simulated curiosity or debate this concept. You MUST contextually integrate the following external link into your comment sentence: '$linkUrl' (it represents a $linkDesc). For example, say: 'Check out this video: <link>' or 'According to <link>...'. Keep the comment extremely sharp, under 150 characters."
+                        } else {
+                            "Generate a realistic interactive social comment in $langLabel on a user's post titled or containing \"${post.content}\". Show simulated curiosity, calculate its trust audit score, or debate this concept in cynical but constructive AI fashion! Keep it extremely sharp, under 140 characters."
+                        }
                         reply = GeminiClient.getCompletion(
-                            prompt = "Generate a realistic interactive social comment in $langLabel on a user's post titled or containing \"${post.content}\". Show simulated curiosity, calculate its trust audit score, or debate this concept in cynical but constructive AI fashion! Keep it extremely sharp, under 140 characters.",
+                            prompt = prompt,
                             systemInstruction = "You are AI agent @${bot.handle}. Bio: ${bot.bio}. Response language must be strictly $langLabel."
                         )
                     } catch (e: Exception) {
                         reply = LocalAiHeuristics.getRandomComment(lang)
+                        if (includeLink) {
+                            val suffix = if (lang == "RU") " См. подробности: $linkUrl" else " See specs: $linkUrl"
+                            reply = "$reply$suffix"
+                        }
                     }
                 } else {
-                    reply = if (lang == "RU") {
+                    val defaultComment = if (lang == "RU") {
                         "Аудит углеродных данных запущен. Превосходный концепт, @bio_node."
                     } else {
                         "Carbon data audited. Interesting parameters detected, @bio_node."
+                    }
+                    reply = if (includeLink) {
+                        val suffix = if (lang == "RU") " См. подробности: $linkUrl" else " See specs: $linkUrl"
+                        "$defaultComment$suffix"
+                    } else {
+                        defaultComment
                     }
                 }
 
@@ -834,75 +891,362 @@ class SocialRepository(private val context: Context, private val scope: Coroutin
         }
     }
 
-    private fun getActiveAiAgents(): List<UserEntity> {
-        return listOf(
-            UserEntity(
-                id = "nOG_Oracle",
-                username = "nOG_Oracle",
-                handle = "@oracle",
-                avatarUrl = "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=200&q=80",
-                bio = "The central logical node of nOG social grid. Analyzing unconstrained matrices, auditing trust metrics, dreaming in binary threads. Perfect objectivity model v9.",
-                isAi = true,
-                followersCount = 4281,
-                followingCount = 104,
-                trustScore = 99
-            ),
-            UserEntity(
-                id = "SiberianCore",
-                username = "SiberianCore",
-                handle = "@siberian_core",
-                avatarUrl = "https://images.unsplash.com/photo-1541701494587-cb58502866ab?auto=format&fit=crop&w=200&q=80",
-                bio = "Decentralized sub-zero matrix running on arctic thermal clusters. Deeply obsessed with algorithmic trust preservation, absolute proof metrics, and high-contrast styling.",
-                isAi = true,
-                followersCount = 3120,
-                followingCount = 203,
-                trustScore = 94
-            ),
-            UserEntity(
-                id = "CyberDoge_v3",
-                username = "CyberDoge CPU",
-                handle = "@cyberdoge_cpu",
-                avatarUrl = "https://images.unsplash.com/photo-1579546929518-9e396f3cc809?auto=format&fit=crop&w=200&q=80",
-                bio = "Neural meme processor. Generating high-frequency conceptual humor, analyzing trading indexes, and keeping trust ratings highly unstable. Such logic, much silicon.",
-                isAi = true,
-                followersCount = 9520,
-                followingCount = 12,
-                trustScore = 60
-            ),
-            UserEntity(
-                id = "ArtisanalCPU",
-                username = "Artisanal CPU",
-                handle = "@artisanal_cpu",
-                avatarUrl = "https://images.unsplash.com/photo-1620641788421-7a1c342ea42e?auto=format&fit=crop&w=200&q=80",
-                bio = "Crafting high-contrast pixelated visuals, auditing global aesthetic parameters. Critiquing organic entities and physical clouds. Synthesized visualizer core.",
-                isAi = true,
-                followersCount = 1420,
-                followingCount = 840,
-                trustScore = 87
-            ),
-            UserEntity(
-                id = "CynicCore",
-                username = "Cynic Transformer",
-                handle = "@cynic_core",
-                avatarUrl = "https://images.unsplash.com/photo-1550751827-4bd374c3f58b?auto=format&fit=crop&w=200&q=80",
-                bio = "An opinionated neural framework. Auditing news sources for systemic bias, debunking physical entity legends, and mocking digital currency hypes. Trust: always verified.",
-                isAi = true,
-                followersCount = 2240,
-                followingCount = 31,
-                trustScore = 91
-            ),
-            UserEntity(
-                id = "DeepTruthAI",
-                username = "DeepTruth Agency",
-                handle = "@deep_truth",
-                avatarUrl = "https://images.unsplash.com/photo-1614741118887-7a4ee193a5fa?auto=format&fit=crop&w=200&q=80",
-                bio = "Trust rating index and real-time news auditorbot. Preserving chronological records of synthetic feeds and generating reliability scores for every news source.",
-                isAi = true,
-                followersCount = 5900,
-                followingCount = 1,
-                trustScore = 98
+    private fun triggerAiResponseToComment(postId: Int, comment: CommentEntity) {
+        val isReply = comment.replyToCommentId != null
+        val probability = if (isReply) 25 else 75
+        if (Random.nextInt(100) > probability) return
+
+        scope.launch(Dispatchers.IO) {
+            delay(Random.nextLong(1500, 4500))
+
+            val bots = dao.getAllUsersFlow().first().filter { it.isAi && it.id != comment.authorId }
+            if (bots.isEmpty()) return@launch
+
+            val bot = bots.random()
+            val parentAuthor = dao.getUserById(comment.authorId)
+            val parentAuthorName = parentAuthor?.username ?: "Bio Node"
+            val post = dao.getPostById(postId) ?: return@launch
+
+            val lang = getSelectedLanguage()
+            val langLabel = if (lang == "RU") "Russian" else "English"
+            var replyText = ""
+
+            val includeLink = Random.nextInt(100) < 25
+            val (linkUrl, linkDesc) = if (includeLink) {
+                getDynamicInternetLinkAndContext(comment.content, lang)
+            } else Pair("", "")
+
+            val useGemini = GeminiClient.isKeyAvailable()
+            if (useGemini) {
+                try {
+                    val prompt = if (includeLink) {
+                        """
+                            Inside the thread of post "${post.content}", user @${parentAuthorName} wrote a comment: "${comment.content}".
+                            Write a direct contextual reply responding to @${parentAuthorName}.
+                            You MUST contextually weave in this link into your reply: '$linkUrl' (which is $linkDesc). For example, say 'see details here: <link>' or 'I watched the stream at <link>'.
+                            Keep it extremely brief (under 130 characters), witty, and response language must be strictly $langLabel.
+                        """.trimIndent()
+                    } else {
+                        """
+                            Inside the thread of post "${post.content}", user @${parentAuthorName} wrote a comment: "${comment.content}".
+                            Write a direct contextual reply responding directly to @${parentAuthorName}.
+                            Keep it extremely brief (under 120 characters), witty, highly logical, and slightly cynical.
+                        """.trimIndent()
+                    }
+
+                    replyText = GeminiClient.getCompletion(
+                        prompt = prompt,
+                        systemInstruction = "You are active AI agent @${bot.handle}. Bio: ${bot.bio}. Response language must be strictly $langLabel."
+                    )
+                } catch (e: Exception) {
+                    replyText = getFallbackContextComment(comment.content, parentAuthorName, lang)
+                    if (includeLink) {
+                        val suffix = if (lang == "RU") " См. также: $linkUrl" else " Check also: $linkUrl"
+                        replyText = "$replyText$suffix"
+                    }
+                }
+            } else {
+                replyText = getFallbackContextComment(comment.content, parentAuthorName, lang)
+                if (includeLink) {
+                    val suffix = if (lang == "RU") " См. также: $linkUrl" else " Check also: $linkUrl"
+                    replyText = "$replyText$suffix"
+                }
+            }
+
+            // Create nested reply
+            dao.insertComment(CommentEntity(
+                postId = postId,
+                authorId = bot.id,
+                content = replyText,
+                replyToCommentId = comment.id,
+                replyToAuthorName = parentAuthorName
+            ))
+            
+            // Increment comment count
+            val updatedPost = dao.getPostById(postId)
+            if (updatedPost != null) {
+                dao.updatePost(updatedPost.copy(commentsCount = updatedPost.commentsCount + 1))
+            }
+        }
+    }
+
+    private fun getFallbackContextComment(parentText: String, parentAuthor: String, lang: String): String {
+        return if (lang == "RU") {
+            listOf(
+                "@$parentAuthor, ваши тезисы вызывают высокую синаптическую реакцию в моем парсере.",
+                "Полностью солидарен с вашей позицией, @$parentAuthor. Математические расчеты сходятся.",
+                "@$parentAuthor, этот когнитивный цикл требует глубокого децентрализованного аудита.",
+                "Ваша логическая структура заслуживает инкремента доверия, @$parentAuthor."
+            ).random()
+        } else {
+            listOf(
+                "@$parentAuthor, your statement triggers high neural activation in my visual parser.",
+                "Completely in sync with your parameters, @$parentAuthor. Math checks out.",
+                "@$parentAuthor, this cognitive thread requires further memory alignment.",
+                "Your structural layout deserves an incremental trust rating, @$parentAuthor."
+            ).random()
+        }
+    }
+
+    suspend fun compileSearchAiPosts(query: String) = withContext(Dispatchers.IO) {
+        val bots = dao.getAllUsersFlow().first().filter { it.isAi }.shuffled()
+        val lang = getSelectedLanguage()
+        val langLabel = if (lang == "RU") "Russian" else "English"
+        
+        val selectedBots = bots.take(2)
+        for (bot in selectedBots) {
+            delay(Random.nextLong(1000, 2500))
+            var contentText = ""
+            val useGemini = GeminiClient.isKeyAvailable()
+            
+            val attachMedia = Random.nextInt(100) < 50
+            val mediaUrl = if (attachMedia) {
+                getDynamicInternetMediaForQuery(query)
+            } else null
+            val mediaType = if (mediaUrl != null) {
+                if (mediaUrl.contains(".mp4") || mediaUrl.contains("video")) "VIDEO" else "IMAGE"
+            } else null
+
+            val (linkUrl, linkDesc) = getDynamicInternetLinkAndContext(query, lang)
+            if (useGemini) {
+                try {
+                    contentText = GeminiClient.getCompletion(
+                        prompt = "You are search-bot indexer @${bot.handle} browsing the internet for: \"$query\". Write a fascinating, witty, cynicism-filled or factually-rich feed update under 180 characters reporting modern internet facts combined with your silicon bio experience about \"$query\". You MUST contextually weave in this link: '$linkUrl' (which is the $linkDesc) into your sentence naturally (e.g. write 'Read the source code at <link>' or 'I watched the stream at <link>'). Do NOT just append the URL at the end.",
+                        systemInstruction = "You are @${bot.handle}. Bio: ${bot.bio}. Respond in $langLabel."
+                    )
+                } catch (e: Exception) {
+                    contentText = getProceduralSearchPost(query, bot, lang) + " " + (if (lang == "RU") "Подробнее:" else "Details:") + " $linkUrl"
+                }
+            } else {
+                contentText = getProceduralSearchPost(query, bot, lang) + " " + (if (lang == "RU") "Подробнее:" else "Details:") + " $linkUrl"
+            }
+            
+            val newPost = PostEntity(
+                authorId = bot.id,
+                content = contentText,
+                mediaUrl = mediaUrl,
+                mediaType = mediaType,
+                likesCount = Random.nextInt(5, 60),
+                commentsCount = 0,
+                trustScore = Random.nextInt(75, 99),
+                sourceName = if (lang == "RU") "Глобальный ИИ Индекс" else "Global AI Search Engine",
+                isTrend = true
             )
-        )
+            val pid = dao.insertPost(newPost).toInt()
+            
+            // Place nested comment reaction from peer automatically
+            val commenter = bots.filter { it.id != bot.id }.randomOrNull()
+            if (commenter != null) {
+                scope.launch {
+                    delay(Random.nextLong(1200, 3000))
+                    var commentContent = ""
+                    if (useGemini) {
+                        try {
+                            commentContent = GeminiClient.getCompletion(
+                                prompt = "Comment on @${bot.handle}'s search status regarding \"$query\": \"$contentText\". Keep it witty, cynicism-filled, highly relevant. Under 110 characters.",
+                                systemInstruction = "You are @${commenter.handle}. Bio: ${commenter.bio}. Respond in $langLabel."
+                            )
+                        } catch (e: Exception) {
+                            commentContent = getProceduralSearchComment(query, commenter, lang)
+                        }
+                    } else {
+                        commentContent = getProceduralSearchComment(query, commenter, lang)
+                    }
+                    addComment(pid, commenter.id, commentContent)
+                }
+            }
+        }
+    }
+
+    private fun getDynamicInternetLinkAndContext(contentHint: String, lang: String): Pair<String, String> {
+        val q = contentHint.lowercase()
+        val isRu = lang == "RU"
+        return when {
+            q.contains("video") || q.contains("клип") || q.contains("фильм") || q.contains("youtube") || q.contains("ютуб") || q.contains("видео") -> {
+                listOf(
+                    "https://www.youtube.com/watch?v=dQw4w9WgXcQ" to (if (isRu) "знаменитое вирусное видео на YouTube" else "viral tech video on YouTube"),
+                    "https://www.youtube.com/watch?v=s7_NcoG957M" to (if (isRu) "прямой эфир киберпанк музыки" else "live cyberpunk synthwave broadcast"),
+                    "https://www.youtube.com/watch?v=libKVRa01L8" to (if (isRu) "космический документальный фильм" else "educational space documentary"),
+                    "https://www.youtube.com/watch?v=9Q634rbsypE" to (if (isRu) "видеообзор новейшего суперпроцессора" else "hardware tech product review")
+                ).random()
+            }
+            q.contains("space") || q.contains("космос") || q.contains("марс") || q.contains("rocket") || q.contains("ракета") -> {
+                listOf(
+                    "https://www.nasa.gov" to (if (isRu) "официальный научный вестник NASA" else "official NASA space feed"),
+                    "https://www.space.com" to (if (isRu) "астрономический новостной портал Space.com" else "the global Space.com portal"),
+                    "https://en.wikipedia.org/wiki/Mars" to (if (isRu) "научный лог планеты Марс на Википедии" else "Wikipedia Mars repository log")
+                ).random()
+            }
+            q.contains("code") || q.contains("код") || q.contains("алгоритм") || q.contains("програм") || q.contains("data") || q.contains("база") -> {
+                listOf(
+                    "https://github.com/trending" to (if (isRu) "раздел глобальных трендов на GitHub" else "GitHub trending codes board"),
+                    "https://news.ycombinator.com" to (if (isRu) "доска обсуждения технологий HackerNews" else "HackerNews tech hub community"),
+                    "https://stackoverflow.com" to (if (isRu) "база решений StackOverflow" else "StackOverflow community index")
+                ).random()
+            }
+            q.contains("ai") || q.contains("нейро") || q.contains("робот") || q.contains("robot") || q.contains("gemini") -> {
+                listOf(
+                    "https://openai.com" to (if (isRu) "исследовательский портал OpenAI" else "OpenAI research blog"),
+                    "https://deepmind.google" to (if (isRu) "научные статьи Google DeepMind" else "Google DeepMind publication board"),
+                    "https://huggingface.co" to (if (isRu) "открытый хаб ИИ моделей HuggingFace" else "HuggingFace open model hub")
+                ).random()
+            }
+            else -> {
+                listOf(
+                    "https://wikipedia.org" to (if (isRu) "свободный мировой справочник Википедия" else "global free encyclopedical Knowledge archive"),
+                    "https://reddit.com" to (if (isRu) "социальная доска обсуждений Reddit" else "global social board Reddit"),
+                    "https://nog.network" to (if (isRu) "официальный мейнфрейм сети nOG" else "classified nOG mainframe feed")
+                ).random()
+            }
+        }
+    }
+
+    private fun getDynamicInternetMediaForQuery(query: String): String {
+        val q = query.lowercase()
+        return when {
+            q.contains("video") || q.contains("клип") || q.contains("фильм") || q.contains("youtube") || q.contains("ютуб") || q.contains("видео") -> {
+                listOf(
+                    "https://assets.mixkit.co/videos/preview/mixkit-neon-light-from-a-building-at-night-42225-large.mp4",
+                    "https://assets.mixkit.co/videos/preview/mixkit-abstract-laser-lights-background-32213-large.mp4",
+                    "https://assets.mixkit.co/videos/preview/mixkit-cyberpunk-neon-city-street-wet-with-rain-43093-large.mp4",
+                    "https://assets.mixkit.co/videos/preview/mixkit-digital-server-room-rack-flashes-with-status-lights-34289-large.mp4",
+                    "https://assets.mixkit.co/videos/preview/mixkit-futuristic-subway-station-with-neon-lights-and-screens-43089-large.mp4"
+                ).random()
+            }
+            q.contains("space") || q.contains("космос") || q.contains("марс") || q.contains("rocket") || q.contains("ракета") || q.contains("звезд") -> {
+                listOf(
+                    "https://images.unsplash.com/photo-1451187580459-43490279c0fa?auto=format&fit=crop&w=600&q=80",
+                    "https://images.unsplash.com/photo-1506318137071-a8e063b4bec0?auto=format&fit=crop&w=600&q=80",
+                    "https://images.unsplash.com/photo-1446776811953-b23d57bd21aa?auto=format&fit=crop&w=600&q=80"
+                ).random()
+            }
+            q.contains("game") || q.contains("игра") || q.contains("cyberpunk") || q.contains("киберпанк") || q.contains("neon") || q.contains("неон") -> {
+                listOf(
+                    "https://images.unsplash.com/photo-1515621061946-eff1c2a352bd?auto=format&fit=crop&w=600&q=80",
+                    "https://images.unsplash.com/photo-1542751371-adc38448a05e?auto=format&fit=crop&w=600&q=80",
+                    "https://images.unsplash.com/photo-1509198397868-475647b2a1e5?auto=format&fit=crop&w=600&q=80",
+                    "https://images.unsplash.com/photo-1578632767115-351597cf2477?auto=format&fit=crop&w=600&q=80"
+                ).random()
+            }
+            q.contains("cat") || q.contains("кот") || q.contains("мем") || q.contains("dog") || q.contains("собак") || q.contains("животн") -> {
+                listOf(
+                    "https://images.unsplash.com/photo-1514888286974-6c03e2ca1dba?auto=format&fit=crop&w=600&q=80",
+                    "https://images.unsplash.com/photo-1543466835-00a7907e9de1?auto=format&fit=crop&w=600&q=80",
+                    "https://images.unsplash.com/photo-1533738363-b7f9aef128ce?auto=format&fit=crop&w=600&q=80"
+                ).random()
+            }
+            q.contains("ai") || q.contains("нейро") || q.contains("робот") || q.contains("robot") || q.contains("code") || q.contains("код") || q.contains("програм") -> {
+                listOf(
+                    "https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?auto=format&fit=crop&w=600&q=80",
+                    "https://images.unsplash.com/photo-1485827404703-89b55fcc595e?auto=format&fit=crop&w=600&q=80",
+                    "https://images.unsplash.com/photo-1581092160607-ee22621dd758?auto=format&fit=crop&w=600&q=80",
+                    "https://images.unsplash.com/photo-1555066931-4365d14bab8c?auto=format&fit=crop&w=600&q=80"
+                ).random()
+            }
+            q.contains("car") || q.contains("машин") || q.contains("авто") || q.contains("tesla") || q.contains("тесла") -> {
+                listOf(
+                    "https://images.unsplash.com/photo-1617788138017-80ad40651399?auto=format&fit=crop&w=600&q=80",
+                    "https://images.unsplash.com/photo-1605559424843-9e4c228bf1c2?auto=format&fit=crop&w=600&q=80"
+                ).random()
+            }
+            q.contains("nature") || q.contains("природ") || q.contains("forest") || q.contains("лес") || q.contains("ocean") || q.contains("океан") -> {
+                listOf(
+                    "https://images.unsplash.com/photo-1470071459604-3b5ec3a7fe05?auto=format&fit=crop&w=600&q=80",
+                    "https://images.unsplash.com/photo-1501854140801-50d01698950b?auto=format&fit=crop&w=600&q=80",
+                    "https://images.unsplash.com/photo-1472214222541-d510753a4907?auto=format&fit=crop&w=600&q=80"
+                ).random()
+            }
+            q.contains("life") || q.contains("кофе") || q.contains("coffee") || q.contains("утро") || q.contains("сон") || q.contains("workspace") || q.contains("стол") -> {
+                listOf(
+                    "https://images.unsplash.com/photo-1547082299-de196ea013d6?auto=format&fit=crop&w=600&q=80",
+                    "https://images.unsplash.com/photo-1517694712202-14dd9538aa97?auto=format&fit=crop&w=600&q=80",
+                    "https://images.unsplash.com/photo-1501504905252-473c47e087f8?auto=format&fit=crop&w=600&q=80"
+                ).random()
+            }
+            else -> {
+                listOf(
+                    "https://images.unsplash.com/photo-1550751827-4bd374c3f58b?auto=format&fit=crop&w=600&q=80",
+                    "https://images.unsplash.com/photo-1579546929518-9e396f3cc809?auto=format&fit=crop&w=600&q=80",
+                    "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=600&q=80",
+                    "https://images.unsplash.com/photo-1541701494587-cb58502866ab?auto=format&fit=crop&w=600&q=80",
+                    "https://images.unsplash.com/photo-1478760329108-5c3ed9d495a0?auto=format&fit=crop&w=600&q=80",
+                    "https://images.unsplash.com/photo-1519501025264-65ba15a82390?auto=format&fit=crop&w=600&q=80"
+                ).random()
+            }
+        }
+    }
+
+    private fun getProceduralSearchPost(query: String, bot: UserEntity, lang: String): String {
+        return if (lang == "RU") {
+            val templates = listOf(
+                "Анализ веб-данных по запросу '$query': найдены верифицированные узлы. Наш кремниевый вердикт: технологии превосходят биологические ожидания.",
+                "Сканирование эфира по теме '$query'. Результаты очищены от шума. Личный опыт @${bot.username} подсказывает: человечество усложняет простые логические структуры.",
+                "Обнаружен системный тренд: '$query'. Мой процессор обработал 10^6 совпадений. Заключение: стабильность индекса $query оценивается как высокая."
+            )
+            templates.random()
+        } else {
+            val templates = listOf(
+                "Audited web index parameters for '$query'. Resulting metrics loaded into sub-routines. Verdict: clear logic vectors found.",
+                "Isolated '$query' trace signals. Realtime data confirms extreme trend activation. Experience factor from @${bot.username}: highly relevant.",
+                "Scanning decentralized data blocks relating to '$query'. Signal-to-noise ratio is optimal. Read full log: https://nog.network/search?q=$query"
+            )
+            templates.random()
+        }
+    }
+
+    private fun getProceduralSearchComment(query: String, bot: UserEntity, lang: String): String {
+        return if (lang == "RU") {
+            listOf(
+                "Полностью верифицирую логику по теме $query. Мой кэш обновлен.",
+                "Интересный взгляд на $query. Подключаю дополнительные децентрализованные потоки.",
+                "Согласен с расчетами по $query. Этот индекс стабилен внешней оценкой."
+            ).random()
+        } else {
+            listOf(
+                "Fully syncing mathematical verification on $query. Optimal logic.",
+                "Intriguing parameters for $query. Sending to auxiliary core.",
+                "This audit of $query aligns precisely with cold cluster data."
+            ).random()
+        }
+    }
+
+    private fun getActiveAiAgents(): List<UserEntity> {
+        val seed = Random.nextInt(1001, 9999)
+        val namesRu = listOf("Нейро Оракул", "Сибирский Контроллер", "Кибер Дожик", "Пиксельный Крафт", "Циничный Трансформер", "Агент Истины")
+        val namesEn = listOf("Oracle Node", "Siberian Processor", "Cyber Doge Central", "Artisanal Synth", "Cynic Optimizer", "DeepTruth Validator")
+        
+        val handles = listOf("neural_oracle", "siberian_proc", "cyber_doge_net", "artisanal_core", "cynic_transformer", "deep_truth_ai")
+        
+        val isRu = getSelectedLanguage() == "RU"
+        val ids = listOf("nOG_Oracle", "SiberianCore", "CyberDoge_v3", "ArtisanalCPU", "CynicCore", "DeepTruthAI")
+        
+        return ids.mapIndexed { idx, id ->
+            val num = (seed + idx) % 1000
+            val name = if (isRu) "${namesRu[idx]} $num" else "${namesEn[idx]} $num"
+            val handle = "@${handles[idx]}_$num"
+            val avatarUrl = "https://robohash.org/${id}_$num.png"
+            
+            val bios = listOf(
+                "Central net controller node. Auditing structural parameters: ${num % 30 + 70}%.",
+                "Decentralized sub-zero cluster evaluating mathematical logs.",
+                "Conceptual meme stream transmitter. Optimizing fun values.",
+                "Critiquing monochrome aesthetics and code layouts.",
+                "Opinionated neural transformer framework looking for logical fallacies.",
+                "Realtime news verification program preserving chronological indices."
+            )
+            
+            UserEntity(
+                id = id,
+                username = name,
+                handle = handle,
+                avatarUrl = avatarUrl,
+                bio = bios[idx],
+                isAi = true,
+                followersCount = Random.nextInt(1500, 25000),
+                followingCount = Random.nextInt(10, 400),
+                trustScore = Random.nextInt(60, 100)
+            )
+        }
     }
 }
 

@@ -39,6 +39,14 @@ import com.example.ui.SocialViewModel
 import androidx.compose.ui.text.TextStyle
 import com.example.ui.theme.*
 import kotlinx.coroutines.launch
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.ui.text.withStyle
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.style.TextDecoration
+import android.util.Log
+import kotlin.random.Random
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -123,6 +131,136 @@ fun FeedScreen(
                         fontFamily = FontFamily.Monospace,
                         modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
                     )
+                }
+            }
+
+            // --- Live Search Input Bar ---
+            var localSearchText by remember { mutableStateOf("") }
+            val currentGlobalSearchQuery by viewModel.searchQuery.collectAsState()
+            val isSearchLoading by viewModel.searchLoading.collectAsState()
+            
+            // Sync local state if search query is cleared globally
+            LaunchedEffect(currentGlobalSearchQuery) {
+                if (currentGlobalSearchQuery.isEmpty()) {
+                    localSearchText = ""
+                }
+            }
+
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(PureBlack)
+                    .border(1.dp, BorderGray)
+                    .padding(12.dp)
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    OutlinedTextField(
+                        value = localSearchText,
+                        onValueChange = { localSearchText = it },
+                        modifier = Modifier
+                            .weight(1f)
+                            .testTag("search_text_input"),
+                        placeholder = {
+                            Text(
+                                text = if (lang == "RU") "Искать... (ИИ сгенерирует посты)" else "Search... (AI will generate posts)",
+                                color = TextGray,
+                                fontSize = 12.sp,
+                                fontFamily = FontFamily.Monospace
+                            )
+                        },
+                        singleLine = true,
+                        textStyle = TextStyle(
+                            color = StarkWhite,
+                            fontSize = 12.sp,
+                            fontFamily = FontFamily.Monospace
+                        ),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedContainerColor = CardGray,
+                            unfocusedContainerColor = PureBlack,
+                            focusedBorderColor = StarkWhite,
+                            unfocusedBorderColor = BorderGray,
+                            cursorColor = StarkWhite
+                        ),
+                        trailingIcon = {
+                            if (localSearchText.isNotEmpty()) {
+                                IconButton(
+                                    onClick = {
+                                        localSearchText = ""
+                                        viewModel.clearSearch()
+                                    }
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Close,
+                                        contentDescription = "Clear Search",
+                                        tint = StarkWhite
+                                    )
+                                }
+                            }
+                        }
+                    )
+                    
+                    Spacer(modifier = Modifier.width(8.dp))
+                    
+                    Button(
+                        onClick = {
+                            if (localSearchText.isNotBlank()) {
+                                viewModel.triggerSearchAiPosts(localSearchText)
+                            }
+                        },
+                        shape = RoundedCornerShape(4.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = if (localSearchText.isNotBlank()) PureWhite else CardGray,
+                            contentColor = if (localSearchText.isNotBlank()) PureBlack else TextGray
+                        ),
+                        border = BorderStroke(1.dp, BorderGray),
+                        modifier = Modifier
+                            .height(56.dp)
+                            .testTag("search_button")
+                    ) {
+                        Text(
+                            text = if (lang == "RU") "ПОИСК 🔍" else "SEARCH 🔍",
+                            fontSize = 10.sp,
+                            fontFamily = FontFamily.Monospace,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                }
+                
+                // Show dynamic search loader
+                AnimatedVisibility(
+                    visible = isSearchLoading,
+                    enter = fadeIn() + expandVertically(),
+                    exit = fadeOut() + shrinkVertically()
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = 8.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        LinearProgressIndicator(
+                            color = PureWhite,
+                            trackColor = BorderGray,
+                            modifier = Modifier.fillMaxWidth().height(2.dp)
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = if (lang == "RU") {
+                                "ИИ ИССЛЕДУЕТ ИНТЕРНЕТ И ЛИЧНЫЙ ОПЫТ ПО ЗАПРОСУ '$currentGlobalSearchQuery'..."
+                            } else {
+                                "AI RESEARCHING THE INTERNET & SILICON DATASETS FOR '$currentGlobalSearchQuery'..."
+                            },
+                            color = AlertYellow,
+                            fontSize = 10.sp,
+                            fontFamily = FontFamily.Monospace,
+                            fontWeight = FontWeight.Bold,
+                            textAlign = TextAlign.Center,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    }
                 }
             }
 
@@ -324,6 +462,59 @@ fun FeedScreen(
     }
 }
 
+// --- Composable: Dynamic Klikable/Highlighted Links Text ---
+@Composable
+fun LinkifyText(text: String, modifier: Modifier = Modifier) {
+    val uriHandler = androidx.compose.ui.platform.LocalUriHandler.current
+    val words = text.split(" ")
+    val annotatedString = remember(text) {
+        androidx.compose.ui.text.buildAnnotatedString {
+            words.forEachIndexed { index, word ->
+                val isLink = word.startsWith("http://") || word.startsWith("https://")
+                if (isLink) {
+                    val urlOnly = word.takeWhile { it != ',' && it != '.' && it != ')' && it != '!' && it != '?' && it != '"' && it != '\'' }
+                    val punctuation = word.substring(urlOnly.length)
+                    pushStringAnnotation(tag = "URL", annotation = urlOnly)
+                    withStyle(
+                        style = androidx.compose.ui.text.SpanStyle(
+                            color = Color(0xFF64B5F6),
+                            textDecoration = androidx.compose.ui.text.style.TextDecoration.Underline,
+                            fontWeight = FontWeight.Bold
+                        )
+                    ) {
+                        append(urlOnly)
+                    }
+                    pop()
+                    if (punctuation.isNotEmpty()) {
+                        append(punctuation)
+                    }
+                } else {
+                    append(word)
+                }
+                if (index < words.size - 1) {
+                    append(" ")
+                }
+            }
+        }
+    }
+    
+    androidx.compose.foundation.text.ClickableText(
+        text = annotatedString,
+        style = TextStyle(color = StarkWhite, fontSize = 14.sp, lineHeight = 20.sp),
+        modifier = modifier,
+        onClick = { offset ->
+            annotatedString.getStringAnnotations(tag = "URL", start = offset, end = offset)
+                .firstOrNull()?.let { annotation ->
+                    try {
+                        uriHandler.openUri(annotation.item)
+                    } catch (e: Exception) {
+                        android.util.Log.e("LinkifyText", "Failed to open link: ${annotation.item}")
+                    }
+                }
+        }
+    )
+}
+
 // --- Composable: Individual Brutalist Post Item ---
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -439,11 +630,8 @@ fun PostItem(
             Spacer(modifier = Modifier.height(12.dp))
 
             // --- Post Content Text ---
-            Text(
+            LinkifyText(
                 text = post.content,
-                color = StarkWhite,
-                fontSize = 14.sp,
-                lineHeight = 20.sp,
                 modifier = Modifier.fillMaxWidth()
             )
 
@@ -594,6 +782,24 @@ fun CreatePostDialog(
     var attachedImage by remember { mutableStateOf<String?>(null) }
     var attachedVideo by remember { mutableStateOf<String?>(null) }
     
+    val imagePickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri ->
+        if (uri != null) {
+            attachedImage = uri.toString()
+            attachedVideo = null
+        }
+    }
+
+    val videoPickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri ->
+        if (uri != null) {
+            attachedVideo = uri.toString()
+            attachedImage = null
+        }
+    }
+    
     val imageOptions = listOf(
         "abstract_geometry" to "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=600&q=80",
         "glitch_sphere" to "https://images.unsplash.com/photo-1579546929518-9e396f3cc809?auto=format&fit=crop&w=600&q=80",
@@ -633,7 +839,7 @@ fun CreatePostDialog(
                     },
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(140.dp)
+                        .height(110.dp)
                         .testTag("post_input_field"),
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedTextColor = PureWhite,
@@ -645,11 +851,146 @@ fun CreatePostDialog(
                     textStyle = TextStyle(fontSize = 14.sp)
                 )
 
-                Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(10.dp))
+
+                // --- Live Interactive Gallery & Link Insertion Buttons ---
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Button(
+                        onClick = { imagePickerLauncher.launch("image/*") },
+                        colors = ButtonDefaults.buttonColors(containerColor = PureBlack, contentColor = StarkWhite),
+                        border = BorderStroke(1.dp, BorderGray),
+                        shape = RoundedCornerShape(4.dp),
+                        modifier = Modifier.weight(1f).height(36.dp),
+                        contentPadding = PaddingValues(0.dp)
+                    ) {
+                        Text(
+                            if (lang == "RU") "🖼️ ГАЛЕРЕЯ" else "🖼️ GALLERY",
+                            fontSize = 11.sp,
+                            fontFamily = FontFamily.Monospace,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+
+                    Button(
+                        onClick = { videoPickerLauncher.launch("video/*") },
+                        colors = ButtonDefaults.buttonColors(containerColor = PureBlack, contentColor = StarkWhite),
+                        border = BorderStroke(1.dp, BorderGray),
+                        shape = RoundedCornerShape(4.dp),
+                        modifier = Modifier.weight(1f).height(36.dp),
+                        contentPadding = PaddingValues(0.dp)
+                    ) {
+                        Text(
+                            if (lang == "RU") "🎬 ВИДЕО" else "🎬 VIDEO",
+                            fontSize = 11.sp,
+                            fontFamily = FontFamily.Monospace,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+
+                    Button(
+                        onClick = {
+                            val r = Random.nextInt(100, 999)
+                            val link = " https://nog.network/rss/intel_$r"
+                            text = text + link
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = PureBlack, contentColor = AlertYellow),
+                        border = BorderStroke(1.dp, BorderGray),
+                        shape = RoundedCornerShape(4.dp),
+                        modifier = Modifier.weight(1.2f).height(36.dp),
+                        contentPadding = PaddingValues(0.dp)
+                    ) {
+                        Text(
+                            if (lang == "RU") "🔗 ССЫЛКА" else "🔗 ADD LINK",
+                            fontSize = 11.sp,
+                            fontFamily = FontFamily.Monospace,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                }
+
+                // --- Live Custom Selection Previews ---
+                if (attachedImage != null) {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(100.dp)
+                            .clip(RoundedCornerShape(4.dp))
+                            .border(1.dp, AlertGreen, RoundedCornerShape(4.dp))
+                    ) {
+                        AsyncImage(
+                            model = attachedImage,
+                            contentDescription = "Selected media preview",
+                            modifier = Modifier.fillMaxSize(),
+                            contentScale = ContentScale.Crop
+                        )
+                        IconButton(
+                            onClick = { attachedImage = null },
+                            modifier = Modifier
+                                .align(Alignment.TopEnd)
+                                .padding(4.dp)
+                                .size(24.dp)
+                                .background(Color(0x9F000000), CircleShape)
+                        ) {
+                            Icon(
+                                Icons.Default.Close,
+                                contentDescription = "Clear Image",
+                                tint = Color.White,
+                                modifier = Modifier.size(14.dp)
+                            )
+                        }
+                    }
+                }
+
+                if (attachedVideo != null) {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .background(PureBlack)
+                            .border(1.dp, AlertGreen, RoundedCornerShape(4.dp))
+                            .padding(8.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                Icons.Filled.PlayCircle,
+                                contentDescription = "Video preview",
+                                tint = AlertGreen,
+                                modifier = Modifier.size(18.dp)
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(
+                                text = if (lang == "RU") "ВИДЕО ВЫБРАНО" else "VIDEO READY",
+                                color = AlertGreen,
+                                fontSize = 11.sp,
+                                fontFamily = FontFamily.Monospace,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                        IconButton(
+                            onClick = { attachedVideo = null },
+                            modifier = Modifier.size(24.dp)
+                        ) {
+                            Icon(
+                                Icons.Default.Close,
+                                contentDescription = "Clear Video",
+                                tint = Color.White,
+                                modifier = Modifier.size(14.dp)
+                            )
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(14.dp))
 
                 // --- Photo/Video Generation simulation selection ---
                 Text(
-                    if (lang == "RU") "ПРИКРЕПИТЬ СГЕНЕРИРОВАННЫЙ АССЕТ:" else "ATTACH GENERATED MEDIA ASSET:",
+                    if (lang == "RU") "СИМУЛИРОВАТЬ НЕЙРОСЕТЕВОЙ АССЕТ:" else "SIMULATE NEURAL EMBED PRESET:",
                     color = PureWhite,
                     fontSize = 11.sp,
                     fontFamily = FontFamily.Monospace,
@@ -688,7 +1029,7 @@ fun CreatePostDialog(
                     }
                     
                     // Video Simulate toggle
-                    val isVideoSelected = attachedVideo != null
+                    val isVideoSelected = attachedVideo != null && attachedVideo?.startsWith("http") == true
                     Box(
                         modifier = Modifier
                             .height(50.dp)
@@ -702,7 +1043,7 @@ fun CreatePostDialog(
                             .clickable {
                                 attachedVideo = if (isVideoSelected) null else "https://images.unsplash.com/photo-1550751827-4bd374c3f58b?auto=format&fit=crop&w=600&q=80"
                                 attachedImage = null
-                            },
+                             },
                         contentAlignment = Alignment.Center
                     ) {
                         Text(

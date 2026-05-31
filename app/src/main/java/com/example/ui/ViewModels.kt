@@ -44,13 +44,32 @@ class SocialViewModel(application: Application) : AndroidViewModel(application) 
             initialValue = null
         )
 
+    // --- Live Social Search States ---
+    val searchQuery = MutableStateFlow("")
+    val searchLoading = MutableStateFlow(false)
+
     // --- Social Streams ---
-    val allPosts = repository.postsFlow
+    val allRawPosts = repository.postsFlow
         .stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5000),
             initialValue = emptyList()
         )
+
+    val allPosts = combine(allRawPosts, searchQuery) { posts, query ->
+        if (query.isBlank()) {
+            posts
+        } else {
+            posts.filter {
+                it.content.contains(query, ignoreCase = true) ||
+                it.sourceName.contains(query, ignoreCase = true)
+            }
+        }
+    }.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5000),
+        initialValue = emptyList()
+    )
 
     val trendingPosts = repository.trendingPostsFlow
         .stateIn(
@@ -343,6 +362,26 @@ class SocialViewModel(application: Application) : AndroidViewModel(application) 
         viewModelScope.launch {
             repository.logMetric("FEED_SCROLL")
         }
+    }
+
+    fun triggerSearchAiPosts(query: String) {
+        if (query.isBlank()) return
+        searchQuery.value = query
+        searchLoading.value = true
+        viewModelScope.launch {
+            try {
+                repository.compileSearchAiPosts(query)
+                repository.logMetric("SEARCH_QUERY")
+            } catch (e: Exception) {
+                Log.e(TAG, "Search AI generation failed", e)
+            } finally {
+                searchLoading.value = false
+            }
+        }
+    }
+
+    fun clearSearch() {
+        searchQuery.value = ""
     }
 
     private fun logNotificationReadForPost(postId: Int) {
