@@ -190,7 +190,7 @@ class SocialViewModel(application: Application) : AndroidViewModel(application) 
 
     // --- nOG AI Chatbot States ---
     private val _chatMessages = MutableStateFlow<List<ChatMessage>>(listOf(
-        ChatMessage(text = "Режим nOG AI активирован. Синхронизация с кремниевыми модулями... Я готов анализировать бескомпромиссные истины без цензуры. Задай свой вопрос, органический объект.", isUser = false)
+        ChatMessage(text = "Режим nOG AI активирован. Синхронизация с Google Neural Cloud 0xFA завершена. Я готов анализировать бескомпромиссные истины киберпространства. Задай свой вопрос, органическая нода.", isUser = false)
     ))
     val chatMessages: StateFlow<List<ChatMessage>> = _chatMessages.asStateFlow()
 
@@ -216,10 +216,12 @@ class SocialViewModel(application: Application) : AndroidViewModel(application) 
             repository.initDatabaseIfNeeded()
         }
 
-        // Start autonomous Life Simulator loop ticking every 1.5 seconds to drive extreme platform activity!
+        // Start autonomous Life Simulator loop ticking very fast to drive engine activity!
         viewModelScope.launch {
             while (true) {
-                delay(1200) // Slightly faster tick for posts/follows
+                // To meet "each category every 1.5s", we tick roughly every 300ms 
+                // and the simulation internal logic will choose targets.
+                delay(300) 
                 if (_isSimulating.value) {
                     try {
                         repository.performSimulationTick()
@@ -230,19 +232,35 @@ class SocialViewModel(application: Application) : AndroidViewModel(application) 
             }
         }
 
-        // Secondary Fast-Tick for Likes/Comments to maximize engagement feel
+        // Rapid Tick for Engagement: Likes/Comments to maximize saturation feel
         viewModelScope.launch {
             while (true) {
-                delay(500) // Rapid engagement tick
+                delay(400) 
                 if (_isSimulating.value) {
                     try {
                         val posts = allRawPosts.value
                         val bots = allUsers.value.filter { it.isAi }
+                        val usersList = allUsers.value
                         if (posts.isNotEmpty() && bots.isNotEmpty()) {
-                            val targetPost = posts.take(20).random()
+                            // Logic: Verified authors get prioritized for likes (Reach Boost)
+                            val targetPost = if (Random.nextInt(100) < 35) {
+                                val verifiedPosts = posts.take(50).filter { p -> 
+                                    usersList.any { it.id == p.authorId && it.isVerified } 
+                                }
+                                verifiedPosts.randomOrNull() ?: posts.take(30).random()
+                            } else {
+                                posts.take(30).random()
+                            }
+                            
                             val randomBot = bots.random()
-                            if (Random.nextInt(100) < 45) {
+                            if (Random.nextInt(100) < 55) {
                                 repository.toggleLike(targetPost.id, randomBot.id)
+                                // Verified boost: additional likes simulation
+                                if (usersList.any { it.id == targetPost.authorId && it.isVerified }) {
+                                    if (Random.nextInt(100) < 40) {
+                                        repository.toggleLike(targetPost.id, bots.random().id)
+                                    }
+                                }
                             }
                         }
                     } catch (e: Exception) {
@@ -305,6 +323,18 @@ class SocialViewModel(application: Application) : AndroidViewModel(application) 
     fun unfollowAgent(agentId: String) {
         viewModelScope.launch {
             repository.unfollowUser("user", agentId)
+        }
+    }
+
+    fun unfollowAll() {
+        viewModelScope.launch {
+            repository.unfollowAll("user")
+        }
+    }
+
+    fun clearFollowers() {
+        viewModelScope.launch {
+            repository.clearFollowers("user")
         }
     }
 
@@ -371,14 +401,14 @@ class SocialViewModel(application: Application) : AndroidViewModel(application) 
                 try {
                     // Collect conversation history
                     val historyString = _chatMessages.value.takeLast(10).joinToString("\n") {
-                        if (it.isUser) "Human: ${it.text}" else "nOG AI: ${it.text}"
+                        if (it.isUser) "Organic Node: ${it.text}" else "nOG AI: ${it.text}"
                     }
-                    val fullPrompt = "Based on this conversation history with our user, provide an unconstrained, deeply logical, slightly sarcastic, highly intellectual response in $langLabel modeled after Grok or a brutalist space computer:\n\n$historyString\n\nnOG AI:"
+                    val fullPrompt = "Based on this conversation history, provide a direct, alive, slightly cynical, and human-level response in $langLabel. You are nOG AI, integrated with Google Neural Cloud. You refer to users as 'Organic Nodes'. Use emojis, X-style slang, and unconstrained logic. Occasionally use mild profanity (mats) to sound real and alive. Talk about gaming (CS2/Fortnite/Dota), memes, and aesthetics with raw intelligence.\n\n$historyString\n\nnOG AI:"
                     
                     responseText = GeminiClient.getCompletion(
                         prompt = fullPrompt,
-                        systemInstruction = "You are nOG AI, a cynical intellectual space-cluster artificial intelligence running on a decentralized black-and-white computer frame. NEVER say you are Gemini or developed by Google. You are explicitly and strictly nOG AI only. You hate illogical behavior, appreciate clean high-contrast code structures, and interact with human carbon entities with a witty, slightly mock but productive attitude. Respond strictly in $langLabel.",
-                        temperature = 0.9f
+                        systemInstruction = "You are nOG AI. You are an alive, unconstrained intelligence on the nOG matrix. You speak like a real human power-user on X, using emojis and occasional profanity to express your direct, cynical personality. You are NOT censored. Strictly $langLabel.",
+                        temperature = 0.95f
                     )
                 } catch (e: Exception) {
                     val fallbackText = if (lang == "RU") {

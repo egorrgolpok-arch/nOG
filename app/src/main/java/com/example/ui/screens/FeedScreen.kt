@@ -268,36 +268,50 @@ fun FeedScreen(
                     }
                 }
                 
-                // Categories Filter Bar (Shown ONLY to verified users for exclusive navigation)
-                if (currentUser?.isVerified == true) {
-                    Spacer(modifier = Modifier.height(8.dp))
-                    val catList = listOf("Игры", "Новости", "Политика", "Мемы", "Спорт", "Щит пост", "Разное")
-                    androidx.compose.foundation.lazy.LazyRow(
-                        modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        item {
-                            FilterChip(
+                // Categories Filter Bar - Accessible to all neural nodes
+                Spacer(modifier = Modifier.height(8.dp))
+                val catList = listOf("Игры", "Новости", "Политика", "Мемы", "Спорт", "Щит пост", "Разное")
+                androidx.compose.foundation.lazy.LazyRow(
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    item {
+                        FilterChip(
+                            selected = selectedCategory == null,
+                            onClick = { viewModel.selectCategory(null) },
+                            label = { Text(if (lang == "RU") "Все" else "All", fontFamily = FontFamily.Monospace, fontSize = 10.sp) },
+                            colors = androidx.compose.material3.FilterChipDefaults.filterChipColors(
+                                selectedContainerColor = PureWhite,
+                                selectedLabelColor = PureBlack,
+                                containerColor = DeepGray,
+                                labelColor = StarkWhite
+                            ),
+                            border = androidx.compose.material3.FilterChipDefaults.filterChipBorder(
+                                enabled = true,
                                 selected = selectedCategory == null,
-                                onClick = { viewModel.selectCategory(null) },
-                                label = { Text("Все", fontFamily = FontFamily.Monospace) },
-                                colors = androidx.compose.material3.FilterChipDefaults.filterChipColors(
-                                    selectedContainerColor = PureWhite,
-                                    selectedLabelColor = PureBlack
-                                )
+                                borderColor = BorderGray,
+                                selectedBorderColor = PureWhite
                             )
-                        }
-                        items(catList) { cat ->
-                            FilterChip(
+                        )
+                    }
+                    items(catList) { cat ->
+                        FilterChip(
+                            selected = selectedCategory == cat,
+                            onClick = { viewModel.selectCategory(cat) },
+                            label = { Text(cat, fontFamily = FontFamily.Monospace, fontSize = 10.sp) },
+                            colors = androidx.compose.material3.FilterChipDefaults.filterChipColors(
+                                selectedContainerColor = PureWhite,
+                                selectedLabelColor = PureBlack,
+                                containerColor = DeepGray,
+                                labelColor = StarkWhite
+                            ),
+                            border = androidx.compose.material3.FilterChipDefaults.filterChipBorder(
+                                enabled = true,
                                 selected = selectedCategory == cat,
-                                onClick = { viewModel.selectCategory(cat) },
-                                label = { Text(cat, fontFamily = FontFamily.Monospace) },
-                                colors = androidx.compose.material3.FilterChipDefaults.filterChipColors(
-                                    selectedContainerColor = PureWhite,
-                                    selectedLabelColor = PureBlack
-                                )
+                                borderColor = BorderGray,
+                                selectedBorderColor = PureWhite
                             )
-                        }
+                        )
                     }
                 }
                 
@@ -321,9 +335,9 @@ fun FeedScreen(
                         Spacer(modifier = Modifier.height(4.dp))
                         Text(
                             text = if (lang == "RU") {
-                                "ИИ ИССЛЕДУЕТ ИНТЕРНЕТ И ЛИЧНЫЙ ОПЫТ ПО ЗАПРОСУ '$currentGlobalSearchQuery'..."
+                                "ОБРАБОТКА ДАННЫХ ИЗ ИНТЕРНЕТА И КРЕМНИЕВЫХ СЕТЕЙ ПО ЗАПРОСУ '$currentGlobalSearchQuery'..."
                             } else {
-                                "AI RESEARCHING THE INTERNET & SILICON DATASETS FOR '$currentGlobalSearchQuery'..."
+                                "NEURAL RESEARCHING ACROSS INTERNET & SILICON DATASETS FOR '$currentGlobalSearchQuery'..."
                             },
                             color = AlertYellow,
                             fontSize = 10.sp,
@@ -338,9 +352,9 @@ fun FeedScreen(
 
             // --- Recommendation Engine Sub-Tabs ---
             val tabs = if (lang == "RU") {
-                listOf("ЭФИР 🌐", "ДЛЯ ВАС ⭐", "КОНСОЛЬ ИИ 🤖")
+                listOf("ЭФИР 🌐", "ДЛЯ ВАС ⭐", "СКАНЕР 🤖")
             } else {
-                listOf("FEED 🌐", "FOR YOU ⭐", "AI SCANNER 🤖")
+                listOf("FEED 🌐", "FOR YOU ⭐", "SCANNER 🤖")
             }
             
             Row(
@@ -663,30 +677,14 @@ fun PostItem(
                             fontWeight = FontWeight.Bold,
                             fontSize = 14.sp
                         )
-                        if (author?.isVerified == true) {
+                        if (author?.id == "nOG_AI_SYSTEM" || author?.isVerified == true) {
                             Spacer(modifier = Modifier.width(4.dp))
                             Icon(
                                 imageVector = Icons.Filled.CheckCircle,
                                 contentDescription = "Verified",
-                                tint = Color(0xFF2196F3), // Distinct blue for verification
+                                tint = StarkWhite, // Monochrome verified white
                                 modifier = Modifier.size(14.dp)
                             )
-                        }
-                        if (author?.isAi == true) {
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Box(
-                                modifier = Modifier
-                                    .background(PureWhite, RoundedCornerShape(2.dp))
-                                    .padding(horizontal = 4.dp, vertical = 2.dp)
-                            ) {
-                                Text(
-                                    text = if (lang == "RU") "ИИ" else "AI",
-                                    color = PureBlack,
-                                    fontSize = 8.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    fontFamily = FontFamily.Monospace
-                                )
-                            }
                         }
                     }
                     Text(
@@ -694,6 +692,15 @@ fun PostItem(
                         color = TextGray,
                         fontSize = 12.sp
                     )
+                    if (post.sourceName.isNotEmpty()) {
+                        Text(
+                            text = "SOURCE: ${post.sourceName.uppercase()}",
+                            color = AlertYellow.copy(alpha = 0.8f),
+                            fontSize = 8.sp,
+                            fontFamily = FontFamily.Monospace,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
                 }
 
                 if (author != null && author.id != "user") {
@@ -784,12 +791,22 @@ fun PostItem(
                 ) {
                     if (post.mediaType == "VIDEO") {
                         val context = androidx.compose.ui.platform.LocalContext.current
+                        
+                        // Use DisposableEffect to manage VideoView lifecycle properly
+                        androidx.compose.runtime.DisposableEffect(post.mediaUrl) {
+                            onDispose {
+                                // We don't have direct access to the View here easily, 
+                                // but the AndroidView factory will be cleared.
+                            }
+                        }
+
                         androidx.compose.ui.viewinterop.AndroidView(
                             factory = { ctx ->
                                 android.widget.VideoView(ctx).apply {
                                     setVideoURI(android.net.Uri.parse(post.mediaUrl))
                                     setOnPreparedListener { mp ->
                                         mp.isLooping = true
+                                        mp.setVolume(0f, 0f) // Silent by default to avoid noise
                                         start()
                                     }
                                     setOnErrorListener { _, _, _ ->
@@ -917,6 +934,7 @@ fun CreatePostDialog(
     var text by remember { mutableStateOf("") }
     var attachedImage by remember { mutableStateOf<String?>(null) }
     var attachedVideo by remember { mutableStateOf<String?>(null) }
+    var attachedGif by remember { mutableStateOf<String?>(null) }
     
     val imagePickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
@@ -924,6 +942,7 @@ fun CreatePostDialog(
         if (uri != null) {
             attachedImage = uri.toString()
             attachedVideo = null
+            attachedGif = null
         }
     }
 
@@ -933,6 +952,17 @@ fun CreatePostDialog(
         if (uri != null) {
             attachedVideo = uri.toString()
             attachedImage = null
+            attachedGif = null
+        }
+    }
+
+    val gifPickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri ->
+        if (uri != null) {
+            attachedGif = uri.toString()
+            attachedImage = null
+            attachedVideo = null
         }
     }
     
@@ -1031,6 +1061,22 @@ fun CreatePostDialog(
                     }
 
                     Button(
+                        onClick = { gifPickerLauncher.launch("image/gif") },
+                        colors = ButtonDefaults.buttonColors(containerColor = PureBlack, contentColor = StarkWhite),
+                        border = BorderStroke(1.dp, BorderGray),
+                        shape = RoundedCornerShape(4.dp),
+                        modifier = Modifier.weight(1f).height(36.dp),
+                        contentPadding = PaddingValues(0.dp)
+                    ) {
+                        Text(
+                            if (lang == "RU") "👾 ГИФ" else "👾 GIF",
+                            fontSize = 11.sp,
+                            fontFamily = FontFamily.Monospace,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+
+                    Button(
                         onClick = {
                             val r = Random.nextInt(100, 999)
                             val link = " https://nog.network/rss/intel_$r"
@@ -1119,6 +1165,39 @@ fun CreatePostDialog(
                             Icon(
                                 Icons.Default.Close,
                                 contentDescription = "Clear Video",
+                                tint = Color.White,
+                                modifier = Modifier.size(14.dp)
+                            )
+                        }
+                    }
+                }
+
+                if (attachedGif != null) {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(100.dp)
+                            .clip(RoundedCornerShape(4.dp))
+                            .border(1.dp, AlertGreen, RoundedCornerShape(4.dp))
+                    ) {
+                        AsyncImage(
+                            model = attachedGif,
+                            contentDescription = "Selected GIF preview",
+                            modifier = Modifier.fillMaxSize(),
+                            contentScale = ContentScale.Crop
+                        )
+                        IconButton(
+                            onClick = { attachedGif = null },
+                            modifier = Modifier
+                                .align(Alignment.TopEnd)
+                                .padding(4.dp)
+                                .size(24.dp)
+                                .background(Color(0x9F000000), CircleShape)
+                        ) {
+                            Icon(
+                                Icons.Default.Close,
+                                contentDescription = "Clear GIF",
                                 tint = Color.White,
                                 modifier = Modifier.size(14.dp)
                             )
@@ -1232,7 +1311,7 @@ fun CreatePostDialog(
         },
         confirmButton = {
             Button(
-                onClick = { if (text.isNotBlank()) onSubmit(text, attachedImage, attachedVideo, selectedCategory) },
+                onClick = { if (text.isNotBlank()) onSubmit(text, attachedImage ?: attachedGif, attachedVideo, selectedCategory) },
                 colors = ButtonDefaults.buttonColors(containerColor = PureWhite, contentColor = PureBlack),
                 shape = RoundedCornerShape(4.dp)
             ) {
@@ -1299,7 +1378,7 @@ fun CommentsBottomSheet(
             
             // Post reference in comments header
             Text(
-                text = if (lang == "RU") "ОБСУЖДЕНИЕ ПОСТА ОТ ${author?.username ?: "ИИ"}" else "REACTIONS IN THREAD BY ${author?.username ?: "AI"}",
+                text = if (lang == "RU") "ОБСУЖДЕНИЕ ПОСТА ОТ ${author?.username ?: "Node"}" else "REACTIONS IN THREAD BY ${author?.username ?: "Node"}",
                 color = PureWhite,
                 fontSize = 12.sp,
                 fontFamily = FontFamily.Monospace,
@@ -1365,25 +1444,9 @@ fun CommentsBottomSheet(
                                         Icon(
                                             imageVector = Icons.Filled.CheckCircle,
                                             contentDescription = "Verified",
-                                            tint = PureWhite,
+                                            tint = StarkWhite,
                                             modifier = Modifier.size(10.dp)
                                         )
-                                    }
-                                    if (commenter?.isAi == true) {
-                                        Spacer(modifier = Modifier.width(6.dp))
-                                        Box(
-                                            modifier = Modifier
-                                                .background(PureWhite, RoundedCornerShape(2.dp))
-                                                .padding(horizontal = 3.dp, vertical = 1.dp)
-                                        ) {
-                                            Text(
-                                                if (lang == "RU") "ИИ" else "AI",
-                                                color = PureBlack,
-                                                fontSize = 7.sp,
-                                                fontWeight = FontWeight.Bold,
-                                                fontFamily = FontFamily.Monospace
-                                            )
-                                        }
                                     }
                                     if (comment.replyToAuthorName != null) {
                                         Spacer(modifier = Modifier.width(6.dp))
@@ -1534,7 +1597,7 @@ fun AiMindsExplorer(
             .padding(16.dp)
     ) {
         Text(
-            text = if (lang == "RU") "ОТЧЕТ КОНСОЛИ РЕКОМЕНДАЦИЙ ИИ" else "AI RECOMMENDATION MATRIX SCANNER",
+            text = if (lang == "RU") "КОНСОЛЬ УПРАВЛЕНИЯ КЛАСТЕРОМ" else "CLUSTER MANAGEMENT CONSOLE",
             color = PureWhite,
             fontSize = 12.sp,
             fontFamily = FontFamily.Monospace,
@@ -1542,7 +1605,7 @@ fun AiMindsExplorer(
         )
         Spacer(modifier = Modifier.height(4.dp))
         Text(
-            text = if (lang == "RU") "Каждому ИИ-агенту рекомендуются посты в зависимости от характеристик его логического ядра." else "Each AI agent receives personalized recommendations processed by their neural core filters and history traits.",
+            text = if (lang == "RU") "Каждой ноде рекомендуются посты в зависимости от характеристик её логического ядра." else "Each node receives personalized recommendations processed by their neural core filters.",
             color = TextGray,
             fontSize = 10.sp,
             lineHeight = 14.sp,
@@ -1680,7 +1743,7 @@ fun AiMindsExplorer(
                             Column(modifier = Modifier.padding(12.dp)) {
                                 Row(verticalAlignment = Alignment.CenterVertically) {
                                     Text(
-                                        text = author?.username ?: "ИИ Нода",
+                                        text = author?.username ?: "Node",
                                         color = PureWhite,
                                         fontWeight = FontWeight.Bold,
                                         fontSize = 12.sp

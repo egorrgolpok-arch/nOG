@@ -71,6 +71,16 @@ fun NogAiScreen(
                     )
                     Text(
                         text = if (msgLang == "RU") {
+                            "Neural Link: ACTIVE | Google Neural Cloud: CONNECTED | Latency: 14ms"
+                        } else {
+                            "Neural Link: ACTIVE | Google Neural Cloud: CONNECTED | Latency: 14ms"
+                        },
+                        color = AlertYellow,
+                        fontSize = 9.sp,
+                        fontFamily = FontFamily.Monospace
+                    )
+                    Text(
+                        text = if (msgLang == "RU") {
                             "Бескомпромиссный нейроаналитик киберпространства"
                         } else {
                             "Unconstrained neural auditor of the cybernetic space"

@@ -170,6 +170,28 @@ fun ProfileScreen(
                                         fontWeight = FontWeight.Bold
                                     )
                                 }
+                                
+                                Spacer(modifier = Modifier.height(12.dp))
+
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    androidx.compose.material3.TextButton(
+                                        onClick = { viewModel.clearFollowers() },
+                                        modifier = Modifier.weight(1f),
+                                        contentPadding = PaddingValues(0.dp)
+                                    ) {
+                                        Text(if (lang == "RU") "ОЧИСТИТЬ ПОТОК" else "PURGE FOLLOWERS", fontSize = 9.sp, fontFamily = FontFamily.Monospace, color = TextGray)
+                                    }
+                                    androidx.compose.material3.TextButton(
+                                        onClick = { viewModel.unfollowAll() },
+                                        modifier = Modifier.weight(1f),
+                                        contentPadding = PaddingValues(0.dp)
+                                    ) {
+                                        Text(if (lang == "RU") "СБРОС ПОДПИСОК" else "RESET FOLLOWING", fontSize = 9.sp, fontFamily = FontFamily.Monospace, color = TextGray)
+                                    }
+                                }
                             }
                         }
 
@@ -267,7 +289,7 @@ fun ProfileScreen(
                         )
                         Spacer(modifier = Modifier.height(4.dp))
                         Text(
-                            text = if (lang == "RU") "Выберите язык симуляции и взаимодействия в реальном времени:" else "Select state language for real-time simulations and AI bots:",
+                            text = if (lang == "RU") "Выберите язык симуляции и взаимодействия в реальном времени:" else "Select state language for real-time simulations and network bots:",
                             color = TextGray,
                             fontSize = 11.sp
                         )

@@ -75,6 +75,9 @@ data class AnalyticsEntity(
 interface SocialDao {
     // Users
     @Query("SELECT * FROM users")
+    suspend fun getAllUsers(): List<UserEntity>
+
+    @Query("SELECT * FROM users")
     fun getAllUsersFlow(): Flow<List<UserEntity>>
 
     @Query("SELECT * FROM users WHERE id = :userId LIMIT 1")
@@ -87,6 +90,9 @@ interface SocialDao {
     suspend fun insertUser(user: UserEntity)
 
     // Posts
+    @Query("SELECT * FROM posts ORDER BY timestamp DESC LIMIT :limit")
+    suspend fun getRecentPosts(limit: Int): List<PostEntity>
+
     @Query("SELECT * FROM posts ORDER BY timestamp DESC")
     fun getAllPostsFlow(): Flow<List<PostEntity>>
 
@@ -133,6 +139,18 @@ interface SocialDao {
 
     @Query("DELETE FROM followers WHERE userId = :userId AND targetId = :targetId")
     suspend fun deleteFollow(userId: String, targetId: String)
+
+    @Query("SELECT * FROM followers WHERE userId = :userId")
+    suspend fun getFollowingForUser(userId: String): List<FollowerEntity>
+
+    @Query("SELECT * FROM followers WHERE targetId = :targetId")
+    suspend fun getFollowersForUser(targetId: String): List<FollowerEntity>
+
+    @Query("DELETE FROM followers WHERE userId = :userId")
+    suspend fun deleteAllFollowingForUser(userId: String)
+
+    @Query("DELETE FROM followers WHERE targetId = :targetId")
+    suspend fun deleteAllFollowersForUser(targetId: String)
 
     // Notifications
     @Query("SELECT * FROM notifications ORDER BY timestamp DESC")

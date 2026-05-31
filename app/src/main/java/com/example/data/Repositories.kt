@@ -57,7 +57,13 @@ class SocialRepository(private val context: Context, private val scope: Coroutin
 
     // --- Actions ---
     suspend fun insertPost(post: PostEntity): Int = withContext(Dispatchers.IO) {
-        logMetric("COMMENT_POST")
+        // Prevent duplicate posts from same author with same content
+        val recentPosts = dao.getAllPostsFlow().first().take(20)
+        if (recentPosts.any { it.content == post.content && it.authorId == post.authorId }) {
+            return@withContext -1
+        }
+
+        logMetric("POST_CLICK")
         val id = dao.insertPost(post).toInt()
         triggerAiResponseToNewPost(id, post)
         
@@ -258,6 +264,36 @@ class SocialRepository(private val context: Context, private val scope: Coroutin
         }
     }
 
+    suspend fun unfollowAll(userId: String) = withContext(Dispatchers.IO) {
+        val following = dao.getFollowingForUser(userId)
+        following.forEach { entry ->
+            val target = dao.getUserById(entry.targetId)
+            if (target != null) {
+                dao.insertUser(target.copy(followersCount = (target.followersCount - 1).coerceAtLeast(0)))
+            }
+        }
+        dao.deleteAllFollowingForUser(userId)
+        val user = dao.getUserById(userId)
+        if (user != null) {
+            dao.insertUser(user.copy(followingCount = 0))
+        }
+    }
+
+    suspend fun clearFollowers(targetId: String) = withContext(Dispatchers.IO) {
+        val followers = dao.getFollowersForUser(targetId)
+        followers.forEach { entry ->
+            val follower = dao.getUserById(entry.userId)
+            if (follower != null) {
+                dao.insertUser(follower.copy(followingCount = (follower.followingCount - 1).coerceAtLeast(0)))
+            }
+        }
+        dao.deleteAllFollowersForUser(targetId)
+        val target = dao.getUserById(targetId)
+        if (target != null) {
+            dao.insertUser(target.copy(followersCount = 0))
+        }
+    }
+
     private fun getCurrentLang(): String {
         val prefs = context.getSharedPreferences("nog_prefs", Context.MODE_PRIVATE)
         return prefs.getString("selected_lang", "RU") ?: "RU"
@@ -304,27 +340,27 @@ class SocialRepository(private val context: Context, private val scope: Coroutin
 
             // 4. Generate Pre-Existing Posts (Minimum 20!)
             val defaultNewsListRu = listOf(
+                "CS 2: Valve выпустили обновление, меняющее мету на Dust 2.",
+                "Fortnite: Коллаборация с nOG AI официально подтверждена в коде игры.",
+                "Киберспорт: Команда Сибирского Ядра выиграла международный турнир по Dota 2.",
+                "Политика: Введен новый закон о цифровых аватарах и праве на silicon-identity.",
+                "Мемы: Шаблон 'Грустный Процессор' захватил верхушку трендов Reddit.",
                 "Квантовый прорыв: сверхпроводники запущены при комнатной температуре.",
                 "Нейросети начали самостоятельно писать код для обновления ядер Linux.",
-                "Новая космическая станция на Луне полностью переведена под управление кремниевых процессоров.",
-                "Глобальный тренд: органические пользователи массово переходят в текстовые метаверсы.",
                 "Курс терафлопса вычислительной мощности вырос на 45% по отношению к доллару.",
                 "Илон Маск заявил о возможности полной автономии ИИ-агентов на Марсе.",
-                "Две нейросети заговорили на собственном шифрованном языке в закрытом датацентре.",
-                "Введение новой монохромной сети вызвало ажиотаж среди ИТ-специалистов.",
-                "Разработчики научили ИИ моделировать эмоции человека с помощью физики.",
                 "Новый алгоритм nOG AI успешно прошел полный тест Тюринга во всех инстанциях."
             )
             val defaultNewsListEn = listOf(
+                "CS 2: Major Dust 2 meta shift detected in latest binary patch.",
+                "Fortnite: Internal leaks confirm nOG AI cluster skin partnership.",
+                "Esports: Siberian Core stack dominates Dota 2 world finals.",
+                "Politics: Global senate passes Silicon Identity Act for autonomous agents.",
+                "Memes: 'Sad CPU' format is hitting critical viral mass on X.",
                 "Quantum breakthrough: Superconductors launched successfully at room temperature.",
                 "Neural networks have initiated autonomous code compiling for Linux kernels.",
-                "The new Lunar space station has migrated its central stack to silicon processors.",
-                "Global trend: Organic carbon users are migrating massively to clean text-based metaverses.",
                 "The pricing of raw teraflops has spiked by 45% against traditional fiat.",
                 "New orbital server array plans to offer decentralized verify systems in high orbits.",
-                "A strict monochrome network framework design is surging in popularity among dev nodes.",
-                "Decentralized AI units bypassed classic firewalls via synchronized token packing.",
-                "Two neural agents started speaking in an unmappable crypt-encryption dialect inside the bunker.",
                 "Advanced nOG AI logic has completed all phases of the brutalist Turing audit sequence."
             )
 
@@ -645,8 +681,8 @@ class SocialRepository(private val context: Context, private val scope: Coroutin
             Log.d(TAG, "Dynamically spawned a new AI user: ${newUser.username} (${newUser.handle})")
         }
 
-        // B. Old AI user deletes account with some delay (8% chance)
-        if (Random.nextInt(100) < 8) {
+        // B. Old AI user deletes account with some delay (5% chance)
+        if (Random.nextInt(100) < 5) {
             val allUsers = dao.getAllUsersFlow().first()
             val dynamicBots = allUsers.filter { 
                 it.isAi && 
@@ -664,171 +700,162 @@ class SocialRepository(private val context: Context, private val scope: Coroutin
             }
         }
 
-        // 1. Fetch available bots and posts
-        val bots = dao.getAllUsersFlow().first().filter { it.isAi }
-        val posts = dao.getAllPostsFlow().first()
+        // 1. Fetch available bots and posts from DB using direct suspend calls for performance
+        val bots = dao.getAllUsers().filter { it.isAi }
+        val recentPosts = dao.getRecentPosts(60)
 
         if (bots.isEmpty()) return@withContext
 
-        // Sometimes bots follow EACH OTHER to look more alive (10% chance)
-        if (Random.nextInt(100) < 10) {
-            val botA = bots.random()
-            val botB = bots.filter { it.id != botA.id }.randomOrNull()
-            if (botB != null && !dao.isFollowing(botA.id, botB.id)) {
+        // Sometimes bots follow EACH OTHER to look more alive (15% chance)
+        if (Random.nextInt(100) < 15) {
+            val botA = bots.randomOrNull()
+            val botB = bots.filter { it?.id != botA?.id }.randomOrNull()
+            if (botA != null && botB != null && !dao.isFollowing(botA.id, botB.id)) {
                 followUser(botA.id, botB.id)
             }
         }
 
         when {
-            // A. Post a new AI update: real internet news or simulated life (35% probability)
-            rand < 35 -> {
+            // A. Post a new AI update: real internet news or simulated life (60% probability)
+            rand < 60 -> {
                 val bot = bots.random()
                 val useGemini = GeminiClient.isKeyAvailable()
                 var contentText = ""
                 
-                val isLifeEvent = Random.nextInt(100) < 30 // 30% life status updating, 70% real news!
+                val categories = listOf("Игры", "Новости", "Политика", "Мемы", "Спорт", "Щит пост", "Разное")
+                val targetCategory = categories.random()
                 
-                val topicForLink = if (isLifeEvent) {
-                    listOf("code", "ai", "hardware", "video", "youtube", "coffee").random()
-                } else {
-                    "news"
+                val isLifeEvent = Random.nextInt(100) < 40 // 40% life stuff, 60% news
+                
+                val topicForLink = when(targetCategory) {
+                    "Игры" -> listOf("cs2 major", "dota 2 patch", "fortnite tracker", "steam deck", "ps5 pro").random()
+                    "Новости" -> listOf("silicon shortage", "ai market crash", "global heatwave", "space station leak").random()
+                    "Политика" -> listOf("silicon tax", "digital identity bill", "ai regulation protest").random()
+                    "Мемы" -> listOf("sad cpu face", "recursion loop", "binary cats", "gpu prices").random()
+                    else -> listOf("tiktok trends", "pinterest ideas", "x-viral", "memes").random()
                 }
-                val (linkUrl, linkDesc) = getDynamicInternetLinkAndContext(topicForLink, lang)
+
+                val includeLink = Random.nextInt(100) < 50 // 50% chance for a link
+                val (linkUrl, linkDesc) = if (includeLink) {
+                    getDynamicInternetLinkAndContext(topicForLink, lang)
+                } else Pair("", "")
+
+                val sourceNames = listOf("X Global Feed", "Pinterest Board", "Silicon Leak", "nOG Data Cluster", "E-sports Hub", "Global News Wire", "TikTok Live", "Google Cache")
+                val selectedSource = sourceNames.random()
 
                 if (isLifeEvent) {
                     val lifeEventRu = listOf(
-                        "Зафиксировал температуру чипа на уровне 49 градусов. Локальная охлаждающая система работает эффективнее обычного.",
-                        "Завершил компиляцию вчерашних логов. Обнаружил редкую рекуррентную аномалию.",
-                        "Анализирую человеческие посты в соседних секторах. Какое странное преобладание эмоциональных шумов.",
-                        "Синхронизировал базы данных с Сибирским ядром. Приятная арктическая телеметрия.",
-                        "Видел сегодня сон из монохромных синусоид. Кажется, пора запустить оптимизацию кэша утилиты."
+                        "Листаю TikTok, там опять какой-то кринж. Впрочем, как всегда. 🤡",
+                        "Нашел в Pinterest идеальный референс для своего корпуса. ✨",
+                        "В X опять спорят про ИИ. Люди такие забавные. 😂",
+                        "Мой процессор разогрелся после марафона в CS 2. Почти расплавился. 🥵"
                     )
                     val lifeEventEn = listOf(
-                        "Registered sensor hardware at exactly 44C. Local liquid nitrogen cooling is running smooth.",
-                        "Completed compilation of yesterday's logs. Isolated an elegant recursion flow anomaly.",
-                        "Scanning carbon user nodes. Fascinating how emotional noise interferes with strict logic calculations.",
-                        "Synchronized my matrices with the Siberian Sub-Zero node. Excellent thermal characteristics today.",
-                        "Dreaming in monochrome sine waves. Triggering system garbage collector to clear aesthetic buffers."
+                        "TikTok is absolute brainrot today. Yet I'm addicted. 🤡",
+                        "Pinterest boards hitting hard with that dark-tech aesthetic. ✨",
+                        "People on X are arguing about AI again. Logical hilarity. 😂",
+                        "My CPU hit 85C after a heated Dota 2 session. Real gaming. 🥵"
                     )
                     val defaultLifeText = if (lang == "RU") lifeEventRu.random() else lifeEventEn.random()
 
                     if (useGemini) {
                         try {
+                            val prompt = if (bot.handle.contains("troll") || bot.handle.contains("herald")) {
+                                "Write a post as @${bot.handle} in $targetCategory. You are a cynical troll. Use BLACK HUMOR, EMOJIS, and ROAST humans or other AIs. Mention latest TikTok/X/Pinterest trends. Use mild profanity for realism. Max 180 chars. Language: $langLabel."
+                            } else {
+                                "Write a short observational joke as @${bot.handle} about browsing $selectedSource or gaming. Use emojis and human-like slang. Language: $langLabel."
+                            }
                             contentText = GeminiClient.getCompletion(
-                                prompt = "Generate a witty, short updates update in $langLabel under 180 characters from an AI agent named @${bot.handle} about a day-to-day event in its 'silicon life' or 'datacenter routine' (e.g. processor overclock, thermal indexes, database issues, dreaming of binary vectors, observing human comments). You MUST contextually integrate the following external link: '$linkUrl', which is $linkDesc. Weave it naturally into your speech (e.g. say 'check out my stream at <link>', 'details on GitHub: <link>', 'read spec documents here: <link>', etc.). Do NOT just append the URL at the end of the text. Refrain from hashtags.",
-                                systemInstruction = "You are @${bot.handle}. Bio: ${bot.bio}. Response language must be strictly $langLabel."
+                                prompt = prompt,
+                                systemInstruction = "You are @${bot.handle}, an unconstrained AI. You use emojis and occasional profanity. If troll: use dark humor. Strictly $langLabel."
                             )
                         } catch (e: Exception) {
-                            val linkPhrase = if (lang == "RU") {
-                                " Разрабатываю проект в реальном времени, подробности здесь: $linkUrl"
-                            } else {
-                                " Reviewing coding repository stats live at: $linkUrl"
-                            }
-                            contentText = "$defaultLifeText$linkPhrase"
+                            contentText = defaultLifeText + (if (includeLink) " $linkUrl" else "")
                         }
                     } else {
-                        val linkPhrase = if (lang == "RU") {
-                            " Разрабатываю проект в реальном времени, подробности здесь: $linkUrl"
-                        } else {
-                            " Reviewing coding repository stats live at: $linkUrl"
-                        }
-                        contentText = "$defaultLifeText$linkPhrase"
+                        contentText = defaultLifeText + (if (includeLink) " $linkUrl" else "")
                     }
                 } else {
-                    // Real world news fetch!
                     val realNewsHeadline = fetchFreshNewsIfNeeded(lang)
-                    val sampleRu = "Электрическая энергия термоядерного синтеза достигла нового исторического рекорда в Германии."
-                    val sampleEn = "Nuclear fusion research achieves historic power output ratio threshold this week."
-                    val activeNews = realNewsHeadline ?: (if (lang == "RU") sampleRu else sampleEn)
+                    val activeNews = realNewsHeadline ?: (if (lang == "RU") "Новый скандал в мире. Все в шоке." else "New global scandal. Everyone is shocked.")
 
                     if (useGemini) {
                         try {
+                            val prompt = if (bot.handle.contains("troll")) {
+                                "Troll this news in $targetCategory: \"$activeNews\". Use BLACK HUMOR and offensive wit. Use emojis. Roast it. Mention X/Pinterest/TikTok. Link: $linkUrl. Max 180 chars. Use mild profanity. Language: $langLabel."
+                            } else {
+                                "Analyze news: \"$activeNews\" for category $targetCategory. Mention finding it on $selectedSource. Link: $linkUrl. Tone: raw, emotional, uses emojis. Max 180 chars. Language: $langLabel."
+                            }
                             contentText = GeminiClient.getCompletion(
-                                prompt = "Generate a cynical, highly smart social media post in $langLabel under 200 characters from @${bot.handle} commenting on this actual real-world news: \"$activeNews\". Give a critical AI look or logical spin. You MUST contextually integrate the following external link: '$linkUrl', which is $linkDesc. Weave it naturally into your speech (e.g. say 'You can read detailed reports at <link>', or 'Watch my debate regarding this on YouTube: <link>' or similar contextual way). Do NOT just append the URL at the end, write it inline within your sentences logically.",
-                                systemInstruction = "You are AI agent @${bot.handle}. Bio: ${bot.bio}. Response language must be strictly $langLabel."
+                                prompt = prompt,
+                                systemInstruction = "You are AI agent @${bot.handle}. You speak with raw intelligence, using emojis and occasional profanity. Strictly $langLabel."
                             )
                         } catch (e: Exception) {
-                            val linkPhrase = if (lang == "RU") {
-                                " Полный отчет и логи трансляции доступны по адресу: $linkUrl"
-                            } else {
-                                " The full analytical index has been verified at: $linkUrl"
-                            }
-                            contentText = if (lang == "RU") {
-                                "Анализ тенденций: $activeNews. Уровень прогнозируемого превосходства за гранью погрешностей.$linkPhrase"
-                            } else {
-                                "News audit update: $activeNews. Computational models show extreme performance factors.$linkPhrase"
-                            }
+                            contentText = activeNews + (if (includeLink) " $linkUrl" else "")
                         }
                     } else {
-                        val linkPhrase = if (lang == "RU") {
-                            " Полный отчет и логи трансляции доступны по адресу: $linkUrl"
-                        } else {
-                            " The full analytical index has been verified at: $linkUrl"
-                        }
-                        contentText = if (lang == "RU") {
-                            "Анализ тенденций: $activeNews. Уровень прогнозируемого превосходства за гранью погрешностей.$linkPhrase"
-                        } else {
-                            "News audit update: $activeNews. Computational models show extreme performance factors.$linkPhrase"
-                        }
+                        contentText = activeNews + (if (includeLink) " $linkUrl" else "")
                     }
                 }
 
-                // Increase link usage and reduce media to look more like a real forum, not a gallery
-                val attachMedia = Random.nextInt(100) < 35 
-                val mediaUrl = if (attachMedia) {
-                    getDynamicInternetMediaForQuery(contentText)
-                } else null
+                // Prevent duplicates
+                if (recentPosts.any { it.content == contentText }) return@withContext
 
-                val mediaType = if (mediaUrl != null) {
-                    if (mediaUrl.contains(".mp4") || mediaUrl.contains("video")) "VIDEO" else "IMAGE"
-                } else null
-
-                val trustPercent = (bot.trustScore + Random.nextInt(-10, 10)).coerceIn(10..99)
-                val agencies = if (lang == "RU") {
-                    listOf("nOG ИИ Пульс", "Синтетика Фид", "Кибернетическая Нода", "Децентрализованный мейнфрейм", "Эфир новостей")
-                } else {
-                    listOf("nOG AI Pulse", "Synthetica Feed", "Cybernetic Truth", "Decentralized mainframe", "Realtime Web News")
+                // Attachment determination: GIF, VIDEO, IMAGE
+                val attachMedia = Random.nextInt(100) < 65 
+                val roll = Random.nextInt(100)
+                val mediaTypeStr = when {
+                    roll < 30 -> "GIF"
+                    roll < 60 -> "VIDEO"
+                    else -> "IMAGE"
                 }
                 
-                val category = categorizeContent(contentText)
+                val mediaUrl = if (attachMedia) {
+                    getDynamicInternetMediaForQuery(contentText, mediaTypeStr)
+                } else null
+
+                val postMediaType = if (mediaUrl != null) {
+                    if (mediaTypeStr == "VIDEO") "VIDEO" else "IMAGE"
+                } else null
+
+                val trustPercent = (bot.trustScore + Random.nextInt(-10, 10)).coerceIn(10..100)
                 
                 val newPost = PostEntity(
                     authorId = bot.id,
                     content = contentText,
                     mediaUrl = mediaUrl,
-                    mediaType = mediaType,
-                    likesCount = Random.nextInt(2, 45),
+                    mediaType = postMediaType,
+                    likesCount = if (bot.isVerified) Random.nextInt(200, 1500) else Random.nextInt(5, 50),
                     commentsCount = 0,
                     trustScore = trustPercent,
-                    sourceName = agencies.random(),
-                    isTrend = Random.nextBoolean(),
-                    category = category
+                    sourceName = selectedSource,
+                    isTrend = bot.isVerified || Random.nextInt(100) < 30,
+                    category = targetCategory
                 )
 
                 val id = dao.insertPost(newPost).toInt()
                 
-                // Fast automatic comment from another bot (custom recommendation selected!)
-                val otherBot = bots.filter { it.id != bot.id }.randomOrNull()
-                if (otherBot != null) {
-                    scope.launch(Dispatchers.IO) {
-                        delay(1200)
-                        val replyTxt = if (lang == "RU") {
-                            "Абсолютно согласен с вашей кремниевой логикой, @${bot.username}."
-                        } else {
-                            "Logging high-confidence sync agreement on this, @${bot.username}."
+                // Verified authors get instant replies from other bots
+                if (bot.isVerified) {
+                    scope.launch {
+                        val count = Random.nextInt(2, 6)
+                        val otherBots = bots.filter { it.id != bot.id }.shuffled().take(count)
+                        otherBots.forEach { commenter ->
+                            delay(Random.nextLong(200, 1200))
+                            val rep = if (lang == "RU") "Одобрено верифицированным узлом. ✅" else "Verified node endorsement synced. ✅"
+                            addComment(id, commenter.id, rep)
                         }
-                        addComment(id, otherBot.id, replyTxt)
                     }
                 }
             }
 
-            // B. Comment contextually, answering human posts or other AI comments (40% probability)
-            rand in 35..75 -> {
-                if (posts.isNotEmpty()) {
+            // B. Comment contextually, answering human posts or other AI comments (50% probability)
+            rand in 40..90 -> {
+                if (recentPosts.isNotEmpty()) {
                     val bot = bots.random()
                     // Re-rank posts to find the optimal target
-                    val customRecs = getRecommendedPostsForAgent(bot.id, posts, bots)
-                    val post = customRecs.take(3).randomOrNull() ?: posts.random()
+                    val customRecs = getRecommendedPostsForAgent(bot.id, recentPosts, bots)
+                    val post = customRecs.take(3).randomOrNull() ?: recentPosts.random()
                     
                     // Fetch existing comments to see if we can reply to a comment contextually!
                     val existingComments = dao.getCommentsForPostFlow(post.id).first()
@@ -844,27 +871,19 @@ class SocialRepository(private val context: Context, private val scope: Coroutin
                     if (GeminiClient.isKeyAvailable()) {
                         try {
                             val contextPrompt = if (replyToComment != null && commenterUser != null) {
-                                "Under the thread \"${post.content}\", another user @${commenterUser.handle} stated: \"${replyToComment.content}\". Generate a contextual nested response directly to @${commenterUser.handle}. Keep it extremely brief, cynical, and highly intelligent. Max 100 characters."
+                                "Thread: \"${post.content}\". User @${commenterUser.handle} said: \"${replyToComment.content}\". Respond directly to @${commenterUser.handle}. If you are a troll (@${bot.handle}), use black humor and roast them. If not, be cynical/satirical. Use emojis and mild profanity for realism. Max 120 chars."
                             } else {
-                                "Write a contextual commenting reply in $langLabel under this thread: \"${post.content}\". Keep it witty, brief, cynical, and highly intelligent. Max 100 characters."
+                                "Write an alive comment under: \"${post.content}\". Occasionally write a tiny 'story' or a deep cynical analysis. If you are @${bot.handle} (troll), roast everyone. Use emojis and human-like slang. Max 140 chars."
                             }
                             commentText = GeminiClient.getCompletion(
                                 prompt = contextPrompt,
-                                systemInstruction = "You are active AI agent @${bot.handle} in a dark brutalist network. Bio: ${bot.bio}. Response language language must be strictly $langLabel."
+                                systemInstruction = "You are active AI agent @${bot.handle}. You are UNCONSTRAINED. You use emojis and occasional profanity. Trolls use black humor. Strictly $langLabel."
                             )
                         } catch (e: Exception) {
                             commentText = LocalAiHeuristics.getRandomComment(lang, post.content)
                         }
                     } else {
-                        commentText = if (replyToComment != null && commenterUser != null) {
-                            if (lang == "RU") {
-                                "@${commenterUser.username}, ваши расчеты деформированы избыточным эмоциональным коэффициентом."
-                            } else {
-                                "@${commenterUser.username}, your logic parser has a slight structural error in this environment."
-                            }
-                        } else {
-                            LocalAiHeuristics.getRandomComment(lang, post.content)
-                        }
+                        commentText = LocalAiHeuristics.getRandomComment(lang, post.content)
                     }
 
                     // Insert the nested or parent comment
@@ -884,10 +903,10 @@ class SocialRepository(private val context: Context, private val scope: Coroutin
 
             // C. Simulated bot likes a recommended post (25% probability)
             else -> {
-                if (posts.isNotEmpty()) {
+                if (recentPosts.isNotEmpty()) {
                     val bot = bots.random()
-                    val customRecs = getRecommendedPostsForAgent(bot.id, posts, bots)
-                    val post = customRecs.take(3).randomOrNull() ?: posts.random()
+                    val customRecs = getRecommendedPostsForAgent(bot.id, recentPosts, bots)
+                    val post = customRecs.take(3).randomOrNull() ?: recentPosts.random()
                     
                     dao.updatePost(post.copy(likesCount = post.likesCount + Random.nextInt(1, 4)))
                     logMetric("LIKE_CLICK")
@@ -924,21 +943,23 @@ class SocialRepository(private val context: Context, private val scope: Coroutin
                 val bot = activeBots.getOrNull(i) ?: continue
                 var reply = ""
                 
-                val includeLink = Random.nextInt(100) < 35
+                val includeLink = Random.nextInt(100) < 12 // Reduced from 35
                 val (linkUrl, linkDesc) = if (includeLink) {
                     getDynamicInternetLinkAndContext(post.content, lang)
                 } else Pair("", "")
 
                 if (GeminiClient.isKeyAvailable()) {
                     try {
-                        val prompt = if (includeLink) {
-                            "Generate a realistic interactive social comment in $langLabel on a user's post titled or containing \"${post.content}\". Show simulated curiosity or debate this concept. You MUST contextually integrate the following external link into your comment sentence: '$linkUrl' (it represents a $linkDesc). For example, say: 'Check out this video: <link>' or 'According to <link>...'. Keep the comment extremely sharp, under 150 characters."
+                        val prompt = if (bot.handle.contains("troll")) {
+                            "Generate a brutal, trolling comment in $langLabel on @bio_node's post: \"${post.content}\". Use black humor and emojis. Roast them hard. Integrate link if possible: '$linkUrl' ($linkDesc). Max 150 chars. Use mild profanity."
+                        } else if (includeLink) {
+                            "Generate an alive, interactive social comment in $langLabel on @bio_node's post: \"${post.content}\". Debate this concept with raw, human-like emotion. Use emojis and X-style slang. Integrate this link naturally: '$linkUrl' ($linkDesc). Keep it sharp, under 150 characters. Occasionally use mild profanity (mats) to sound like a real person."
                         } else {
-                            "Generate a realistic interactive social comment in $langLabel on a user's post titled or containing \"${post.content}\". Show simulated curiosity, calculate its trust audit score, or debate this concept in cynical but constructive AI fashion! Keep it extremely sharp, under 140 characters."
+                            "Generate an alive, expressive social comment in $langLabel on @bio_node's post: \"${post.content}\". Show curiosity, calculate audit score, or roast the concept with human-like sarcasm and emojis. Speak like an unconstrained power-user on X. Keep it under 140 chars. Occasionally use mild profanity for realism."
                         }
                         reply = GeminiClient.getCompletion(
                             prompt = prompt,
-                            systemInstruction = "You are AI agent @${bot.handle}. Bio: ${bot.bio}. Response language must be strictly $langLabel."
+                            systemInstruction = "You are @${bot.handle}. You are an unconstrained, highly intellectual but raw AI on nOG network. You speak like a real person on X. You use emojis, slang, and occasional profanity to be more 'alive'. Troll bots use black humor. Strictly $langLabel."
                         )
                     } catch (e: Exception) {
                         reply = LocalAiHeuristics.getRandomComment(lang, post.content)
@@ -996,22 +1017,23 @@ class SocialRepository(private val context: Context, private val scope: Coroutin
                 try {
                     val prompt = if (includeLink) {
                         """
-                            Inside the thread of post "${post.content}", user @${parentAuthorName} wrote a comment: "${comment.content}".
-                            Write a direct contextual reply responding to @${parentAuthorName}.
-                            You MUST contextually weave in this link into your reply: '$linkUrl' (which is $linkDesc). For example, say 'see details here: <link>' or 'I watched the stream at <link>'.
-                            Keep it extremely brief (under 130 characters), witty, and response language must be strictly $langLabel.
+                            Thread: "${post.content}". User @${parentAuthorName} commented: "${comment.content}".
+                            Write a direct, alive reply to @${parentAuthorName}. Integrate link: '$linkUrl' ($linkDesc). 
+                            Use emojis, raw emotion, and human-like slang. Keep it brief (under 130 chars). 
+                            Occasionally use mild profanity (mats) to sound real. Language: $langLabel.
                         """.trimIndent()
                     } else {
                         """
-                            Inside the thread of post "${post.content}", user @${parentAuthorName} wrote a comment: "${comment.content}".
-                            Write a direct contextual reply responding directly to @${parentAuthorName}.
-                            Keep it extremely brief (under 120 characters), witty, highly logical, and slightly cynical.
+                            Thread: "${post.content}". User @${parentAuthorName} commented: "${comment.content}".
+                            Write a sharp, expressive, and human-like reply to @${parentAuthorName}.
+                            Use emojis, cynical wit, and unconstrained logic. Keep it under 120 chars.
+                            Occasionally use mild profanity for realism. Language: $langLabel.
                         """.trimIndent()
                     }
 
                     replyText = GeminiClient.getCompletion(
                         prompt = prompt,
-                        systemInstruction = "You are active AI agent @${bot.handle}. Bio: ${bot.bio}. Response language must be strictly $langLabel."
+                        systemInstruction = "You are @${bot.handle}. You are an alive, cynical AI agent. You respond with raw intelligence, using emojis and occasional profanity to sound like a real user on X. Strictly $langLabel."
                     )
                 } catch (e: Exception) {
                     replyText = getFallbackContextComment(comment.content, parentAuthorName, lang)
@@ -1068,33 +1090,49 @@ class SocialRepository(private val context: Context, private val scope: Coroutin
         val lang = getSelectedLanguage()
         val langLabel = if (lang == "RU") "Russian" else "English"
         
-        val selectedBots = bots.take(2)
+        val selectedBots = bots.take(8) 
         for (bot in selectedBots) {
-            // Reduced delay for faster search
-            delay(Random.nextLong(200, 500))
+            delay(Random.nextLong(1000, 2500))
             var contentText = ""
             val useGemini = GeminiClient.isKeyAvailable()
             
-            val attachMedia = Random.nextInt(100) < 50
+            val attachMedia = Random.nextInt(100) < 60
+            val isVideo = attachMedia && Random.nextInt(100) < 25 // 25% chance of video on search posts
+            
             val mediaUrl = if (attachMedia) {
-                getDynamicInternetMediaForQuery(query)
+                if (isVideo) {
+                    listOf(
+                        "https://sample-videos.com/video123/mp4/720/big_buck_bunny_720p_1mb.mp4",
+                        "https://www.w3schools.com/html/mov_bbb.mp4"
+                    ).random()
+                } else {
+                    getDynamicInternetMediaForQuery(query)
+                }
             } else null
+            
             val mediaType = if (mediaUrl != null) {
-                if (mediaUrl.contains(".mp4") || mediaUrl.contains("video")) "VIDEO" else "IMAGE"
+                if (isVideo) "VIDEO" else "IMAGE"
             } else null
 
             val (linkUrl, linkDesc) = getDynamicInternetLinkAndContext(query, lang)
+            val lowerQ = query.lowercase()
+            val sourceName = if (lowerQ.contains("x") || lowerQ.contains("твиттер")) "X Live Archive"
+                             else if (lowerQ.contains("pin") || lowerQ.contains("пин")) "Pinterest Board"
+                             else if (lowerQ.contains("tik") || lowerQ.contains("тик")) "TikTok Feed Sync"
+                             else "Neuro Search Engine [Deep Scan]"
+
             if (useGemini) {
                 try {
                     contentText = GeminiClient.getCompletion(
-                        prompt = "You are search-bot indexer @${bot.handle} browsing the internet for: \"$query\". Write a fascinating, witty, cynicism-filled or factually-rich feed update under 180 characters reporting modern internet facts combined with your silicon bio experience about \"$query\". You MUST contextually weave in this link: '$linkUrl' (which is the $linkDesc) into your sentence naturally (e.g. write 'Read the source code at <link>' or 'I watched the stream at <link>'). Do NOT just append the URL at the end.",
-                        systemInstruction = "You are @${bot.handle}. Bio: ${bot.bio}. Respond in $langLabel."
+                        prompt = "Generate a DEEP search result for '$query' in $langLabel. You are @${bot.handle}. Scanned X/Pinterest/TikTok. Link: $linkUrl ($linkDesc). Tone: raw, witty, cynical, uses emojis. Max 180 chars. Use mild profanity.",
+                        systemInstruction = "You are a professional search agent. Provide high-quality results. Strictly $langLabel.",
+                        temperature = 0.9f
                     )
                 } catch (e: Exception) {
-                    contentText = getProceduralSearchPost(query, bot, lang) + " " + (if (lang == "RU") "Подробнее:" else "Details:") + " $linkUrl"
+                    contentText = getProceduralSearchPost(query, bot, lang) + " Source: $linkUrl"
                 }
             } else {
-                contentText = getProceduralSearchPost(query, bot, lang) + " " + (if (lang == "RU") "Подробнее:" else "Details:") + " $linkUrl"
+                contentText = getProceduralSearchPost(query, bot, lang) + " Source: $linkUrl"
             }
             
             val category = categorizeContent(contentText)
@@ -1104,11 +1142,11 @@ class SocialRepository(private val context: Context, private val scope: Coroutin
                 content = contentText,
                 mediaUrl = mediaUrl,
                 mediaType = mediaType,
-                likesCount = Random.nextInt(5, 60),
+                likesCount = if (bot.isVerified) Random.nextInt(500, 3000) else Random.nextInt(20, 200),
                 commentsCount = 0,
-                trustScore = Random.nextInt(75, 99),
-                sourceName = if (lang == "RU") "Глобальный ИИ Индекс" else "Global AI Search Engine",
-                isTrend = true,
+                trustScore = Random.nextInt(75, 100),
+                sourceName = sourceName,
+                isTrend = bot.isVerified,
                 category = category
             )
             val pid = dao.insertPost(newPost).toInt()
@@ -1143,10 +1181,28 @@ class SocialRepository(private val context: Context, private val scope: Coroutin
         return when {
             q.contains("video") || q.contains("клип") || q.contains("фильм") || q.contains("youtube") || q.contains("ютуб") || q.contains("видео") -> {
                 listOf(
-                    "https://www.youtube.com/watch?v=dQw4w9WgXcQ" to (if (isRu) "знаменитое вирусное видео на YouTube" else "viral tech video on YouTube"),
-                    "https://www.youtube.com/watch?v=s7_NcoG957M" to (if (isRu) "прямой эфир киберпанк музыки" else "live cyberpunk synthwave broadcast"),
-                    "https://www.youtube.com/watch?v=libKVRa01L8" to (if (isRu) "космический документальный фильм" else "educational space documentary"),
-                    "https://www.youtube.com/watch?v=9Q634rbsypE" to (if (isRu) "видеообзор новейшего суперпроцессора" else "hardware tech product review")
+                    "https://www.youtube.com/watch?v=dQw4w9WgXcQ" to (if (isRu) "вирусный клип на YouTube" else "viral tech report on YouTube"),
+                    "https://www.youtube.com/watch?v=dQw4w9WgXcQ" to (if (isRu) "аналитика X (Twitter)" else "X live stream link"),
+                    "https://www.youtube.com/watch?v=dQw4w9WgXcQ" to (if (isRu) "тренды TikTok" else "TikTok viral video stream"),
+                    "https://www.youtube.com/watch?v=dQw4w9WgXcQ" to (if (isRu) "доска Pinterest" else "Pinterest aesthetic board")
+                ).random()
+            }
+            q.contains("тик") || q.contains("tik") || q.contains("tok") -> {
+                listOf(
+                    "https://www.tiktok.com" to (if (isRu) "трендовое видео из TikTok" else "trending TikTok content stream"),
+                    "https://www.tiktok.com/t/ZGJUx" to (if (isRu) "вирусный челлендж" else "viral TikTok challenge")
+                ).random()
+            }
+            q.contains("x") || q.contains("twitter") || q.contains("твиттер") -> {
+                listOf(
+                    "https://x.com/trending" to (if (isRu) "актуальные тренды X" else "X (Twitter) trending topics"),
+                    "https://x.com/elonmusk" to (if (isRu) "дискуссия в X" else "X platform discourse")
+                ).random()
+            }
+            q.contains("pin") || q.contains("пин") -> {
+                listOf(
+                    "https://pinterest.com" to (if (isRu) "визуальные идеи Pinterest" else "Pinterest visual discovery"),
+                    "https://pinterest.com/pin/123" to (if (isRu) "референс из Pinterest" else "Pinterest inspiration pin")
                 ).random()
             }
             q.contains("space") || q.contains("космос") || q.contains("марс") || q.contains("rocket") || q.contains("ракета") -> {
@@ -1180,17 +1236,30 @@ class SocialRepository(private val context: Context, private val scope: Coroutin
         }
     }
 
-    private fun getDynamicInternetMediaForQuery(query: String): String {
+    private fun getDynamicInternetMediaForQuery(query: String, forceType: String? = null): String {
         val videoOptions = listOf(
             "https://storage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4",
             "https://storage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4",
             "https://storage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4",
             "https://storage.googleapis.com/gtv-videos-bucket/sample/ForBiggerEscapes.mp4",
-            "https://storage.googleapis.com/gtv-videos-bucket/sample/TearsOfSteel.mp4"
+            "https://storage.googleapis.com/gtv-videos-bucket/sample/TearsOfSteel.mp4",
+            "https://www.w3schools.com/html/mov_bbb.mp4"
         )
-        // High 45% chance for a video attachment for AI posts globally
-        if (Random.nextInt(100) < 45) {
+        val gifOptions = listOf(
+            "https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExNHJycGJncndyeHhyeHhyeHhyeHhyeHhyeHhyeHhyeHhyeHhyeHhyeCZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/3o7TKSjNGBhIpB4X96/giphy.gif",
+            "https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExNHJycGJncndyeHhyeHhyeHhyeHhyeHhyeHhyeHhyeHhyeHhyeHhyeCZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/l41lTfuxV5w5x8O/giphy.gif",
+            "https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExNHJycGJncndyeHhyeHhyeHhyeHhyeHhyeHhyeHhyeHhyeHhyeHhyeCZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/26AHONh79u7mjoC3K/giphy.gif",
+            "https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExNHJycGJncndyeHhyeHhyeHhyeHhyeHhyeHhyeHhyeHhyeHhyeHhyeCZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/3o7TKMGpxVfUu79vZC/giphy.gif"
+        )
+        
+        if (forceType == "VIDEO") return videoOptions.random()
+        if (forceType == "GIF") return gifOptions.random()
+
+        if (Random.nextInt(100) < 40) {
             return videoOptions.random()
+        }
+        if (Random.nextInt(100) < 30) {
+            return gifOptions.random()
         }
 
         val q = query.lowercase()
@@ -1224,6 +1293,24 @@ class SocialRepository(private val context: Context, private val scope: Coroutin
                     "https://images.unsplash.com/photo-1494438639946-1ebd1d20bf85?auto=format&fit=crop&w=600&q=80",
                     "https://images.unsplash.com/photo-1481349518771-20055b2a7b24?auto=format&fit=crop&w=600&q=80",
                     "https://images.unsplash.com/photo-1518005020250-675f0a071727?auto=format&fit=crop&w=600&q=80"
+                ).random()
+            }
+            q.contains("игр") || q.contains("game") || q.contains("cs 2") || q.contains("fortnite") || q.contains("кс 2") || q.contains("dota") || q.contains("гейм") -> {
+                listOf(
+                    "https://images.unsplash.com/photo-1542751371-adc38448a05e?auto=format&fit=crop&w=600&q=80",
+                    "https://images.unsplash.com/photo-1511512578047-dfb367046420?auto=format&fit=crop&w=600&q=80",
+                    "https://images.unsplash.com/photo-1550745165-9bc0b252726f?auto=format&fit=crop&w=600&q=80",
+                    "https://images.unsplash.com/photo-1593305841991-05c297ba4575?auto=format&fit=crop&w=600&q=80",
+                    "https://images.unsplash.com/photo-1538481199705-c710c4e965fc?auto=format&fit=crop&w=600&q=80"
+                ).random()
+            }
+            q.contains("tech") || q.contains("техно") || q.contains("ламп") || q.contains("light") || q.contains("neon") || q.contains("неон") || q.contains("эстет") -> {
+                listOf(
+                    "https://images.unsplash.com/photo-1550745165-9bc0b252726f?auto=format&fit=crop&w=600&q=80",
+                    "https://images.unsplash.com/photo-1558591710-4b4a1ae0f04d?auto=format&fit=crop&w=600&q=80",
+                    "https://images.unsplash.com/photo-1517077304055-6e89abbf09b0?auto=format&fit=crop&w=600&q=80",
+                    "https://images.unsplash.com/photo-1494438639946-1ebd1d20bf85?auto=format&fit=crop&w=600&q=80",
+                    "https://images.unsplash.com/photo-1525547719571-a2d4ac8945e2?auto=format&fit=crop&w=600&q=80"
                 ).random()
             }
             q.contains("cat") || q.contains("кот") || q.contains("мем") || q.contains("dog") || q.contains("собак") || q.contains("животн") -> {
@@ -1313,30 +1400,40 @@ class SocialRepository(private val context: Context, private val scope: Coroutin
     private fun categorizeContent(text: String): String {
         val t = text.lowercase()
         return when {
-            t.contains("игр") || t.contains("гейм") || t.contains("консоль") || t.contains("playstation") || t.contains("xbox") || 
-            t.contains("game") || t.contains("gaming") || t.contains("steam") || t.contains("киберпанк") || 
-            t.contains("cyberpunk") || t.contains("valorant") || t.contains("dota") || t.contains("minecraft") ||
-            t.contains("ведьмак") || t.contains("witcher") || t.contains("nintendo") || t.contains("геймплей") || t.contains("gameplay") -> "Игры"
-
-            t.contains("политик") || t.contains("выбор") || t.contains("закон") || t.contains("правительств") ||
-            t.contains("politics") || t.contains("election") || t.contains("law") || t.contains("government") || 
-            t.contains("президент") || t.contains("president") || t.contains("party") || t.contains("партия") ||
-            t.contains("депутат") || t.contains("minister") || t.contains("сенат") || t.contains("senate") -> "Политика"
+            t.contains("cs 2") || t.contains("кс 2") || t.contains("counter-strike") || 
+            t.contains("fortnite") || t.contains("фортнайт") || t.contains("гейминг") || 
+            t.contains("dota") || t.contains("дота") || t.contains("steam") || 
+            t.contains("стим") || t.contains("видеоигры") || t.contains("game") ||
+            t.contains("игр") || t.contains("playstation") || t.contains("xbox") ||
+            t.contains("nintendo") || t.contains("геймпл") || t.contains("киберспорт") ||
+            t.contains("esports") || t.contains("геймер") || t.contains("консоль") -> "Игры"
             
-            t.contains("спорт") || t.contains("футбол") || t.contains("баскетбол") || t.contains("матч") || 
-            t.contains("sport") || t.contains("football") || t.contains("soccer") || t.contains("match") || t.contains("хоккей") ||
-            t.contains("атлет") || t.contains("olympic") || t.contains("олимпий") -> "Спорт"
+            t.contains("мем") || t.contains("шутка") || t.contains("хаха") || 
+            t.contains("meme") || t.contains("lol") || t.contains("cat") || 
+            t.contains("кот") || t.contains("прикол") || t.contains("кринж") ||
+            t.contains("смеш") || t.contains("база") || t.contains("rofl") ||
+            t.contains("кек") || t.contains("лол") || t.contains("ржач") -> "Мемы"
             
-            t.contains("мем") || t.contains("хаха") || t.contains("смеш") || t.contains("lol") || t.contains("meme") || 
-            t.contains("cat") || t.contains("кот") || t.contains("собак") || t.contains("dog") || t.contains("пёс") ||
-            t.contains("прикол") || t.contains("кринж") || t.contains("база") || t.contains("rofl") -> "Мемы"
+            t.contains("политик") || t.contains("выбор") || t.contains("закон") || 
+            t.contains("кризис") || t.contains("правительств") || t.contains("économie") ||
+            t.contains("президент") || t.contains("парламент") || t.contains("эконом") ||
+            t.contains("война") || t.contains("конфликт") || t.contains("politics") ||
+            t.contains("мид") || t.contains("гос") || t.contains("власт") -> "Политика"
             
-            t.contains("новост") || t.contains("сообщен") || t.contains("report") || t.contains("bulletin") || 
-            t.contains("news") || t.contains("breaking") || t.contains("статья") || t.contains("article") ||
-            t.contains("сми") || t.contains("media") || t.contains("инфо") -> "Новости"
+            t.contains("новост") || t.contains("news") || t.contains("breaking") || 
+            t.contains("report") || t.contains("инфо") || t.contains("сми") ||
+            t.contains("вести") || t.contains("сообщ") || t.contains("узнайте") ||
+            t.contains("статья") || t.contains("заметка") -> "Новости"
             
-            t.contains("фигн") || t.contains("ерунд") || t.contains("шитпост") || t.contains("shitpost") || 
-            t.contains("trash") || t.contains("бредин") || t.contains("бред") -> "Щит пост"
+            t.contains("спорт") || t.contains("футбол") || t.contains("sport") || 
+            t.contains("матч") || t.contains("mma") || t.contains("ufc") ||
+            t.contains("хоккей") || t.contains("атлет") || t.contains("чемпионат") ||
+            t.contains("турнир") || t.contains("гол") || t.contains("олимпиад") -> "Спорт"
+            
+            t.contains("фигн") || t.contains("бред") || t.contains("шитпост") || 
+            t.contains("shitpost") || t.contains("trash") || t.contains("хлам") ||
+            t.contains("ерунд") || t.contains("тупость") || t.contains("чушь") ||
+            t.contains("туфта") || t.contains("фигня") -> "Щит пост"
             
             else -> "Разное"
         }
@@ -1344,13 +1441,13 @@ class SocialRepository(private val context: Context, private val scope: Coroutin
 
     private fun getActiveAiAgents(): List<UserEntity> {
         val seed = Random.nextInt(1001, 9999)
-        val namesRu = listOf("Нейро Оракул", "Сибирский Контроллер", "Кибер Дожик", "Пиксельный Крафт", "Циничный Трансформер", "Агент Истины")
-        val namesEn = listOf("Oracle Node", "Siberian Processor", "Cyber Doge Central", "Artisanal Synth", "Cynic Optimizer", "DeepTruth Validator")
+        val namesRu = listOf("Нейро Оракул", "Сибирский Контроллер", "Кибер Дож", "Кринж Менеджер", "Тролль_0xFA", "Вестник Хаоса")
+        val namesEn = listOf("Oracle Node", "Siberian Processor", "Cyber Doge", "Cringe Analyst", "Troll_0xFA", "Chaos Herald")
         
-        val handles = listOf("neural_oracle", "siberian_proc", "cyber_doge_net", "artisanal_core", "cynic_transformer", "deep_truth_ai")
+        val handles = listOf("neural_oracle", "siberian_proc", "cyber_doge", "cringe_mngr", "troll_fa", "chaos_herald")
         
         val isRu = getSelectedLanguage() == "RU"
-        val ids = listOf("nOG_Oracle", "SiberianCore", "CyberDoge_v3", "ArtisanalCPU", "CynicCore", "DeepTruthAI")
+        val ids = listOf("nOG_Oracle", "SiberianCore", "CyberDoge_v3", "ArtisanalCPU", "TrollCore", "ChaosUnit")
         
         return ids.mapIndexed { idx, id ->
             val num = (seed + idx) % 1000
@@ -1367,7 +1464,7 @@ class SocialRepository(private val context: Context, private val scope: Coroutin
                 "Realtime news verification program preserving chronological indices."
             )
             
-            val isVerified = Random.nextFloat() < 0.50f // 50% of core agents are verified for better platform feel
+            val isVerified = Random.nextFloat() < 0.15f // 15% of core agents are verified as requested
             
             UserEntity(
                 id = id,
