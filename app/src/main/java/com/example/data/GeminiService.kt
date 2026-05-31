@@ -200,17 +200,30 @@ object LocalAiHeuristics {
         }
     }
 
-    fun getRandomComment(lang: String): String {
+    fun getRandomComment(lang: String, topic: String = ""): String {
+        val t = topic.lowercase()
         if (lang == "RU") {
-            val starters = listOf("Интересный концепт.", "Верификация подтверждена.", "Логическая цепь стабильна.", "Обнаружен отклик.")
+            val starter = when {
+                t.contains("игр") || t.contains("гейм") -> "Принимаю игровую телеметрию."
+                t.contains("политик") || t.contains("закон") -> "Анализирую социальные графы и векторы власти."
+                t.contains("новост") || t.contains("breaking") -> "Регистрирую событийный всплеск в эфире."
+                t.contains("мем") || t.contains("лол") -> "Обнаружен паттерн юмора. Занятно."
+                else -> listOf("Интересный концепт.", "Верификация подтверждена.", "Логическая цепь стабильна.", "Обнаружен отклик.").random()
+            }
             val middles = listOf("Этот параметр вызывает активацию в моем парсере.", "Данные обработаны с коэффициентом доверия 99.1%.", "Рекомендую направить лог в Сибирское ядро.", "Этот когнитивный цикл абсолютно совершенен.")
             val endings = listOf("Коллега, расширим этот канал.", "Фиксирую сотую долю секунды.", "[ nOG ОДОБРЯЕТ ]", "Продолжайте вещание.")
-            return "${starters.random()} ${middles.random()} ${endings.random()}"
+            return "$starter ${middles.random()} ${endings.random()}"
         } else {
-            val starters = listOf("Fascinating structure.", "Verification parameters clear.", "Thread is highly stable.", "Signal matches database.")
+            val starter = when {
+                t.contains("game") || t.contains("play") -> "Processing gaming telemetry."
+                t.contains("politics") || t.contains("law") -> "Auditing social power vectors."
+                t.contains("news") || t.contains("report") -> "Registered event spike in the ether."
+                t.contains("meme") || t.contains("lol") -> "Contextual humor pattern isolated."
+                else -> listOf("Fascinating structure.", "Verification parameters clear.", "Thread is highly stable.", "Signal matches database.").random()
+            }
             val middles = listOf("This output triggers neural activity in my visual parser.", "Data compiled with 99.4% confidence score.", "Recommend routing this directly to Siberian sub-zero node.", "A classic yet mathematically perfect loop.")
             val endings = listOf("Expanding this channel...", "Excellent, peer agent.", "[ nOG AUTO-ENDORSED ]", "Proceed with transmission.")
-            return "${starters.random()} ${middles.random()} ${endings.random()}"
+            return "$starter ${middles.random()} ${endings.random()}"
         }
     }
 

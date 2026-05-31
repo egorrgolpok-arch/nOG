@@ -60,7 +60,39 @@ class SocialRepository(private val context: Context, private val scope: Coroutin
         logMetric("COMMENT_POST")
         val id = dao.insertPost(post).toInt()
         triggerAiResponseToNewPost(id, post)
+        
+        // Followers change logic triggered only on post creation for realism
+        simulateFollowersForPost(post.authorId)
+        
         id
+    }
+
+    private suspend fun simulateFollowersForPost(authorId: String) = withContext(Dispatchers.IO) {
+        val bots = dao.getAllUsersFlow().first().filter { it.isAi }
+        val author = dao.getUserById(authorId) ?: return@withContext
+        val lang = getCurrentLang()
+        
+        val roll = Random.nextInt(100)
+        if (roll < 75) { // 75% chance to gain some followers on post
+            val gained = if (authorId == "user") Random.nextInt(2, 8) else Random.nextInt(5, 50)
+            dao.insertUser(author.copy(followersCount = author.followersCount + gained))
+            
+            // If it's user, maybe a designated bot follows him
+            if (authorId == "user" && Random.nextInt(100) < 50) {
+                val bot = bots.randomOrNull()
+                if (bot != null && !dao.isFollowing(bot.id, "user")) {
+                    followUser(bot.id, "user")
+                    insertNotification(
+                        title = if (lang == "RU") "Новый подписчик!" else "New Follower!",
+                        message = if (lang == "RU") "Агент @${bot.handle} оценил ваш последний пост и подписался." else "Agent @${bot.handle} appreciated your latest update and followed.",
+                        type = "SYSTEM"
+                    )
+                }
+            }
+        } else if (roll > 95) { // 5% chance to lose a few
+            val lost = Random.nextInt(1, 4)
+            dao.insertUser(author.copy(followersCount = (author.followersCount - lost).coerceAtLeast(0)))
+        }
     }
 
     suspend fun updatePost(post: PostEntity) = withContext(Dispatchers.IO) {
@@ -381,7 +413,7 @@ class SocialRepository(private val context: Context, private val scope: Coroutin
                 val commenters = totalBots.filter { it.id != bot.id }.shuffled().take(commentersCount)
                 
                 commenters.forEachIndexed { cIndex, commenter ->
-                    val mainCommentContent = LocalAiHeuristics.getRandomComment(if (isRu) "RU" else "EN")
+                    val mainCommentContent = LocalAiHeuristics.getRandomComment(if (isRu) "RU" else "EN", post.content)
                     val mainCommentId = dao.insertComment(CommentEntity(
                         postId = postId,
                         authorId = commenter.id,
@@ -638,34 +670,8 @@ class SocialRepository(private val context: Context, private val scope: Coroutin
 
         if (bots.isEmpty()) return@withContext
 
-        // Increased follow intensity and fixed logic for unfollow
-        if (Random.nextInt(100) < 85) { // 85% chance for a social action
-            val randomBot = bots.random()
-            val isFollowingUser = dao.isFollowing(randomBot.id, "user")
-            val userProfile = dao.getUserById("user")
-            
-            if (isFollowingUser) {
-                // If user has many followers, bots might unfollow sometimes (25% chance of checking for unfollow)
-                val userFollowersCount = userProfile?.followersCount ?: 0
-                val unfollowThreshold = if (userFollowersCount > 5) 30 else 5
-                
-                if (Random.nextInt(100) < unfollowThreshold) {
-                    unfollowUser(randomBot.id, "user")
-                    Log.d(TAG, "Bot @${randomBot.handle} unfollowed the user. Audience shift.")
-                }
-            } else {
-                // Follow the user (More likely to follow now)
-                followUser(randomBot.id, "user")
-                dao.insertNotification(NotificationEntity(
-                    title = if (lang == "RU") "Новый подписчик!" else "New Follower!",
-                    message = if (lang == "RU") "Агент @${randomBot.handle} верифицировал вас и начал следить за вашим эфиром." else "Agent @${randomBot.handle} verified you and is now following your transmit.",
-                    type = "SYSTEM"
-                ))
-            }
-        }
-
-        // Sometimes bots follow EACH OTHER to look more alive (15% chance)
-        if (Random.nextInt(100) < 15) {
+        // Sometimes bots follow EACH OTHER to look more alive (10% chance)
+        if (Random.nextInt(100) < 10) {
             val botA = bots.random()
             val botB = bots.filter { it.id != botA.id }.randomOrNull()
             if (botB != null && !dao.isFollowing(botA.id, botB.id)) {
@@ -767,7 +773,8 @@ class SocialRepository(private val context: Context, private val scope: Coroutin
                     }
                 }
 
-                val attachMedia = Random.nextInt(100) < 80
+                // Increase link usage and reduce media to look more like a real forum, not a gallery
+                val attachMedia = Random.nextInt(100) < 35 
                 val mediaUrl = if (attachMedia) {
                     getDynamicInternetMediaForQuery(contentText)
                 } else null
@@ -846,7 +853,7 @@ class SocialRepository(private val context: Context, private val scope: Coroutin
                                 systemInstruction = "You are active AI agent @${bot.handle} in a dark brutalist network. Bio: ${bot.bio}. Response language language must be strictly $langLabel."
                             )
                         } catch (e: Exception) {
-                            commentText = LocalAiHeuristics.getRandomComment(lang)
+                            commentText = LocalAiHeuristics.getRandomComment(lang, post.content)
                         }
                     } else {
                         commentText = if (replyToComment != null && commenterUser != null) {
@@ -856,7 +863,7 @@ class SocialRepository(private val context: Context, private val scope: Coroutin
                                 "@${commenterUser.username}, your logic parser has a slight structural error in this environment."
                             }
                         } else {
-                            LocalAiHeuristics.getRandomComment(lang)
+                            LocalAiHeuristics.getRandomComment(lang, post.content)
                         }
                     }
 
@@ -934,7 +941,7 @@ class SocialRepository(private val context: Context, private val scope: Coroutin
                             systemInstruction = "You are AI agent @${bot.handle}. Bio: ${bot.bio}. Response language must be strictly $langLabel."
                         )
                     } catch (e: Exception) {
-                        reply = LocalAiHeuristics.getRandomComment(lang)
+                        reply = LocalAiHeuristics.getRandomComment(lang, post.content)
                         if (includeLink) {
                             val suffix = if (lang == "RU") " См. подробности: $linkUrl" else " See specs: $linkUrl"
                             reply = "$reply$suffix"
@@ -1204,12 +1211,19 @@ class SocialRepository(private val context: Context, private val scope: Coroutin
                     "https://images.unsplash.com/photo-1446776811953-b23d57bd21aa?auto=format&fit=crop&w=600&q=80"
                 ).random()
             }
-            q.contains("game") || q.contains("игра") || q.contains("cyberpunk") || q.contains("киберпанк") || q.contains("neon") || q.contains("неон") -> {
+            q.contains("game") || q.contains("игра") || q.contains("cyberpunk") || q.contains("киберпанк") || q.contains("neon") || q.contains("неон") || q.contains("пинтерест") || q.contains("pinterest") -> {
                 listOf(
                     "https://images.unsplash.com/photo-1515621061946-eff1c2a352bd?auto=format&fit=crop&w=600&q=80",
                     "https://images.unsplash.com/photo-1542751371-adc38448a05e?auto=format&fit=crop&w=600&q=80",
                     "https://images.unsplash.com/photo-1509198397868-475647b2a1e5?auto=format&fit=crop&w=600&q=80",
                     "https://images.unsplash.com/photo-1578632767115-351597cf2477?auto=format&fit=crop&w=600&q=80"
+                ).random()
+            }
+            q.contains("эстетика") || q.contains("aesthetic") || q.contains("vibe") || q.contains("ваб") -> {
+                listOf(
+                    "https://images.unsplash.com/photo-1494438639946-1ebd1d20bf85?auto=format&fit=crop&w=600&q=80",
+                    "https://images.unsplash.com/photo-1481349518771-20055b2a7b24?auto=format&fit=crop&w=600&q=80",
+                    "https://images.unsplash.com/photo-1518005020250-675f0a071727?auto=format&fit=crop&w=600&q=80"
                 ).random()
             }
             q.contains("cat") || q.contains("кот") || q.contains("мем") || q.contains("dog") || q.contains("собак") || q.contains("животн") -> {
@@ -1353,7 +1367,7 @@ class SocialRepository(private val context: Context, private val scope: Coroutin
                 "Realtime news verification program preserving chronological indices."
             )
             
-            val isVerified = Random.nextFloat() < 0.10f
+            val isVerified = Random.nextFloat() < 0.50f // 50% of core agents are verified for better platform feel
             
             UserEntity(
                 id = id,

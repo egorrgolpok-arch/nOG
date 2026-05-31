@@ -69,6 +69,7 @@ fun FeedScreen(
     val coroutineScope = rememberCoroutineScope()
     
     var showCreatePostDialog by remember { mutableStateOf(false) }
+    var zoomImageUrl by remember { mutableStateOf<String?>(null) }
     val selectedPostForComments by viewModel.activePostIdForComments.collectAsState()
 
     var selectedTab by remember { mutableStateOf(0) }
@@ -86,6 +87,40 @@ fun FeedScreen(
             .background(PureBlack)
             .padding(innerPadding)
     ) {
+        // --- Fullscreen Image Zoom Dialog ---
+        if (zoomImageUrl != null) {
+            androidx.compose.ui.window.Dialog(
+                onDismissRequest = { zoomImageUrl = null },
+                properties = androidx.compose.ui.window.DialogProperties(usePlatformDefaultWidth = false)
+            ) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(Color.Black.copy(alpha = 0.9f))
+                        .clickable { zoomImageUrl = null },
+                    contentAlignment = Alignment.Center
+                ) {
+                    AsyncImage(
+                        model = zoomImageUrl,
+                        contentDescription = null,
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(16.dp),
+                        contentScale = ContentScale.Fit
+                    )
+                    
+                    IconButton(
+                        onClick = { zoomImageUrl = null },
+                        modifier = Modifier
+                            .align(Alignment.TopEnd)
+                            .padding(24.dp)
+                    ) {
+                        Icon(Icons.Default.Close, contentDescription = "Close", tint = PureWhite, modifier = Modifier.size(32.dp))
+                    }
+                }
+            }
+        }
+
         Column(modifier = Modifier.fillMaxSize()) {
             
             // --- Live Activity Stream Ticker ---
@@ -233,34 +268,36 @@ fun FeedScreen(
                     }
                 }
                 
-                // Categories Filter Bar (Shown to all users for better navigation)
-                Spacer(modifier = Modifier.height(8.dp))
-                val catList = listOf("Игры", "Новости", "Политика", "Мемы", "Спорт", "Щит пост", "Разное")
-                androidx.compose.foundation.lazy.LazyRow(
-                    modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    item {
-                        FilterChip(
-                            selected = selectedCategory == null,
-                            onClick = { viewModel.selectCategory(null) },
-                            label = { Text("Все", fontFamily = FontFamily.Monospace) },
-                            colors = androidx.compose.material3.FilterChipDefaults.filterChipColors(
-                                selectedContainerColor = PureWhite,
-                                selectedLabelColor = PureBlack
+                // Categories Filter Bar (Shown ONLY to verified users for exclusive navigation)
+                if (currentUser?.isVerified == true) {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    val catList = listOf("Игры", "Новости", "Политика", "Мемы", "Спорт", "Щит пост", "Разное")
+                    androidx.compose.foundation.lazy.LazyRow(
+                        modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        item {
+                            FilterChip(
+                                selected = selectedCategory == null,
+                                onClick = { viewModel.selectCategory(null) },
+                                label = { Text("Все", fontFamily = FontFamily.Monospace) },
+                                colors = androidx.compose.material3.FilterChipDefaults.filterChipColors(
+                                    selectedContainerColor = PureWhite,
+                                    selectedLabelColor = PureBlack
+                                )
                             )
-                        )
-                    }
-                    items(catList) { cat ->
-                        FilterChip(
-                            selected = selectedCategory == cat,
-                            onClick = { viewModel.selectCategory(cat) },
-                            label = { Text(cat, fontFamily = FontFamily.Monospace) },
-                            colors = androidx.compose.material3.FilterChipDefaults.filterChipColors(
-                                selectedContainerColor = PureWhite,
-                                selectedLabelColor = PureBlack
+                        }
+                        items(catList) { cat ->
+                            FilterChip(
+                                selected = selectedCategory == cat,
+                                onClick = { viewModel.selectCategory(cat) },
+                                label = { Text(cat, fontFamily = FontFamily.Monospace) },
+                                colors = androidx.compose.material3.FilterChipDefaults.filterChipColors(
+                                    selectedContainerColor = PureWhite,
+                                    selectedLabelColor = PureBlack
+                                )
                             )
-                        )
+                        }
                     }
                 }
                 
@@ -376,6 +413,7 @@ fun FeedScreen(
                                     isFollowing = isF,
                                     onLikeClick = { viewModel.toggleLike(post.id) },
                                     onCommentClick = { viewModel.selectPostForComments(post.id) },
+                                    onMediaClick = { zoomImageUrl = it },
                                     onArchiveToggle = { viewModel.archivePost(post.id, !post.isArchived) },
                                     onFollowToggle = {
                                         if (author != null) {
@@ -438,6 +476,7 @@ fun FeedScreen(
                                         isFollowing = isF,
                                         onLikeClick = { viewModel.toggleLike(post.id) },
                                         onCommentClick = { viewModel.selectPostForComments(post.id) },
+                                        onMediaClick = { zoomImageUrl = it },
                                         onArchiveToggle = { viewModel.archivePost(post.id, !post.isArchived) },
                                         onFollowToggle = {
                                             if (author != null) {
@@ -581,6 +620,7 @@ fun PostItem(
     isFollowing: Boolean = false,
     onLikeClick: () -> Unit,
     onCommentClick: () -> Unit,
+    onMediaClick: (String?) -> Unit,
     onArchiveToggle: () -> Unit,
     onFollowToggle: () -> Unit
 ) {
@@ -628,8 +668,8 @@ fun PostItem(
                             Icon(
                                 imageVector = Icons.Filled.CheckCircle,
                                 contentDescription = "Verified",
-                                tint = PureWhite,
-                                modifier = Modifier.size(12.dp)
+                                tint = Color(0xFF2196F3), // Distinct blue for verification
+                                modifier = Modifier.size(14.dp)
                             )
                         }
                         if (author?.isAi == true) {
@@ -740,31 +780,38 @@ fun PostItem(
                         .clip(RoundedCornerShape(8.dp))
                         .border(1.dp, BorderGray, RoundedCornerShape(8.dp))
                         .background(DeepGray)
+                        .clickable { onMediaClick(post.mediaUrl) }
                 ) {
                     if (post.mediaType == "VIDEO") {
                         val context = androidx.compose.ui.platform.LocalContext.current
-                        val view = remember {
-                            android.widget.VideoView(context).apply {
-                                setVideoURI(android.net.Uri.parse(post.mediaUrl))
-                                val mediaController = android.widget.MediaController(context)
-                                mediaController.setAnchorView(this)
-                                setMediaController(mediaController)
-                            }
-                        }
-                        
                         androidx.compose.ui.viewinterop.AndroidView(
-                            factory = { view },
-                            modifier = Modifier.fillMaxSize()
-                        ) { videoView ->
-                            videoView.start()
-                        }
+                            factory = { ctx ->
+                                android.widget.VideoView(ctx).apply {
+                                    setVideoURI(android.net.Uri.parse(post.mediaUrl))
+                                    setOnPreparedListener { mp ->
+                                        mp.isLooping = true
+                                        start()
+                                    }
+                                    setOnErrorListener { _, _, _ ->
+                                        Log.e("PostItem", "Video playback failed for ${post.mediaUrl}")
+                                        true
+                                    }
+                                }
+                            },
+                            modifier = Modifier.fillMaxSize(),
+                            update = { view ->
+                                if (!view.isPlaying) {
+                                    view.start()
+                                }
+                            }
+                        )
                     } else {
                         AsyncImage(
                             model = post.mediaUrl,
                             contentDescription = if (lang == "RU") "Вложение" else "Attachment",
                             modifier = Modifier.fillMaxSize(),
                             contentScale = ContentScale.Crop,
-                            placeholder = androidx.compose.ui.res.painterResource(id = android.R.drawable.presence_video_online),
+                            placeholder = androidx.compose.ui.res.painterResource(id = android.R.drawable.ic_menu_gallery),
                             error = androidx.compose.ui.res.painterResource(id = android.R.drawable.ic_dialog_alert)
                         )
                     }
