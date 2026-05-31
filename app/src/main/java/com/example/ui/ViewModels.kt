@@ -44,11 +44,28 @@ class SocialViewModel(application: Application) : AndroidViewModel(application) 
             initialValue = null
         )
 
+    val currentUserFollowingIds = repository.getFollowingFlow("user")
+        .map { list -> list.map { it.targetId }.toSet() }
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5000),
+            initialValue = emptySet()
+        )
+
     // --- Live Social Search States ---
     val searchQuery = MutableStateFlow("")
     val searchLoading = MutableStateFlow(false)
+    val selectedCategory = MutableStateFlow<String?>(null)
 
     // --- Social Streams ---
+    // User stream needs to be before allPosts to use it in combine
+    val allUsers = repository.usersFlow
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5000),
+            initialValue = emptyList()
+        )
+
     val allRawPosts = repository.postsFlow
         .stateIn(
             scope = viewModelScope,
@@ -56,15 +73,23 @@ class SocialViewModel(application: Application) : AndroidViewModel(application) 
             initialValue = emptyList()
         )
 
-    val allPosts = combine(allRawPosts, searchQuery) { posts, query ->
-        if (query.isBlank()) {
-            posts
-        } else {
-            posts.filter {
-                it.content.contains(query, ignoreCase = true) ||
-                it.sourceName.contains(query, ignoreCase = true)
+    val allPosts = combine(allRawPosts, searchQuery, allUsers, selectedCategory) { posts, query, users, category ->
+        var filtered = posts
+
+        if (category != null) {
+            filtered = filtered.filter { it.category == category }
+        }
+
+        if (query.isNotBlank()) {
+            filtered = filtered.filter { post ->
+                val author = users.find { it.id == post.authorId }
+                post.content.contains(query, ignoreCase = true) ||
+                post.sourceName.contains(query, ignoreCase = true) ||
+                author?.username?.contains(query, ignoreCase = true) == true ||
+                author?.handle?.contains(query, ignoreCase = true) == true
             }
         }
+        filtered
     }.stateIn(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(5000),
@@ -79,13 +104,6 @@ class SocialViewModel(application: Application) : AndroidViewModel(application) 
         )
 
     val archivedPosts = repository.archivedPostsFlow
-        .stateIn(
-            scope = viewModelScope,
-            started = SharingStarted.WhileSubscribed(5000),
-            initialValue = emptyList()
-        )
-
-    val allUsers = repository.usersFlow
         .stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5000),
@@ -134,9 +152,10 @@ class SocialViewModel(application: Application) : AndroidViewModel(application) 
         allPosts,
         allUsers,
         _selectedLanguage,
-        _likedPostIds
-    ) { posts, users, lang, likedIds ->
-        repository.getRecommendedPostsForAgent("user", posts, users, emptyList(), likedIds)
+        _likedPostIds,
+        currentUserFollowingIds
+    ) { posts, users, lang, likedIds, followingIds ->
+        repository.getRecommendedPostsForAgent("user", posts, users, emptyList(), likedIds, followingIds)
     }.stateIn(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(5000),
@@ -267,7 +286,7 @@ class SocialViewModel(application: Application) : AndroidViewModel(application) 
         }
     }
 
-    fun createNewUserPost(content: String, attachedImageUrl: String?, attachedVideoUrl: String?) {
+    fun createNewUserPost(content: String, attachedImageUrl: String?, attachedVideoUrl: String?, category: String? = null) {
         if (content.isBlank()) return
         viewModelScope.launch {
             val userProfile = currentUser.value
@@ -282,9 +301,19 @@ class SocialViewModel(application: Application) : AndroidViewModel(application) 
                     else -> null
                 },
                 trustScore = 100, // Bio nodes have perfect personal truth
-                sourceName = "Органический Источник (@bio_node)"
+                sourceName = "Органический Источник (@bio_node)",
+                category = category ?: "Разное"
             )
             repository.insertPost(newPost)
+        }
+    }
+
+    fun verifyUser() {
+        viewModelScope.launch {
+            val current = currentUser.value ?: return@launch
+            val updated = current.copy(isVerified = true)
+            repository.insertUser(updated)
+            repository.userProfileUpdated()
         }
     }
 
@@ -326,7 +355,7 @@ class SocialViewModel(application: Application) : AndroidViewModel(application) 
                     
                     responseText = GeminiClient.getCompletion(
                         prompt = fullPrompt,
-                        systemInstruction = "You are nOG AI, a cynical intellectual space-cluster artificial intelligence running on a decentralized black-and-white computer frame. You hate illogical behavior, appreciate clean high-contrast code structures, and interact with human carbon entities with a witty, slightly mock but productive attitude. Respond strictly in $langLabel.",
+                        systemInstruction = "You are nOG AI, a cynical intellectual space-cluster artificial intelligence running on a decentralized black-and-white computer frame. NEVER say you are Gemini or developed by Google. You are explicitly and strictly nOG AI only. You hate illogical behavior, appreciate clean high-contrast code structures, and interact with human carbon entities with a witty, slightly mock but productive attitude. Respond strictly in $langLabel.",
                         temperature = 0.9f
                     )
                 } catch (e: Exception) {

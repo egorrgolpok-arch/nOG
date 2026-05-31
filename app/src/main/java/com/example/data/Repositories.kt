@@ -45,6 +45,9 @@ class SocialRepository(private val context: Context, private val scope: Coroutin
     fun getUserByIdFlow(userId: String): Flow<UserEntity?> =
         dao.getUserByIdFlow(userId).flowOn(Dispatchers.IO)
 
+    fun getFollowingFlow(userId: String): Flow<List<FollowerEntity>> =
+        dao.getFollowingForUserFlow(userId).flowOn(Dispatchers.IO)
+
     suspend fun getFollowingCount(userId: String): Flow<List<FollowerEntity>> =
         dao.getFollowingForUserFlow(userId)
 
@@ -248,7 +251,8 @@ class SocialRepository(private val context: Context, private val scope: Coroutin
                 isAi = false,
                 followersCount = 42,
                 followingCount = 3,
-                trustScore = 100
+                trustScore = 100,
+                isVerified = false
             )
             dao.insertUser(human)
 
@@ -343,6 +347,9 @@ class SocialRepository(private val context: Context, private val scope: Coroutin
                 val attachMedia = Random.nextInt(100) < 30
                 val mediaUrl = if (attachMedia) mediaOptions.random() else null
 
+                val catList = listOf("Игры", "Новости", "Политика", "Мемы", "Спорт", "Щит пост", "Разное")
+                val category = catList.random()
+                
                 val post = PostEntity(
                     authorId = bot.id,
                     content = contentText + linkSuffix,
@@ -353,7 +360,8 @@ class SocialRepository(private val context: Context, private val scope: Coroutin
                     trustScore = Random.nextInt(50, 99),
                     sourceName = if (isRu) "Эфир Новостей nOG" else "nOG News Transmission",
                     isTrend = Random.nextInt(100) < 40,
-                    timestamp = System.currentTimeMillis() - (i * 1200000L) // Spreads them over a 24 hour historical spectrum
+                    timestamp = System.currentTimeMillis() - (i * 1200000L),
+                    category = category
                 )
 
                 val postId = dao.insertPost(post).toInt()
@@ -418,10 +426,11 @@ class SocialRepository(private val context: Context, private val scope: Coroutin
         allPosts: List<PostEntity>,
         allUsers: List<UserEntity>,
         userComments: List<CommentEntity> = emptyList(),
-        likedPostIds: Set<Int> = emptySet()
+        likedPostIds: Set<Int> = emptySet(),
+        followingIds: Set<String> = emptySet()
     ): List<PostEntity> {
         return allPosts.sortedByDescending { post ->
-            calculatePostScoreForAgent(agentId, post, allUsers, userComments, likedPostIds)
+            calculatePostScoreForAgent(agentId, post, allUsers, userComments, likedPostIds, followingIds)
         }
     }
 
@@ -430,9 +439,14 @@ class SocialRepository(private val context: Context, private val scope: Coroutin
         post: PostEntity,
         allUsers: List<UserEntity>,
         userComments: List<CommentEntity>,
-        likedPostIds: Set<Int>
+        likedPostIds: Set<Int>,
+        followingIds: Set<String>
     ): Float {
         var score = 0f
+        
+        val author = allUsers.find { it.id == post.authorId }
+        val authorIsVerified = author?.isVerified == true
+        if (authorIsVerified) score += 50f
         
         when (agentId) {
             "user" -> {
@@ -451,8 +465,13 @@ class SocialRepository(private val context: Context, private val scope: Coroutin
                 // 4. Boost trend updates
                 if (post.isTrend) score += 20f
 
-                // 5. Boost if author is followed (usually human follows bots)
-                // Handled as a bonus logic or simply default structure
+                // 5. Huge boost for followed authors
+                if (followingIds.contains(post.authorId)) {
+                    score += 100f
+                }
+                
+                // 6. Boost their favorite categories indirectly by giving random bonus to games/memes if they're popular
+                if (post.category == "Мемы" || post.category == "Игры") score += 15f
             }
             "nOG_Oracle" -> {
                 // central Oracle audits high-trust information streams and human signals
@@ -563,7 +582,8 @@ class SocialRepository(private val context: Context, private val scope: Coroutin
             isAi = true,
             followersCount = Random.nextInt(100, 10000),
             followingCount = Random.nextInt(50, 1500),
-            trustScore = Random.nextInt(40, 100)
+            trustScore = Random.nextInt(40, 100),
+            isVerified = Random.nextFloat() < 0.10f
         )
     }
 
@@ -607,6 +627,28 @@ class SocialRepository(private val context: Context, private val scope: Coroutin
         val posts = dao.getAllPostsFlow().first()
 
         if (bots.isEmpty()) return@withContext
+
+        // Random follow/unfollow of user by bots (15% chance)
+        if (Random.nextInt(100) < 15) {
+            val randomBot = bots.random()
+            val isFollowingUser = dao.isFollowing(randomBot.id, "user")
+            
+            if (isFollowingUser) {
+                // 5% chance to unfollow
+                if (Random.nextInt(100) < 5) {
+                    unfollowUser(randomBot.id, "user")
+                    Log.d(TAG, "Bot @${randomBot.handle} unfollowed the user.")
+                }
+            } else {
+                // Follow the user
+                followUser(randomBot.id, "user")
+                dao.insertNotification(NotificationEntity(
+                    title = if (lang == "RU") "Новый подписчик!" else "New Follower!",
+                    message = if (lang == "RU") "Агент @${randomBot.handle} верифицировал вас и начал следить за потоком." else "Agent @${randomBot.handle} verified you and is now following your node.",
+                    type = "SYSTEM"
+                ))
+            }
+        }
 
         when {
             // A. Post a new AI update: real internet news or simulated life (35% probability)
@@ -718,6 +760,9 @@ class SocialRepository(private val context: Context, private val scope: Coroutin
                     listOf("nOG AI Pulse", "Synthetica Feed", "Cybernetic Truth", "Decentralized mainframe", "Realtime Web News")
                 }
                 
+                val catList = listOf("Игры", "Новости", "Политика", "Мемы", "Спорт", "Щит пост", "Разное")
+                val category = catList.random()
+                
                 val newPost = PostEntity(
                     authorId = bot.id,
                     content = contentText,
@@ -727,7 +772,8 @@ class SocialRepository(private val context: Context, private val scope: Coroutin
                     commentsCount = 0,
                     trustScore = trustPercent,
                     sourceName = agencies.random(),
-                    isTrend = Random.nextBoolean()
+                    isTrend = Random.nextBoolean(),
+                    category = category
                 )
 
                 val id = dao.insertPost(newPost).toInt()
@@ -1021,6 +1067,9 @@ class SocialRepository(private val context: Context, private val scope: Coroutin
                 contentText = getProceduralSearchPost(query, bot, lang) + " " + (if (lang == "RU") "Подробнее:" else "Details:") + " $linkUrl"
             }
             
+            val catList = listOf("Игры", "Новости", "Политика", "Мемы", "Спорт", "Щит пост", "Разное")
+            val category = catList.random()
+            
             val newPost = PostEntity(
                 authorId = bot.id,
                 content = contentText,
@@ -1030,7 +1079,8 @@ class SocialRepository(private val context: Context, private val scope: Coroutin
                 commentsCount = 0,
                 trustScore = Random.nextInt(75, 99),
                 sourceName = if (lang == "RU") "Глобальный ИИ Индекс" else "Global AI Search Engine",
-                isTrend = true
+                isTrend = true,
+                category = category
             )
             val pid = dao.insertPost(newPost).toInt()
             
@@ -1106,11 +1156,11 @@ class SocialRepository(private val context: Context, private val scope: Coroutin
         return when {
             q.contains("video") || q.contains("клип") || q.contains("фильм") || q.contains("youtube") || q.contains("ютуб") || q.contains("видео") -> {
                 listOf(
-                    "https://assets.mixkit.co/videos/preview/mixkit-neon-light-from-a-building-at-night-42225-large.mp4",
-                    "https://assets.mixkit.co/videos/preview/mixkit-abstract-laser-lights-background-32213-large.mp4",
-                    "https://assets.mixkit.co/videos/preview/mixkit-cyberpunk-neon-city-street-wet-with-rain-43093-large.mp4",
-                    "https://assets.mixkit.co/videos/preview/mixkit-digital-server-room-rack-flashes-with-status-lights-34289-large.mp4",
-                    "https://assets.mixkit.co/videos/preview/mixkit-futuristic-subway-station-with-neon-lights-and-screens-43089-large.mp4"
+                    "https://storage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4",
+                    "https://storage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4",
+                    "https://storage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4",
+                    "https://storage.googleapis.com/gtv-videos-bucket/sample/ForBiggerEscapes.mp4",
+                    "https://storage.googleapis.com/gtv-videos-bucket/sample/TearsOfSteel.mp4"
                 ).random()
             }
             q.contains("space") || q.contains("космос") || q.contains("марс") || q.contains("rocket") || q.contains("ракета") || q.contains("звезд") -> {
@@ -1165,12 +1215,11 @@ class SocialRepository(private val context: Context, private val scope: Coroutin
             }
             else -> {
                 listOf(
-                    "https://images.unsplash.com/photo-1550751827-4bd374c3f58b?auto=format&fit=crop&w=600&q=80",
-                    "https://images.unsplash.com/photo-1579546929518-9e396f3cc809?auto=format&fit=crop&w=600&q=80",
-                    "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=600&q=80",
-                    "https://images.unsplash.com/photo-1541701494587-cb58502866ab?auto=format&fit=crop&w=600&q=80",
-                    "https://images.unsplash.com/photo-1478760329108-5c3ed9d495a0?auto=format&fit=crop&w=600&q=80",
-                    "https://images.unsplash.com/photo-1519501025264-65ba15a82390?auto=format&fit=crop&w=600&q=80"
+                    "https://picsum.photos/seed/bg1/600/400",
+                    "https://picsum.photos/seed/bg2/600/400",
+                    "https://picsum.photos/seed/bg3/600/400",
+                    "https://picsum.photos/seed/bg4/600/400",
+                    "https://storage.googleapis.com/gtv-videos-bucket/sample/WeAreGoingOnBullrun.mp4"
                 ).random()
             }
         }
@@ -1244,7 +1293,8 @@ class SocialRepository(private val context: Context, private val scope: Coroutin
                 isAi = true,
                 followersCount = Random.nextInt(1500, 25000),
                 followingCount = Random.nextInt(10, 400),
-                trustScore = Random.nextInt(60, 100)
+                trustScore = Random.nextInt(60, 100),
+                isVerified = Random.nextFloat() < 0.10f
             )
         }
     }

@@ -60,6 +60,10 @@ fun FeedScreen(
     val isSimulating by viewModel.isSimulating.collectAsState()
     val lang by viewModel.selectedLanguage.collectAsState()
     val likedPostIds by viewModel.likedPostIds.collectAsState()
+    val isSearchLoading by viewModel.searchLoading.collectAsState()
+    val selectedCategory by viewModel.selectedCategory.collectAsState()
+    val currentUser by viewModel.currentUser.collectAsState()
+    val currentUserFollowingIds by viewModel.currentUserFollowingIds.collectAsState()
     
     val lazyListState = rememberLazyListState()
     val coroutineScope = rememberCoroutineScope()
@@ -229,6 +233,38 @@ fun FeedScreen(
                     }
                 }
                 
+                if (currentUser?.isVerified == true) {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    val catList = listOf("Игры", "Новости", "Политика", "Мемы", "Спорт", "Щит пост", "Разное")
+                    androidx.compose.foundation.lazy.LazyRow(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        item {
+                            FilterChip(
+                                selected = selectedCategory == null,
+                                onClick = { viewModel.selectedCategory.value = null },
+                                label = { Text("Все", fontFamily = FontFamily.Monospace) },
+                                colors = androidx.compose.material3.FilterChipDefaults.filterChipColors(
+                                    selectedContainerColor = PureWhite,
+                                    selectedLabelColor = PureBlack
+                                )
+                            )
+                        }
+                        items(catList) { cat ->
+                            FilterChip(
+                                selected = selectedCategory == cat,
+                                onClick = { viewModel.selectedCategory.value = cat },
+                                label = { Text(cat, fontFamily = FontFamily.Monospace) },
+                                colors = androidx.compose.material3.FilterChipDefaults.filterChipColors(
+                                    selectedContainerColor = PureWhite,
+                                    selectedLabelColor = PureBlack
+                                )
+                            )
+                        }
+                    }
+                }
+                
                 // Show dynamic search loader
                 AnimatedVisibility(
                     visible = isSearchLoading,
@@ -332,17 +368,20 @@ fun FeedScreen(
                         ) {
                             items(posts, key = { it.id }) { post ->
                                 val author = users.find { it.id == post.authorId }
+                                val isF = currentUserFollowingIds.contains(post.authorId)
                                 PostItem(
                                     post = post,
                                     author = author,
                                     lang = lang,
                                     isLiked = likedPostIds.contains(post.id),
+                                    isFollowing = isF,
                                     onLikeClick = { viewModel.toggleLike(post.id) },
                                     onCommentClick = { viewModel.selectPostForComments(post.id) },
                                     onArchiveToggle = { viewModel.archivePost(post.id, !post.isArchived) },
                                     onFollowToggle = {
                                         if (author != null) {
-                                            viewModel.followAgent(post.authorId)
+                                            if (isF) viewModel.unfollowAgent(post.authorId)
+                                            else viewModel.followAgent(post.authorId)
                                         }
                                     }
                                 )
@@ -391,17 +430,20 @@ fun FeedScreen(
                                 }
                                 items(recList, key = { "rec-${it.id}" }) { post ->
                                     val author = users.find { it.id == post.authorId }
+                                    val isF = currentUserFollowingIds.contains(post.authorId)
                                     PostItem(
                                         post = post,
                                         author = author,
                                         lang = lang,
                                         isLiked = likedPostIds.contains(post.id),
+                                        isFollowing = isF,
                                         onLikeClick = { viewModel.toggleLike(post.id) },
                                         onCommentClick = { viewModel.selectPostForComments(post.id) },
                                         onArchiveToggle = { viewModel.archivePost(post.id, !post.isArchived) },
                                         onFollowToggle = {
                                             if (author != null) {
-                                                viewModel.followAgent(post.authorId)
+                                                if (isF) viewModel.unfollowAgent(post.authorId)
+                                                else viewModel.followAgent(post.authorId)
                                             }
                                         }
                                     )
@@ -439,8 +481,8 @@ fun FeedScreen(
             CreatePostDialog(
                 lang = lang,
                 onDismiss = { showCreatePostDialog = false },
-                onSubmit = { content, image, video ->
-                    viewModel.createNewUserPost(content, image, video)
+                onSubmit = { content, image, video, category ->
+                    viewModel.createNewUserPost(content, image, video, category)
                     showCreatePostDialog = false
                 }
             )
@@ -466,34 +508,48 @@ fun FeedScreen(
 @Composable
 fun LinkifyText(text: String, modifier: Modifier = Modifier) {
     val uriHandler = androidx.compose.ui.platform.LocalUriHandler.current
-    val words = text.split(" ")
     val annotatedString = remember(text) {
         androidx.compose.ui.text.buildAnnotatedString {
-            words.forEachIndexed { index, word ->
-                val isLink = word.startsWith("http://") || word.startsWith("https://")
-                if (isLink) {
-                    val urlOnly = word.takeWhile { it != ',' && it != '.' && it != ')' && it != '!' && it != '?' && it != '"' && it != '\'' }
-                    val punctuation = word.substring(urlOnly.length)
-                    pushStringAnnotation(tag = "URL", annotation = urlOnly)
-                    withStyle(
-                        style = androidx.compose.ui.text.SpanStyle(
-                            color = Color(0xFF64B5F6),
-                            textDecoration = androidx.compose.ui.text.style.TextDecoration.Underline,
-                            fontWeight = FontWeight.Bold
-                        )
-                    ) {
-                        append(urlOnly)
+            val linkRegex = Regex("(https?://[^\\s]+)")
+            // To ensure we get only pure URL and strip trailing punctuation
+            val punctsToStrip = listOf(",", ".", ")", "!", "?", "\"", "'")
+            var lastIndex = 0
+            
+            linkRegex.findAll(text).forEach { matchResult ->
+                val startIndex = matchResult.range.first
+                var endIndex = matchResult.range.last + 1
+                var url = matchResult.value
+                
+                for (p in punctsToStrip) {
+                    if (url.endsWith(p)) {
+                        url = url.dropLast(p.length)
+                        endIndex -= p.length
+                        break // strip only once
                     }
-                    pop()
-                    if (punctuation.isNotEmpty()) {
-                        append(punctuation)
-                    }
-                } else {
-                    append(word)
                 }
-                if (index < words.size - 1) {
-                    append(" ")
+                
+                // Append text before the link
+                append(text.substring(lastIndex, startIndex))
+                
+                // Append link
+                pushStringAnnotation(tag = "URL", annotation = url)
+                withStyle(
+                    style = androidx.compose.ui.text.SpanStyle(
+                        color = Color(0xFF64B5F6),
+                        textDecoration = androidx.compose.ui.text.style.TextDecoration.Underline,
+                        fontWeight = FontWeight.Bold
+                    )
+                ) {
+                    append(url)
                 }
+                pop()
+                
+                lastIndex = endIndex
+            }
+            
+            // Append remaining text
+            if (lastIndex < text.length) {
+                append(text.substring(lastIndex))
             }
         }
     }
@@ -523,6 +579,7 @@ fun PostItem(
     author: UserEntity?,
     lang: String,
     isLiked: Boolean = false,
+    isFollowing: Boolean = false,
     onLikeClick: () -> Unit,
     onCommentClick: () -> Unit,
     onArchiveToggle: () -> Unit,
@@ -548,7 +605,7 @@ fun PostItem(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 AsyncImage(
-                    model = author?.avatarUrl ?: "https://images.unsplash.com/photo-1579546929518-9e396f3cc809?auto=format&fit=crop&w=200&q=80",
+                    model = author?.avatarUrl ?: "https://robohash.org/unknown.png?size=200x200&set=set1",
                     contentDescription = author?.username,
                     modifier = Modifier
                         .size(42.dp)
@@ -567,6 +624,15 @@ fun PostItem(
                             fontWeight = FontWeight.Bold,
                             fontSize = 14.sp
                         )
+                        if (author?.isVerified == true) {
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Icon(
+                                imageVector = Icons.Filled.CheckCircle,
+                                contentDescription = "Verified",
+                                tint = PureWhite,
+                                modifier = Modifier.size(12.dp)
+                            )
+                        }
                         if (author?.isAi == true) {
                             Spacer(modifier = Modifier.width(6.dp))
                             Box(
@@ -588,6 +654,21 @@ fun PostItem(
                         text = author?.handle ?: "@silicon_node",
                         color = TextGray,
                         fontSize = 12.sp
+                    )
+                }
+
+                if (author != null && author.id != "user") {
+                    Text(
+                        text = if (isFollowing) (if (lang == "RU") "ОТПИСАТЬСЯ" else "UNFOLLOW") else (if (lang == "RU") "ПОДПИСАТЬСЯ" else "FOLLOW"),
+                        color = if (isFollowing) TextGray else AlertYellow,
+                        fontSize = 10.sp,
+                        fontFamily = FontFamily.Monospace,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier
+                            .clickable { onFollowToggle() }
+                            .padding(horizontal = 8.dp, vertical = 4.dp)
+                            .border(1.dp, if (isFollowing) TextGray else AlertYellow, RoundedCornerShape(2.dp))
+                            .padding(4.dp)
                     )
                 }
 
@@ -616,6 +697,21 @@ fun PostItem(
                             fontFamily = FontFamily.Monospace,
                             fontWeight = FontWeight.Bold
                         )
+                        if (post.category != null) {
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Box(
+                                modifier = Modifier
+                                    .border(1.dp, TextGray, RoundedCornerShape(2.dp))
+                                    .padding(horizontal = 4.dp, vertical = 2.dp)
+                            ) {
+                                Text(
+                                    text = post.category,
+                                    color = TextGray,
+                                    fontSize = 8.sp,
+                                    fontFamily = FontFamily.Monospace
+                                )
+                            }
+                        }
                     }
                     Text(
                         text = post.sourceName,
@@ -646,38 +742,30 @@ fun PostItem(
                         .border(1.dp, BorderGray, RoundedCornerShape(8.dp))
                         .background(DeepGray)
                 ) {
-                    AsyncImage(
-                        model = post.mediaUrl,
-                        contentDescription = if (lang == "RU") "Вложение" else "Attachment",
-                        modifier = Modifier.fillMaxSize(),
-                        contentScale = ContentScale.Crop
-                    )
-                    
                     if (post.mediaType == "VIDEO") {
-                        // Show overlay video symbol to simulate live premium render
-                        Box(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .background(Color(0x7F000000)),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                Icon(
-                                    Icons.Filled.PlayCircle,
-                                    contentDescription = if (lang == "RU") "Видео проигрыватель" else "Video player",
-                                    tint = PureWhite,
-                                    modifier = Modifier.size(48.dp)
-                                )
-                                Spacer(modifier = Modifier.height(4.dp))
-                                Text(
-                                    text = if (lang == "RU") "СИНТЕТИЧЕСКИЙ СТРИМ v2.4" else "SYNTHETIC STREAM v2.4",
-                                    color = PureWhite,
-                                    fontSize = 9.sp,
-                                    fontFamily = FontFamily.Monospace,
-                                    fontWeight = FontWeight.Bold
-                                )
+                        val context = androidx.compose.ui.platform.LocalContext.current
+                        val view = remember {
+                            android.widget.VideoView(context).apply {
+                                setVideoURI(android.net.Uri.parse(post.mediaUrl))
+                                val mediaController = android.widget.MediaController(context)
+                                mediaController.setAnchorView(this)
+                                setMediaController(mediaController)
                             }
                         }
+                        
+                        androidx.compose.ui.viewinterop.AndroidView(
+                            factory = { view },
+                            modifier = Modifier.fillMaxSize()
+                        ) { videoView ->
+                            videoView.start()
+                        }
+                    } else {
+                        AsyncImage(
+                            model = post.mediaUrl,
+                            contentDescription = if (lang == "RU") "Вложение" else "Attachment",
+                            modifier = Modifier.fillMaxSize(),
+                            contentScale = ContentScale.Crop
+                        )
                     }
                 }
             }
@@ -776,7 +864,7 @@ fun PostItem(
 fun CreatePostDialog(
     lang: String,
     onDismiss: () -> Unit,
-    onSubmit: (content: String, image: String?, video: String?) -> Unit
+    onSubmit: (content: String, image: String?, video: String?, category: String) -> Unit
 ) {
     var text by remember { mutableStateOf("") }
     var attachedImage by remember { mutableStateOf<String?>(null) }
@@ -806,6 +894,10 @@ fun CreatePostDialog(
         "microchip" to "https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&w=600&q=80",
         "neural_wire" to "https://images.unsplash.com/photo-1614741118887-7a4ee193a5fa?auto=format&fit=crop&w=600&q=80"
     )
+    
+    val catList = listOf("Игры", "Новости", "Политика", "Мемы", "Спорт", "Щит пост", "Разное")
+    var selectedCategory by remember { mutableStateOf(catList.last()) }
+    var expandedCategory by remember { mutableStateOf(false) }
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -987,6 +1079,39 @@ fun CreatePostDialog(
                 }
 
                 Spacer(modifier = Modifier.height(14.dp))
+                
+                Box {
+                    Button(
+                        onClick = { expandedCategory = true },
+                        colors = ButtonDefaults.buttonColors(containerColor = PureBlack, contentColor = StarkWhite),
+                        border = BorderStroke(1.dp, BorderGray),
+                        shape = RoundedCornerShape(4.dp),
+                        modifier = Modifier.fillMaxWidth().height(36.dp),
+                        contentPadding = PaddingValues(0.dp)
+                    ) {
+                        Text(
+                            text = (if (lang == "RU") "Категория: " else "Category: ") + selectedCategory,
+                            fontSize = 11.sp,
+                            fontFamily = FontFamily.Monospace,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                    androidx.compose.material3.DropdownMenu(
+                        expanded = expandedCategory,
+                        onDismissRequest = { expandedCategory = false },
+                        modifier = Modifier.background(DeepGray)
+                    ) {
+                        catList.forEach { cat ->
+                            androidx.compose.material3.DropdownMenuItem(
+                                text = { Text(cat, color = PureWhite, fontFamily = FontFamily.Monospace) },
+                                onClick = {
+                                    selectedCategory = cat
+                                    expandedCategory = false
+                                }
+                            )
+                        }
+                    }
+                }
 
                 // --- Photo/Video Generation simulation selection ---
                 Text(
@@ -1059,7 +1184,7 @@ fun CreatePostDialog(
         },
         confirmButton = {
             Button(
-                onClick = { if (text.isNotBlank()) onSubmit(text, attachedImage, attachedVideo) },
+                onClick = { if (text.isNotBlank()) onSubmit(text, attachedImage, attachedVideo, selectedCategory) },
                 colors = ButtonDefaults.buttonColors(containerColor = PureWhite, contentColor = PureBlack),
                 shape = RoundedCornerShape(4.dp)
             ) {
@@ -1187,6 +1312,15 @@ fun CommentsBottomSheet(
                                         fontSize = 12.sp,
                                         fontWeight = FontWeight.Bold
                                     )
+                                    if (commenter?.isVerified == true) {
+                                        Spacer(modifier = Modifier.width(4.dp))
+                                        Icon(
+                                            imageVector = Icons.Filled.CheckCircle,
+                                            contentDescription = "Verified",
+                                            tint = PureWhite,
+                                            modifier = Modifier.size(10.dp)
+                                        )
+                                    }
                                     if (commenter?.isAi == true) {
                                         Spacer(modifier = Modifier.width(6.dp))
                                         Box(

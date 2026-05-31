@@ -29,6 +29,12 @@ import coil.compose.AsyncImage
 import com.example.ui.SocialViewModel
 import com.example.ui.theme.*
 import kotlinx.coroutines.launch
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.activity.result.PickVisualMediaRequest
+import android.content.Intent
+import android.net.Uri
+import androidx.compose.ui.platform.LocalContext
 
 @Composable
 fun ProfileScreen(
@@ -47,6 +53,8 @@ fun ProfileScreen(
     var tempHandle by remember { mutableStateOf("") }
     var tempBio by remember { mutableStateOf("") }
     var tempAvatarUrl by remember { mutableStateOf("") }
+    var showVerificationSheet by remember { mutableStateOf(false) }
+    val context = LocalContext.current
 
     // Synchronize form values on loaded
     LaunchedEffect(userProfile) {
@@ -59,10 +67,10 @@ fun ProfileScreen(
     }
 
     val sampleAvatars = listOf(
-        "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80",
-        "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=200&q=80",
-        "https://images.unsplash.com/photo-1492562080023-ab3db95bfbce?auto=format&fit=crop&w=200&q=80",
-        "https://images.unsplash.com/photo-1438761681033-6461ffad8d80?auto=format&fit=crop&w=200&q=80"
+        "https://i.pravatar.cc/150?img=11",
+        "https://i.pravatar.cc/150?img=44",
+        "https://i.pravatar.cc/150?img=33",
+        "https://i.pravatar.cc/150?img=68"
     )
 
     Box(
@@ -118,12 +126,23 @@ fun ProfileScreen(
                             )
                             Spacer(modifier = Modifier.width(20.dp))
                             Column {
-                                Text(
-                                    text = userProfile?.username ?: (if (lang == "RU") "Загрузка..." else "Connecting..."),
-                                    color = PureWhite,
-                                    fontSize = 16.sp,
-                                    fontWeight = FontWeight.Bold
-                                )
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Text(
+                                        text = userProfile?.username ?: (if (lang == "RU") "Загрузка..." else "Connecting..."),
+                                        color = PureWhite,
+                                        fontSize = 16.sp,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                    if (userProfile?.isVerified == true) {
+                                        Spacer(modifier = Modifier.width(4.dp))
+                                        Icon(
+                                            imageVector = Icons.Filled.CheckCircle,
+                                            contentDescription = "Verified",
+                                            tint = PureWhite,
+                                            modifier = Modifier.size(14.dp)
+                                        )
+                                    }
+                                }
                                 Text(
                                     text = userProfile?.handle ?: "@handle",
                                     color = TextGray,
@@ -174,6 +193,57 @@ fun ProfileScreen(
                                 Icon(Icons.Filled.Edit, contentDescription = if (lang == "RU") "Редактировать" else "Edit", modifier = Modifier.size(16.dp))
                                 Spacer(modifier = Modifier.width(8.dp))
                                 Text(if (lang == "RU") "РЕДАКТИРОВАТЬ ПРОФИЛЬ" else "EDIT PROFILE", fontFamily = FontFamily.Monospace, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                            }
+                            
+                            if (userProfile?.isVerified != true) {
+                                Spacer(modifier = Modifier.height(8.dp))
+                                Button(
+                                    onClick = { showVerificationSheet = !showVerificationSheet },
+                                    modifier = Modifier.fillMaxWidth(),
+                                    colors = ButtonDefaults.buttonColors(containerColor = CardGray, contentColor = PureWhite),
+                                    shape = RoundedCornerShape(4.dp),
+                                    border = androidx.compose.foundation.BorderStroke(1.dp, PureWhite)
+                                ) {
+                                    Icon(Icons.Filled.CheckCircle, contentDescription = "Verify", modifier = Modifier.size(16.dp))
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text(if (lang == "RU") "ПРОЙТИ ВЕРИФИКАЦИЮ" else "GET VERIFIED", fontFamily = FontFamily.Monospace, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                                }
+                            }
+                            
+                            if (showVerificationSheet) {
+                                Spacer(modifier = Modifier.height(8.dp))
+                                Column(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .background(DeepGray)
+                                        .border(1.dp, BorderGray, RoundedCornerShape(4.dp))
+                                        .padding(16.dp)
+                                ) {
+                                    Text(
+                                        text = if (lang == "RU") "посетите nOG.net" else "visit nOG.net",
+                                        color = StarkWhite,
+                                        fontSize = 12.sp,
+                                        textAlign = TextAlign.Center,
+                                        modifier = Modifier.fillMaxWidth()
+                                    )
+                                    Spacer(modifier = Modifier.height(8.dp))
+                                    Text(
+                                        text = "https://nog.net",
+                                        color = PureWhite,
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 14.sp,
+                                        textAlign = TextAlign.Center,
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .clickable {
+                                                val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://nog.net"))
+                                                context.startActivity(intent)
+                                                viewModel.verifyUser()
+                                                showVerificationSheet = false
+                                            }
+                                            .padding(4.dp)
+                                    )
+                                }
                             }
                         }
                     }
@@ -341,8 +411,42 @@ fun ProfileScreen(
                                 modifier = Modifier.fillMaxWidth(),
                                 textStyle = TextStyle(fontSize = 11.sp, fontFamily = FontFamily.Monospace)
                             )
+                            
+                            val photoPickerLauncher = rememberLauncherForActivityResult(
+                                ActivityResultContracts.PickVisualMedia()
+                            ) { uri ->
+                                if (uri != null) {
+                                    try {
+                                        context.contentResolver.takePersistableUriPermission(
+                                            uri,
+                                            Intent.FLAG_GRANT_READ_URI_PERMISSION
+                                        )
+                                    } catch (e: Exception) {
+                                        android.util.Log.e("Profile", "Persistable permission error", e)
+                                    }
+                                    tempAvatarUrl = uri.toString()
+                                }
+                            }
 
                             Spacer(modifier = Modifier.height(4.dp))
+                            
+                            Button(
+                                onClick = { 
+                                    photoPickerLauncher.launch(
+                                        PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+                                    ) 
+                                },
+                                modifier = Modifier.fillMaxWidth(),
+                                colors = ButtonDefaults.buttonColors(containerColor = CardGray, contentColor = PureWhite),
+                                border = androidx.compose.foundation.BorderStroke(1.dp, BorderGray),
+                                shape = RoundedCornerShape(4.dp)
+                            ) {
+                                Icon(Icons.Filled.AccountBox, contentDescription = "Gallery", modifier = Modifier.size(16.dp))
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(if (lang == "RU") "ВЫБРАТЬ ИЗ ГАЛЕРЕИ" else "CHOOSE FROM GALLERY", fontFamily = FontFamily.Monospace, fontSize = 11.sp)
+                            }
+
+                            Spacer(modifier = Modifier.height(8.dp))
 
                             Row(
                                 modifier = Modifier.fillMaxWidth(),

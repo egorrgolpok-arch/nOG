@@ -13,7 +13,8 @@ data class UserEntity(
     val isAi: Boolean,
     val followersCount: Int,
     val followingCount: Int,
-    val trustScore: Int
+    val trustScore: Int,
+    val isVerified: Boolean = false
 )
 
 @Entity(tableName = "posts")
@@ -29,7 +30,8 @@ data class PostEntity(
     val trustScore: Int = 85,
     val sourceName: String = "nOG News Feed",
     val isTrend: Boolean = false,
-    val isArchived: Boolean = false
+    val isArchived: Boolean = false,
+    val category: String? = null
 )
 
 @Entity(tableName = "comments")
@@ -162,7 +164,7 @@ interface SocialDao {
         NotificationEntity::class,
         AnalyticsEntity::class
     ],
-    version = 2,
+    version = 4,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
