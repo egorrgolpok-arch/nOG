@@ -38,6 +38,7 @@ fun ProfileScreen(
     val userProfile by viewModel.currentUser.collectAsState()
     val archivedPosts by viewModel.archivedPosts.collectAsState()
     val users by viewModel.allUsers.collectAsState()
+    val lang by viewModel.selectedLanguage.collectAsState()
 
     var isEditing by remember { mutableStateOf(false) }
     
@@ -78,7 +79,7 @@ fun ProfileScreen(
             
             // --- Header Title ---
             Text(
-                "ТЕРМИНАЛ ПРОФИЛЯ",
+                text = if (lang == "RU") "ТЕРМИНАЛ ПРОФИЛЯ" else "PROFILE CONTROL TERMINAL",
                 color = PureWhite,
                 fontSize = 14.sp,
                 fontFamily = FontFamily.Monospace,
@@ -118,7 +119,7 @@ fun ProfileScreen(
                             Spacer(modifier = Modifier.width(20.dp))
                             Column {
                                 Text(
-                                    text = userProfile?.username ?: "Загрузка...",
+                                    text = userProfile?.username ?: (if (lang == "RU") "Загрузка..." else "Connecting..."),
                                     color = PureWhite,
                                     fontSize = 16.sp,
                                     fontWeight = FontWeight.Bold
@@ -135,7 +136,7 @@ fun ProfileScreen(
                                 // Followers and following persistence indicator
                                 Row {
                                     Text(
-                                        text = "${userProfile?.followersCount ?: 0} followers",
+                                        text = "${userProfile?.followersCount ?: 0} " + (if (lang == "RU") "подписчиков" else "followers"),
                                         color = StarkWhite,
                                         fontSize = 11.sp,
                                         fontFamily = FontFamily.Monospace,
@@ -143,7 +144,7 @@ fun ProfileScreen(
                                     )
                                     Spacer(modifier = Modifier.width(12.dp))
                                     Text(
-                                        text = "${userProfile?.followingCount ?: 0} following",
+                                        text = "${userProfile?.followingCount ?: 0} " + (if (lang == "RU") "подписки" else "following"),
                                         color = StarkWhite,
                                         fontSize = 11.sp,
                                         fontFamily = FontFamily.Monospace,
@@ -170,9 +171,9 @@ fun ProfileScreen(
                                 colors = ButtonDefaults.buttonColors(containerColor = PureWhite, contentColor = PureBlack),
                                 shape = RoundedCornerShape(4.dp)
                             ) {
-                                Icon(Icons.Filled.Edit, contentDescription = "Редактировать", modifier = Modifier.size(16.dp))
+                                Icon(Icons.Filled.Edit, contentDescription = if (lang == "RU") "Редактировать" else "Edit", modifier = Modifier.size(16.dp))
                                 Spacer(modifier = Modifier.width(8.dp))
-                                Text("РЕДАКТИРОВАТЬ ПРОФИЛЬ", fontFamily = FontFamily.Monospace, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                                Text(if (lang == "RU") "РЕДАКТИРОВАТЬ ПРОФИЛЬ" else "EDIT PROFILE", fontFamily = FontFamily.Monospace, fontSize = 11.sp, fontWeight = FontWeight.Bold)
                             }
                         }
                     }
@@ -180,7 +181,6 @@ fun ProfileScreen(
 
                 // 1.5 system language configuration panel
                 item {
-                    val lang by viewModel.selectedLanguage.collectAsState()
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -247,7 +247,7 @@ fun ProfileScreen(
                             verticalArrangement = Arrangement.spacedBy(12.dp)
                         ) {
                             Text(
-                                "ПАРАМЕТРЫ ПРОФИЛЯ",
+                                text = if (lang == "RU") "ПАРАМЕТРЫ ПРОФИЛЯ" else "PROFILE DIRECTIVES CONFIG",
                                 color = PureWhite,
                                 fontSize = 12.sp,
                                 fontFamily = FontFamily.Monospace,
@@ -257,7 +257,7 @@ fun ProfileScreen(
                             OutlinedTextField(
                                 value = tempUsername,
                                 onValueChange = { tempUsername = it },
-                                label = { Text("Имя пользователя") },
+                                label = { Text(if (lang == "RU") "Имя пользователя" else "Username") },
                                 colors = OutlinedTextFieldDefaults.colors(
                                     focusedTextColor = PureWhite,
                                     unfocusedTextColor = StarkWhite,
@@ -271,7 +271,7 @@ fun ProfileScreen(
                             OutlinedTextField(
                                 value = tempHandle,
                                 onValueChange = { tempHandle = it },
-                                label = { Text("Никнейм (@)") },
+                                label = { Text(if (lang == "RU") "Никнейм (@)" else "Handle (@)") },
                                 colors = OutlinedTextFieldDefaults.colors(
                                     focusedTextColor = PureWhite,
                                     unfocusedTextColor = StarkWhite,
@@ -285,7 +285,7 @@ fun ProfileScreen(
                             OutlinedTextField(
                                 value = tempBio,
                                 onValueChange = { tempBio = it },
-                                label = { Text("Описание") },
+                                label = { Text(if (lang == "RU") "Описание" else "About Bio") },
                                 colors = OutlinedTextFieldDefaults.colors(
                                     focusedTextColor = PureWhite,
                                     unfocusedTextColor = StarkWhite,
@@ -298,7 +298,7 @@ fun ProfileScreen(
 
                             // Pick Avatar preset or insert URL
                             Text(
-                                "ВЫБЕРИТЕ АВАТАРКУ ИЛИ КРЕМНИЕВЫЙ СКИН:",
+                                text = if (lang == "RU") "ВЫБЕРИТЕ АВАТАРКУ ИЛИ КРЕМНИЕВЫЙ СКИН:" else "SELECT PROFILE SKIN:",
                                 color = TextGray,
                                 fontSize = 10.sp,
                                 fontFamily = FontFamily.Monospace
@@ -331,7 +331,7 @@ fun ProfileScreen(
                             OutlinedTextField(
                                 value = tempAvatarUrl,
                                 onValueChange = { tempAvatarUrl = it },
-                                label = { Text("Собственный URL аватарки") },
+                                label = { Text(if (lang == "RU") "Собственный URL аватарки" else "Custom skin location URL") },
                                 colors = OutlinedTextFieldDefaults.colors(
                                     focusedTextColor = PureWhite,
                                     unfocusedTextColor = StarkWhite,
@@ -357,14 +357,14 @@ fun ProfileScreen(
                                     colors = ButtonDefaults.buttonColors(containerColor = PureWhite, contentColor = PureBlack),
                                     shape = RoundedCornerShape(4.dp)
                                 ) {
-                                    Text("СОХРАНИТЬ", fontFamily = FontFamily.Monospace, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                                    Text(if (lang == "RU") "СОХРАНИТЬ" else "SAVE LOGS", fontFamily = FontFamily.Monospace, fontSize = 10.sp, fontWeight = FontWeight.Bold)
                                 }
 
                                 TextButton(
                                     onClick = { isEditing = false },
                                     modifier = Modifier.weight(1f)
                                 ) {
-                                    Text("ОТМЕНА", color = TextGray, fontFamily = FontFamily.Monospace, fontSize = 10.sp)
+                                    Text(if (lang == "RU") "ОТМЕНА" else "CANCEL", color = TextGray, fontFamily = FontFamily.Monospace, fontSize = 10.sp)
                                 }
                             }
                         }
@@ -374,7 +374,7 @@ fun ProfileScreen(
                 // 3. PRIVATE ARCHIVE: "АРИХИВ ПУБЛИКАЦИЙ"
                 item {
                     Text(
-                        text = "АРХИВНЫЕ ПУБЛИКАЦИИ (${archivedPosts.size})",
+                        text = if (lang == "RU") "АРХИВНЫЕ ПУБЛИКАЦИИ (${archivedPosts.size})" else "SAVED ARCHIVE STREAMS (${archivedPosts.size})",
                         color = PureWhite,
                         fontSize = 12.sp,
                         fontFamily = FontFamily.Monospace,
@@ -392,10 +392,14 @@ fun ProfileScreen(
                                 .padding(24.dp),
                             horizontalAlignment = Alignment.CenterHorizontally
                         ) {
-                            Icon(Icons.Filled.BookmarkBorder, contentDescription = "Архив пуст", tint = BorderGray, modifier = Modifier.size(36.dp))
+                            Icon(Icons.Filled.BookmarkBorder, contentDescription = if (lang == "RU") "Архив пуст" else "Archive empty", tint = BorderGray, modifier = Modifier.size(36.dp))
                             Spacer(modifier = Modifier.height(8.dp))
                             Text(
-                                text = "Архив историй пуст.\nВы можете долго удерживать или кликнуть на закладку любого поста в ленте, чтобы сохранить его сюда.",
+                                text = if (lang == "RU") {
+                                    "Архив историй пуст.\nВы можете долго удерживать или кликнуть на закладку любого поста в ленте, чтобы сохранить его сюда."
+                                } else {
+                                    "Your offline store is empty.\nClick the bookmark emblem on any stream in the feed to save key nodes here."
+                                },
                                 color = TextGray,
                                 fontSize = 11.sp,
                                 fontFamily = FontFamily.Monospace,
@@ -435,7 +439,7 @@ fun ProfileScreen(
                             ) {
                                 Icon(
                                     Icons.Filled.BookmarkRemove,
-                                    contentDescription = "Удалить из архива",
+                                    contentDescription = if (lang == "RU") "Удалить из архива" else "Remove from offline cache",
                                     tint = AlertRed,
                                     modifier = Modifier.size(20.dp)
                                 )

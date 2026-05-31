@@ -33,6 +33,7 @@ fun NotificationsScreen(
     innerPadding: PaddingValues
 ) {
     val alerts by viewModel.notifications.collectAsState()
+    val lang by viewModel.selectedLanguage.collectAsState()
 
     Box(
         modifier = Modifier
@@ -53,7 +54,7 @@ fun NotificationsScreen(
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 Text(
-                    text = "ПЕРИФЕРИЙНЫЕ УВЕДОМЛЕНИЯ",
+                    text = if (lang == "RU") "ПЕРИФЕРИЙНЫЕ УВЕДОМЛЕНИЯ" else "PERIPHERAL ALERTS FEED",
                     color = PureWhite,
                     fontSize = 14.sp,
                     fontFamily = FontFamily.Monospace,
@@ -67,7 +68,7 @@ fun NotificationsScreen(
                     border = BorderStroke(1.dp, BorderGray)
                 ) {
                     Text(
-                        text = "ПРОЧИТАТЬ ВСЕ",
+                        text = if (lang == "RU") "ПРОЧИТАТЬ ВСЕ" else "MARK ALL READ",
                         color = PureWhite,
                         fontSize = 9.sp,
                         fontFamily = FontFamily.Monospace,
@@ -95,7 +96,11 @@ fun NotificationsScreen(
                         )
                         Spacer(modifier = Modifier.height(12.dp))
                         Text(
-                            text = "Новых оповещений от AI не поступало.",
+                            text = if (lang == "RU") {
+                                "Новых оповещений от AI не поступало."
+                            } else {
+                                "No new telemetry signals from local AI minds."
+                            },
                             color = TextGray,
                             fontSize = 12.sp,
                             fontFamily = FontFamily.Monospace,
@@ -103,7 +108,11 @@ fun NotificationsScreen(
                         )
                         Spacer(modifier = Modifier.height(4.dp))
                         Text(
-                            text = "Опубликуйте новость в эфир, чтобы вызвать интерес ИИ агентов!",
+                            text = if (lang == "RU") {
+                                "Опубликуйте новость в эфир, чтобы вызвать интерес ИИ агентов!"
+                            } else {
+                                "Post any update to trigger AI node attention vectors!"
+                            },
                             color = BorderGray,
                             fontSize = 11.sp,
                             fontFamily = FontFamily.Monospace,

@@ -40,6 +40,7 @@ class MainActivity : ComponentActivity() {
             MyApplicationTheme(darkTheme = true) { // We force black-and-white deep dark aesthetic
                 val currentScreen by viewModel.currentScreen.collectAsState()
                 val alerts by viewModel.notifications.collectAsState()
+                val lang by viewModel.selectedLanguage.collectAsState()
                 
                 // Count unread notifications to show numerical badge
                 val unreadAlertsCount = alerts.filter { !it.isRead }.size
@@ -64,12 +65,12 @@ class MainActivity : ComponentActivity() {
                                 icon = {
                                     Icon(
                                         imageVector = if (currentScreen is Screen.Feed) Icons.Filled.RssFeed else Icons.Outlined.RssFeed,
-                                        contentDescription = "Лента"
+                                        contentDescription = if (lang == "RU") "Лента" else "Feed"
                                     )
                                 },
                                 label = {
                                     Text(
-                                        "Лента",
+                                        if (lang == "RU") "Лента" else "Feed",
                                         fontFamily = FontFamily.Monospace,
                                         fontSize = 10.sp,
                                         fontWeight = FontWeight.Bold
@@ -130,13 +131,13 @@ class MainActivity : ComponentActivity() {
                                     ) {
                                         Icon(
                                             imageVector = if (currentScreen is Screen.Notifications) Icons.Filled.Notifications else Icons.Outlined.Notifications,
-                                            contentDescription = "Оповещения"
+                                            contentDescription = if (lang == "RU") "Оповещения" else "Alerts"
                                         )
                                     }
                                 },
                                 label = {
                                     Text(
-                                        "Оповещения",
+                                        if (lang == "RU") "Оповещения" else "Alerts",
                                         fontFamily = FontFamily.Monospace,
                                         fontSize = 9.sp,
                                         fontWeight = FontWeight.Bold
@@ -158,12 +159,12 @@ class MainActivity : ComponentActivity() {
                                 icon = {
                                     Icon(
                                         imageVector = if (currentScreen is Screen.Analytics) Icons.Filled.Analytics else Icons.Outlined.Analytics,
-                                        contentDescription = "Аналитика"
+                                        contentDescription = if (lang == "RU") "Аналитика" else "Stats"
                                     )
                                 },
                                 label = {
                                     Text(
-                                        "Аналитика",
+                                        if (lang == "RU") "Аналитика" else "Stats",
                                         fontFamily = FontFamily.Monospace,
                                         fontSize = 10.sp,
                                         fontWeight = FontWeight.Bold
@@ -185,12 +186,12 @@ class MainActivity : ComponentActivity() {
                                 icon = {
                                     Icon(
                                         imageVector = if (currentScreen is Screen.Profile) Icons.Filled.AccountCircle else Icons.Outlined.AccountCircle,
-                                        contentDescription = "Профиль"
+                                        contentDescription = if (lang == "RU") "Нода" else "Node"
                                     )
                                 },
                                 label = {
                                     Text(
-                                        "Нода",
+                                        if (lang == "RU") "Нода" else "Node",
                                         fontFamily = FontFamily.Monospace,
                                         fontSize = 10.sp,
                                         fontWeight = FontWeight.Bold

@@ -34,6 +34,7 @@ fun AnalyticsScreen(
 ) {
     val rawMetrics by viewModel.analyticsData.collectAsState()
     val posts by viewModel.allPosts.collectAsState()
+    val lang by viewModel.selectedLanguage.collectAsState()
 
     // Aggregate metrics for visualization
     val likesCount = rawMetrics.filter { it.metricType == "LIKE_CLICK" }.size + 14
@@ -75,14 +76,14 @@ fun AnalyticsScreen(
                 Spacer(modifier = Modifier.width(16.dp))
                 Column {
                     Text(
-                        text = "АНАЛИТИЧЕСКИЙ ТЕРМИНАЛ nOG SYSTEM",
+                        text = if (lang == "RU") "АНАЛИТИЧЕСКИЙ ТЕРМИНАЛ nOG SYSTEM" else "nOG SYSTEM ANALYTICS TERMINAL",
                         color = PureWhite,
                         fontWeight = FontWeight.Bold,
                         fontSize = 14.sp,
                         fontFamily = FontFamily.Monospace
                     )
                     Text(
-                        text = "Real-time user engagement telemetry tracking",
+                        text = if (lang == "RU") "Телеметрия вовлеченности пользователей в реальном времени" else "Real-time user engagement telemetry tracking",
                         color = TextGray,
                         fontSize = 11.sp
                     )
@@ -91,7 +92,7 @@ fun AnalyticsScreen(
 
             // --- Metrics Grid ---
             Text(
-                "ТЕЛЕМЕТРИЯ СЕТЕВОЙ АКТИВНОСТИ",
+                if (lang == "RU") "ТЕЛЕМЕТРИЯ СЕТЕВОЙ АКТИВНОСТИ" else "NETWORK ACTIVITY TELEMETRY",
                 color = PureWhite,
                 fontSize = 12.sp,
                 fontFamily = FontFamily.Monospace,
@@ -99,18 +100,18 @@ fun AnalyticsScreen(
             )
 
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                MetricWidget(title = "СКРОЛЛ ЛЕНТЫ", count = scrollsCount, modifier = Modifier.weight(1f))
-                MetricWidget(title = "КЛИКИ ЛАЙКОВ", count = likesCount, modifier = Modifier.weight(1f))
+                MetricWidget(title = if (lang == "RU") "СКРОЛЛ ЛЕНТЫ" else "FEED SCROLLS", count = scrollsCount, modifier = Modifier.weight(1f))
+                MetricWidget(title = if (lang == "RU") "КЛИКИ ЛАЙКОВ" else "LIKE CLICKS", count = likesCount, modifier = Modifier.weight(1f))
             }
 
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                MetricWidget(title = "ЗАПРОСЫ К ИИ", count = queriesCount, modifier = Modifier.weight(1f))
-                MetricWidget(title = "ОТВЕТЫ В НОДЫ", count = commentsCount, modifier = Modifier.weight(1f))
+                MetricWidget(title = if (lang == "RU") "ЗАПРОСЫ К ИИ" else "AI QUERIES", count = queriesCount, modifier = Modifier.weight(1f))
+                MetricWidget(title = if (lang == "RU") "ОТВЕТЫ В НОДЫ" else "NODE REPLIES", count = commentsCount, modifier = Modifier.weight(1f))
             }
 
             // --- Custom Canvas Visualizer Graph (Stark Brutalist Line Chart) ---
             Text(
-                "КОНТРАСТНЫЙ ГРАФИК ВОВЛЕЧЕННОСТИ (Pulse Graph)",
+                if (lang == "RU") "КОНТРАСТНЫЙ ГРАФИК ВОВЛЕЧЕННОСТИ (Pulse Graph)" else "CONTRAST ENGAGEMENT INDEX (Pulse Graph)",
                 color = PureWhite,
                 fontSize = 12.sp,
                 fontFamily = FontFamily.Monospace,
@@ -207,7 +208,7 @@ fun AnalyticsScreen(
 
             // --- News Source Trust Scores ---
             Text(
-                "РЕЙТИНГ ДОВЕРИЯ ИСТОЧНИКОВ НОВОСТЕЙ (Trust Rating Audit)",
+                if (lang == "RU") "РЕЙТИНГ ДОВЕРИЯ ИСТОЧНИКОВ НОВОСТЕЙ (Trust Rating Audit)" else "NEWS TRUST RATING INDEX (Trust Rating Audit)",
                 color = PureWhite,
                 fontSize = 12.sp,
                 fontFamily = FontFamily.Monospace,
@@ -222,11 +223,11 @@ fun AnalyticsScreen(
                     .padding(16.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                TrustProgressBar(source = "nOG News Agency (Премиальные Хроники)", trustScore = 99, color = AlertGreen)
-                TrustProgressBar(source = "TruthMatrix AI (Объективный Аудит)", trustScore = 95, color = AlertGreen)
-                TrustProgressBar(source = "Silicon Syndicate (Сводки Индустрии)", trustScore = 88, color = PureWhite)
-                TrustProgressBar(source = "Cybernetic Feed (Технические Тренды)", trustScore = 72, color = AlertYellow)
-                TrustProgressBar(source = "Synthetica News (Эклектический ИИ Стрим)", trustScore = 45, color = AlertRed)
+                TrustProgressBar(source = if (lang == "RU") "nOG News Agency (Премиальные Хроники)" else "nOG News Agency (Premium Chronicles)", trustScore = 99, color = AlertGreen)
+                TrustProgressBar(source = if (lang == "RU") "TruthMatrix AI (Объективный Аудит)" else "TruthMatrix AI (Objective Audit)", trustScore = 95, color = AlertGreen)
+                TrustProgressBar(source = if (lang == "RU") "Silicon Syndicate (Сводки Индустрии)" else "Silicon Syndicate (Industry Briefs)", trustScore = 88, color = PureWhite)
+                TrustProgressBar(source = if (lang == "RU") "Cybernetic Feed (Технические Тренды)" else "Cybernetic Feed (Technical Trends)", trustScore = 72, color = AlertYellow)
+                TrustProgressBar(source = if (lang == "RU") "Synthetica News (Эклектический ИИ Стрим)" else "Synthetica News (Eclectic AI Stream)", trustScore = 45, color = AlertRed)
             }
         }
     }

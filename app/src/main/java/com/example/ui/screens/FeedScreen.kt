@@ -196,6 +196,7 @@ fun FeedScreen(
                                 PostItem(
                                     post = post,
                                     author = author,
+                                    lang = lang,
                                     onLikeClick = { viewModel.toggleLike(post.id) },
                                     onCommentClick = { viewModel.selectPostForComments(post.id) },
                                     onArchiveToggle = { viewModel.archivePost(post.id, !post.isArchived) },
@@ -253,6 +254,7 @@ fun FeedScreen(
                                     PostItem(
                                         post = post,
                                         author = author,
+                                        lang = lang,
                                         onLikeClick = { viewModel.toggleLike(post.id) },
                                         onCommentClick = { viewModel.selectPostForComments(post.id) },
                                         onArchiveToggle = { viewModel.archivePost(post.id, !post.isArchived) },
@@ -288,12 +290,13 @@ fun FeedScreen(
                 .border(2.dp, PureBlack, RoundedCornerShape(12.dp))
                 .testTag("create_post_button")
         ) {
-            Icon(Icons.Filled.Add, contentDescription = "Создать новость")
+            Icon(Icons.Filled.Add, contentDescription = if (lang == "RU") "Создать новость" else "Create post")
         }
 
         // --- Create Post Dialog / Prompt ---
         if (showCreatePostDialog) {
             CreatePostDialog(
+                lang = lang,
                 onDismiss = { showCreatePostDialog = false },
                 onSubmit = { content, image, video ->
                     viewModel.createNewUserPost(content, image, video)
@@ -310,6 +313,7 @@ fun FeedScreen(
                     post = selectedPost,
                     author = users.find { it.id == selectedPost.authorId },
                     viewModel = viewModel,
+                    lang = lang,
                     onDismiss = { viewModel.selectPostForComments(null) }
                 )
             }
@@ -323,6 +327,7 @@ fun FeedScreen(
 fun PostItem(
     post: PostEntity,
     author: UserEntity?,
+    lang: String,
     onLikeClick: () -> Unit,
     onCommentClick: () -> Unit,
     onArchiveToggle: () -> Unit,
@@ -362,7 +367,7 @@ fun PostItem(
                 Column(modifier = Modifier.weight(1f)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text(
-                            text = author?.username ?: "Силиконовая Нода",
+                            text = author?.username ?: (if (lang == "RU") "Силиконовая Нода" else "Silicon Node"),
                             color = PureWhite,
                             fontWeight = FontWeight.Bold,
                             fontSize = 14.sp
@@ -375,7 +380,7 @@ fun PostItem(
                                     .padding(horizontal = 4.dp, vertical = 2.dp)
                             ) {
                                 Text(
-                                    text = "ИИ",
+                                    text = if (lang == "RU") "ИИ" else "AI",
                                     color = PureBlack,
                                     fontSize = 8.sp,
                                     fontWeight = FontWeight.Bold,
@@ -404,7 +409,7 @@ fun PostItem(
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Icon(
                             Icons.Filled.FactCheck,
-                            contentDescription = "Рейтинг Доверия",
+                            contentDescription = if (lang == "RU") "Рейтинг Доверия" else "Trust Score",
                             tint = trustColor,
                             modifier = Modifier.size(14.dp)
                         )
@@ -451,7 +456,7 @@ fun PostItem(
                 ) {
                     AsyncImage(
                         model = post.mediaUrl,
-                        contentDescription = "Вложение",
+                        contentDescription = if (lang == "RU") "Вложение" else "Attachment",
                         modifier = Modifier.fillMaxSize(),
                         contentScale = ContentScale.Crop
                     )
@@ -467,13 +472,13 @@ fun PostItem(
                             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                                 Icon(
                                     Icons.Filled.PlayCircle,
-                                    contentDescription = "Видео проигрыватель",
+                                    contentDescription = if (lang == "RU") "Видео проигрыватель" else "Video player",
                                     tint = PureWhite,
                                     modifier = Modifier.size(48.dp)
                                 )
                                 Spacer(modifier = Modifier.height(4.dp))
                                 Text(
-                                    text = "СИНТЕТИЧЕСКИЙ СТРИМ v2.4",
+                                    text = if (lang == "RU") "СИНТЕТИЧЕСКИЙ СТРИМ v2.4" else "SYNTHETIC STREAM v2.4",
                                     color = PureWhite,
                                     fontSize = 9.sp,
                                     fontFamily = FontFamily.Monospace,
@@ -502,7 +507,7 @@ fun PostItem(
                 ) {
                     Icon(
                         Icons.Outlined.FavoriteBorder,
-                        contentDescription = "Лайк",
+                        contentDescription = if (lang == "RU") "Лайк" else "Like",
                         tint = TextGray,
                         modifier = Modifier.size(18.dp)
                     )
@@ -524,7 +529,7 @@ fun PostItem(
                 ) {
                     Icon(
                         Icons.Outlined.ChatBubbleOutline,
-                        contentDescription = "Обсуждение",
+                        contentDescription = if (lang == "RU") "Обсуждение" else "Comments",
                         tint = TextGray,
                         modifier = Modifier.size(18.dp)
                     )
@@ -541,14 +546,14 @@ fun PostItem(
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(
                         if (post.isTrend) Icons.Filled.TrendingUp else Icons.Outlined.Info,
-                        contentDescription = "Тренд",
+                        contentDescription = if (lang == "RU") "Тренд" else "Trend",
                         tint = if (post.isTrend) PureWhite else BorderGray,
                         modifier = Modifier.size(16.dp)
                     )
                     if (post.isTrend) {
                         Spacer(modifier = Modifier.width(4.dp))
                         Text(
-                            text = "ТРЕНД",
+                            text = if (lang == "RU") "ТРЕНД" else "TREND",
                             color = PureWhite,
                             fontSize = 9.sp,
                             fontWeight = FontWeight.Bold,
@@ -564,7 +569,7 @@ fun PostItem(
                 ) {
                     Icon(
                         if (post.isArchived) Icons.Filled.Bookmark else Icons.Outlined.BookmarkBorder,
-                        contentDescription = "Архивировать пост",
+                        contentDescription = if (lang == "RU") "Архивировать пост" else "Archive Post",
                         tint = if (post.isArchived) PureWhite else TextGray,
                         modifier = Modifier.size(18.dp)
                     )
@@ -577,6 +582,7 @@ fun PostItem(
 // --- Composable: Create Post Modal Dialog ---
 @Composable
 fun CreatePostDialog(
+    lang: String,
     onDismiss: () -> Unit,
     onSubmit: (content: String, image: String?, video: String?) -> Unit
 ) {
@@ -602,7 +608,7 @@ fun CreatePostDialog(
             .border(2.dp, PureWhite, RoundedCornerShape(4.dp)),
         title = {
             Text(
-                "СИНТЕЗ НОВОГО ПОСТА",
+                if (lang == "RU") "СИНТЕЗ НОВОГО ПОСТА" else "SYNTHESIZE NEW UPDATE",
                 color = PureWhite,
                 fontSize = 16.sp,
                 fontFamily = FontFamily.Monospace,
@@ -614,7 +620,13 @@ fun CreatePostDialog(
                 OutlinedTextField(
                     value = text,
                     onValueChange = { text = it },
-                    placeholder = { Text("Опубликуйте что-нибудь в матрицу... ИИ прокомментируют это в реальном времени!", color = TextGray, fontSize = 13.sp) },
+                    placeholder = { 
+                        Text(
+                            if (lang == "RU") "Опубликуйте что-нибудь в матрицу... ИИ прокомментируют это в реальном времени!" else "Synthesize stream update... AI nodes will analyze and cascade!", 
+                            color = TextGray, 
+                            fontSize = 13.sp
+                        ) 
+                    },
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(140.dp)
@@ -633,7 +645,7 @@ fun CreatePostDialog(
 
                 // --- Photo/Video Generation simulation selection ---
                 Text(
-                    "ПРИКРЕПИТЬ СГЕНЕРИРОВАННЫЙ АССЕТ:",
+                    if (lang == "RU") "ПРИКРЕПИТЬ СГЕНЕРИРОВАННЫЙ АССЕТ:" else "ATTACH GENERATED MEDIA ASSET:",
                     color = PureWhite,
                     fontSize = 11.sp,
                     fontFamily = FontFamily.Monospace,
@@ -690,7 +702,7 @@ fun CreatePostDialog(
                         contentAlignment = Alignment.Center
                     ) {
                         Text(
-                            text = "ВИДЕО 🎬",
+                            text = if (lang == "RU") "ВИДЕО 🎬" else "VIDEO 🎬",
                             color = if (isVideoSelected) PureBlack else PureWhite,
                             fontSize = 10.sp,
                             fontFamily = FontFamily.Monospace,
@@ -707,7 +719,7 @@ fun CreatePostDialog(
                 shape = RoundedCornerShape(4.dp)
             ) {
                 Text(
-                    "В ЭФИР 🛰️",
+                    if (lang == "RU") "В ЭФИР 🛰️" else "BROADCAST 🛰️",
                     fontFamily = FontFamily.Monospace,
                     fontWeight = FontWeight.Bold
                 )
@@ -717,7 +729,11 @@ fun CreatePostDialog(
             TextButton(
                 onClick = onDismiss
             ) {
-                Text("ОТМЕНА", color = TextGray, fontFamily = FontFamily.Monospace)
+                Text(
+                    if (lang == "RU") "ОТМЕНА" else "CANCEL", 
+                    color = TextGray, 
+                    fontFamily = FontFamily.Monospace
+                )
             }
         }
     )
@@ -730,6 +746,7 @@ fun CommentsBottomSheet(
     post: PostEntity,
     author: UserEntity?,
     viewModel: SocialViewModel,
+    lang: String,
     onDismiss: () -> Unit
 ) {
     val comments by viewModel.activeCommentsOfSelectedPost.collectAsState()
@@ -762,7 +779,7 @@ fun CommentsBottomSheet(
             
             // Post reference in comments header
             Text(
-                text = "ОБСУЖДЕНИЕ ПОСТА ОТ ${author?.username ?: "ИИ"}",
+                text = if (lang == "RU") "ОБСУЖДЕНИЕ ПОСТА ОТ ${author?.username ?: "ИИ"}" else "REACTIONS IN THREAD BY ${author?.username ?: "AI"}",
                 color = PureWhite,
                 fontSize = 12.sp,
                 fontFamily = FontFamily.Monospace,
@@ -789,7 +806,7 @@ fun CommentsBottomSheet(
                             contentAlignment = Alignment.Center
                         ) {
                             Text(
-                                "Пока нет ответов в этой ноде. Будь первым, кто запустит алгоритм!",
+                                if (lang == "RU") "Пока нет ответов в этой ноде. Будь первым, кто запустит алгоритм!" else "No node answers compiled. Be the first to feed variables!",
                                 color = TextGray,
                                 fontSize = 11.sp,
                                 fontFamily = FontFamily.Monospace,
@@ -818,7 +835,7 @@ fun CommentsBottomSheet(
                             Column {
                                 Row(verticalAlignment = Alignment.CenterVertically) {
                                     Text(
-                                        text = commenter?.username ?: "Агент",
+                                        text = commenter?.username ?: (if (lang == "RU") "Агент" else "Agent"),
                                         color = PureWhite,
                                         fontSize = 12.sp,
                                         fontWeight = FontWeight.Bold
@@ -831,7 +848,7 @@ fun CommentsBottomSheet(
                                                 .padding(horizontal = 3.dp, vertical = 1.dp)
                                         ) {
                                             Text(
-                                                "ИИ",
+                                                if (lang == "RU") "ИИ" else "AI",
                                                 color = PureBlack,
                                                 fontSize = 7.sp,
                                                 fontWeight = FontWeight.Bold,
@@ -865,7 +882,13 @@ fun CommentsBottomSheet(
                 OutlinedTextField(
                     value = commentText,
                     onValueChange = { commentText = it },
-                    placeholder = { Text("Написать комментарий...", color = TextGray, fontSize = 12.sp) },
+                    placeholder = { 
+                        Text(
+                            if (lang == "RU") "Написать комментарий..." else "Log reaction response...", 
+                            color = TextGray, 
+                            fontSize = 12.sp
+                        ) 
+                    },
                     modifier = Modifier.weight(1f),
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedTextColor = PureWhite,
@@ -891,7 +914,7 @@ fun CommentsBottomSheet(
                 ) {
                     Icon(
                         Icons.Filled.Send,
-                        contentDescription = "Отправить комментарий",
+                        contentDescription = if (lang == "RU") "Отправить комментарий" else "Send reply",
                         tint = PureBlack
                     )
                 }

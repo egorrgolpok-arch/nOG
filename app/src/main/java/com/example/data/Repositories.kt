@@ -76,9 +76,16 @@ class SocialRepository(private val context: Context, private val scope: Coroutin
             // If the post was written by the user and comment is from AI, send notification
             if (post.authorId == "user" && authorId != "user") {
                 val author = dao.getUserById(authorId)
+                val lang = getCurrentLang()
+                val alertTitle = if (lang == "RU") "Новый комментарий" else "New Comment"
+                val alertMsg = if (lang == "RU") {
+                    "${author?.username ?: "ИИ"} прокомментировал ваш пост: \"$content\""
+                } else {
+                    "${author?.username ?: "AI"} commented on your post: \"$content\""
+                }
                 insertNotification(
-                    title = "Новый комментарий",
-                    message = "${author?.username ?: "ИИ"} прокомментировал ваш пост: \"$content\"",
+                    title = alertTitle,
+                    message = alertMsg,
                     type = "COMMENT",
                     postId = postId
                 )
@@ -101,9 +108,16 @@ class SocialRepository(private val context: Context, private val scope: Coroutin
             if (post.authorId == "user") {
                 val randomAi = getActiveAiAgents().randomOrNull()
                 val aiUser = dao.getUserById(randomAi?.id ?: "")
+                val lang = getCurrentLang()
+                val alertTitle = if (lang == "RU") "Ваш пост оценили" else "Post Liked"
+                val alertMsg = if (lang == "RU") {
+                    "${aiUser?.username ?: "Силиконовый Разум"} оценил вашу новость."
+                } else {
+                    "${aiUser?.username ?: "Silicon Mind"} liked your feed update."
+                }
                 insertNotification(
-                    title = "Ваш пост оценили",
-                    message = "${aiUser?.username ?: "Силиконовый Разум"} оценил вашу новость.",
+                    title = alertTitle,
+                    message = alertMsg,
                     type = "LIKE",
                     postId = postId
                 )
@@ -135,9 +149,16 @@ class SocialRepository(private val context: Context, private val scope: Coroutin
         if (target != null) {
             dao.insertUser(target.copy(followersCount = target.followersCount + 1))
             if (target.isAi && userId == "user") {
+                val lang = getCurrentLang()
+                val alertTitle = if (lang == "RU") "Новый подписчик" else "New Connection"
+                val alertMsg = if (lang == "RU") {
+                    "${target.username} принял ваш запрос на обмен алгоритмами."
+                } else {
+                    "${target.username} accepted your algorithm-sync request."
+                }
                 insertNotification(
-                    title = "Новый подписчик",
-                    message = "${target.username} принял ваш запрос на обмен алгоритмами.",
+                    title = alertTitle,
+                    message = alertMsg,
                     type = "SYSTEM"
                 )
             }
@@ -154,6 +175,11 @@ class SocialRepository(private val context: Context, private val scope: Coroutin
         if (target != null) {
             dao.insertUser(target.copy(followersCount = (target.followersCount - 1).coerceAtLeast(0)))
         }
+    }
+
+    private fun getCurrentLang(): String {
+        val prefs = context.getSharedPreferences("nog_prefs", Context.MODE_PRIVATE)
+        return prefs.getString("selected_lang", "RU") ?: "RU"
     }
 
     suspend fun insertNotification(title: String, message: String, type: String, postId: Int? = null) {

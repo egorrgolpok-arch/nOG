@@ -30,6 +30,7 @@ fun NogAiScreen(
 ) {
     val messages by viewModel.chatMessages.collectAsState()
     val isLoading by viewModel.chatLoading.collectAsState()
+    val msgLang by viewModel.selectedLanguage.collectAsState()
     var textInput by remember { mutableStateOf("") }
 
     Box(
@@ -69,7 +70,11 @@ fun NogAiScreen(
                         fontFamily = FontFamily.Monospace
                     )
                     Text(
-                        text = "Unconstrained neural auditor of the cybernetic space",
+                        text = if (msgLang == "RU") {
+                            "Бескомпромиссный нейроаналитик киберпространства"
+                        } else {
+                            "Unconstrained neural auditor of the cybernetic space"
+                        },
                         color = TextGray,
                         fontSize = 11.sp
                     )
@@ -87,7 +92,7 @@ fun NogAiScreen(
                 contentPadding = PaddingValues(bottom = 16.dp)
             ) {
                 items(messages) { msg ->
-                    ChatBubble(msg = msg)
+                    ChatBubble(msg = msg, lang = msgLang)
                 }
                 
                 if (isLoading) {
@@ -110,7 +115,7 @@ fun NogAiScreen(
                                     )
                                     Spacer(modifier = Modifier.width(8.dp))
                                     Text(
-                                        text = "Вычисление синапсов nOG AI...",
+                                        text = if (msgLang == "RU") "Вычисление синапсов nOG AI..." else "Calculating nOG AI synapses...",
                                         color = TextGray,
                                         fontSize = 11.sp,
                                         fontFamily = FontFamily.Monospace
@@ -133,7 +138,13 @@ fun NogAiScreen(
                 OutlinedTextField(
                     value = textInput,
                     onValueChange = { textInput = it },
-                    placeholder = { Text("Задать любой вопрос nOG AI (в духе Grok)...", color = TextGray, fontSize = 12.sp) },
+                    placeholder = { 
+                        Text(
+                            if (msgLang == "RU") "Задать любой вопрос nOG AI (в стиле Grok)..." else "Ask anything to nOG AI (Grok-inspired)...", 
+                            color = TextGray, 
+                            fontSize = 12.sp
+                        ) 
+                    },
                     modifier = Modifier
                         .weight(1f)
                         .testTag("chat_input_text_field"),
@@ -164,7 +175,7 @@ fun NogAiScreen(
                 ) {
                     Icon(
                         Icons.Filled.Send,
-                        contentDescription = "Отправить сообщение"
+                        contentDescription = if (msgLang == "RU") "Отправить сообщение" else "Send Message"
                     )
                 }
             }
@@ -174,7 +185,7 @@ fun NogAiScreen(
 
 // --- Composable: Speech Bubble in Dark Brutal style ---
 @Composable
-fun ChatBubble(msg: ChatMessage) {
+fun ChatBubble(msg: ChatMessage, lang: String) {
     val alignEnd = msg.isUser
     val bubbleColor = if (alignEnd) PureWhite else DeepGray
     val textColor = if (alignEnd) PureBlack else StarkWhite
@@ -203,7 +214,11 @@ fun ChatBubble(msg: ChatMessage) {
             }
             Spacer(modifier = Modifier.height(4.dp))
             Text(
-                text = if (alignEnd) "Вы" else "nOG AI Assistant",
+                text = if (alignEnd) {
+                    if (lang == "RU") "Вы" else "You"
+                } else {
+                    "nOG AI Assistant"
+                },
                 color = TextGray,
                 fontSize = 9.sp,
                 fontFamily = FontFamily.Monospace
