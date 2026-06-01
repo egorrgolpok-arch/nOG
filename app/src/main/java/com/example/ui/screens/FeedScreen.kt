@@ -172,105 +172,12 @@ fun FeedScreen(
                     )
                 }
             }
-
-            // --- Live Search Input Bar ---
-            var localSearchText by remember { mutableStateOf("") }
-            val currentGlobalSearchQuery by viewModel.searchQuery.collectAsState()
-            val isSearchLoading by viewModel.searchLoading.collectAsState()
-            
-            // Sync local state if search query is cleared globally
-            LaunchedEffect(currentGlobalSearchQuery) {
-                if (currentGlobalSearchQuery.isEmpty()) {
-                    localSearchText = ""
-                }
-            }
-
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .background(PureBlack)
-                    .border(1.dp, BorderGray)
-                    .padding(12.dp)
-            ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    OutlinedTextField(
-                        value = localSearchText,
-                        onValueChange = { localSearchText = it },
-                        modifier = Modifier
-                            .weight(1f)
-                            .testTag("search_text_input"),
-                        placeholder = {
-                            Text(
-                                text = if (lang == "RU") "Искать... (ИИ сгенерирует посты)" else "Search... (AI will generate posts)",
-                                color = TextGray,
-                                fontSize = 12.sp,
-                                fontFamily = FontFamily.Monospace
-                            )
-                        },
-                        singleLine = true,
-                        textStyle = TextStyle(
-                            color = StarkWhite,
-                            fontSize = 12.sp,
-                            fontFamily = FontFamily.Monospace
-                        ),
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedContainerColor = CardGray,
-                            unfocusedContainerColor = PureBlack,
-                            focusedBorderColor = StarkWhite,
-                            unfocusedBorderColor = BorderGray,
-                            cursorColor = StarkWhite
-                        ),
-                        trailingIcon = {
-                            if (localSearchText.isNotEmpty()) {
-                                IconButton(
-                                    onClick = {
-                                        localSearchText = ""
-                                        viewModel.clearSearch()
-                                    }
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Default.Close,
-                                        contentDescription = "Clear Search",
-                                        tint = StarkWhite
-                                    )
-                                }
-                            }
-                        }
-                    )
-                    
-                    Spacer(modifier = Modifier.width(8.dp))
-                    
-                    Button(
-                        onClick = {
-                            if (localSearchText.isNotBlank()) {
-                                viewModel.triggerSearchAiPosts(localSearchText)
-                            }
-                        },
-                        shape = RoundedCornerShape(4.dp),
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = if (localSearchText.isNotBlank()) PureWhite else CardGray,
-                            contentColor = if (localSearchText.isNotBlank()) PureBlack else TextGray
-                        ),
-                        border = BorderStroke(1.dp, BorderGray),
-                        modifier = Modifier
-                            .height(56.dp)
-                            .testTag("search_button")
-                    ) {
-                        Text(
-                            text = if (lang == "RU") "ПОИСК 🔍" else "SEARCH 🔍",
-                            fontSize = 10.sp,
-                            fontFamily = FontFamily.Monospace,
-                            fontWeight = FontWeight.Bold
-                        )
-                    }
-                }
                 
-                // Categories Filter Bar - Accessible to all neural nodes
+                // Cat List for Filter Bar - Secured and locked without checkmark (Verification)
                 Spacer(modifier = Modifier.height(8.dp))
                 val catList = listOf("Игры", "Новости", "Политика", "Мемы", "Спорт", "Щит пост", "Разное")
+                val context = androidx.compose.ui.platform.LocalContext.current
+                
                 androidx.compose.foundation.lazy.LazyRow(
                     modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp),
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -297,8 +204,21 @@ fun FeedScreen(
                     items(catList) { cat ->
                         FilterChip(
                             selected = selectedCategory == cat,
-                            onClick = { viewModel.selectCategory(cat) },
-                            label = { Text(cat, fontFamily = FontFamily.Monospace, fontSize = 10.sp) },
+                            onClick = {
+                                viewModel.selectCategory(cat)
+                            },
+                            label = { 
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Icon(
+                                        imageVector = Icons.Default.Tag,
+                                        contentDescription = "Category Tag",
+                                        modifier = Modifier.size(10.dp),
+                                        tint = if (selectedCategory == cat) PureBlack else TextGray
+                                    )
+                                    Spacer(modifier = Modifier.width(4.dp))
+                                    Text(cat, fontFamily = FontFamily.Monospace, fontSize = 10.sp)
+                                }
+                            },
                             colors = androidx.compose.material3.FilterChipDefaults.filterChipColors(
                                 selectedContainerColor = PureWhite,
                                 selectedLabelColor = PureBlack,
@@ -314,41 +234,6 @@ fun FeedScreen(
                         )
                     }
                 }
-                
-                // Show dynamic search loader
-                AnimatedVisibility(
-                    visible = isSearchLoading,
-                    enter = fadeIn() + expandVertically(),
-                    exit = fadeOut() + shrinkVertically()
-                ) {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(top = 8.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-                        LinearProgressIndicator(
-                            color = PureWhite,
-                            trackColor = BorderGray,
-                            modifier = Modifier.fillMaxWidth().height(2.dp)
-                        )
-                        Spacer(modifier = Modifier.height(4.dp))
-                        Text(
-                            text = if (lang == "RU") {
-                                "ОБРАБОТКА ДАННЫХ ИЗ ИНТЕРНЕТА И КРЕМНИЕВЫХ СЕТЕЙ ПО ЗАПРОСУ '$currentGlobalSearchQuery'..."
-                            } else {
-                                "NEURAL RESEARCHING ACROSS INTERNET & SILICON DATASETS FOR '$currentGlobalSearchQuery'..."
-                            },
-                            color = AlertYellow,
-                            fontSize = 10.sp,
-                            fontFamily = FontFamily.Monospace,
-                            fontWeight = FontWeight.Bold,
-                            textAlign = TextAlign.Center,
-                            modifier = Modifier.fillMaxWidth()
-                        )
-                    }
-                }
-            }
 
             // --- Recommendation Engine Sub-Tabs ---
             val tabs = if (lang == "RU") {
@@ -777,9 +662,141 @@ fun PostItem(
                 modifier = Modifier.fillMaxWidth()
             )
 
+            val extractedUrl = remember(post.content) {
+                val regex = Regex("(https?://[^\\s]+)")
+                val match = regex.find(post.content)?.value
+                if (match != null) {
+                    val punctsToStrip = listOf(",", ".", ")", "!", "?", "\"", "'")
+                    var cleaned: String = match
+                    for (p in punctsToStrip) {
+                        if (cleaned.endsWith(p)) {
+                            cleaned = cleaned.dropLast(p.length)
+                            break
+                        }
+                    }
+                    cleaned
+                } else null
+            }
+
+            if (extractedUrl != null) {
+                val nonNullUrl = extractedUrl
+                Spacer(modifier = Modifier.height(12.dp))
+                val currentContext = androidx.compose.ui.platform.LocalContext.current
+                val hostDomain = remember(nonNullUrl) {
+                    try {
+                        val uriStr = nonNullUrl.lowercase()
+                        val rawHost = uriStr.substringAfter("://").substringBefore("/")
+                        rawHost.ifEmpty { "nog.network" }
+                    } catch (e: Exception) {
+                        "nog.network"
+                    }
+                }
+                
+                val platformLabel = when {
+                    hostDomain.contains("youtube") -> if (lang == "RU") "КОНТЕНТ: YOUTUBE" else "PREVIEW: YOUTUBE"
+                    hostDomain.contains("reddit") -> if (lang == "RU") "ТРЕД: REDDIT" else "THREAD: REDDIT"
+                    hostDomain.contains("wikipedia") -> if (lang == "RU") "СПРАВКА: WIKIPEDIA" else "INFO: WIKIPEDIA"
+                    hostDomain.contains("github") -> if (lang == "RU") "РЕПОЗИТОРИЙ: GITHUB" else "REPOSITORY: GITHUB"
+                    hostDomain.contains("telegram") || hostDomain.contains("t.me") -> if (lang == "RU") "КАНАЛ: TELEGRAM" else "CHANNEL: TELEGRAM"
+                    else -> if (lang == "RU") "ССЫЛКА: $hostDomain" else "LINK: $hostDomain"
+                }
+
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .border(1.dp, AlertYellow, RoundedCornerShape(4.dp))
+                        .clip(RoundedCornerShape(4.dp))
+                        .clickable {
+                            try {
+                                val intent = android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(nonNullUrl))
+                                currentContext.startActivity(intent)
+                            } catch (e: Exception) {
+                                onMediaClick(nonNullUrl)
+                            }
+                        },
+                    colors = CardDefaults.cardColors(containerColor = DeepGray)
+                ) {
+                    Column {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .background(PureBlack)
+                                .padding(horizontal = 8.dp, vertical = 6.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Share,
+                                contentDescription = "External Link",
+                                tint = AlertYellow,
+                                modifier = Modifier.size(12.dp)
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(
+                                text = "HOST: $hostDomain ▸ ПРЕДПРОСМОТР ССЫЛКИ",
+                                color = AlertYellow,
+                                fontFamily = FontFamily.Monospace,
+                                fontSize = 8.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(12.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(48.dp)
+                                    .background(PureBlack, RoundedCornerShape(2.dp))
+                                    .border(1.dp, BorderGray, RoundedCornerShape(2.dp)),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = if (hostDomain.contains("wikipedia")) Icons.Filled.Book 
+                                                  else if (hostDomain.contains("youtube")) Icons.Filled.PlayArrow
+                                                  else Icons.Filled.Link,
+                                    contentDescription = "Web Link",
+                                    tint = StarkWhite,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            }
+                            Spacer(modifier = Modifier.width(12.dp))
+                            Column {
+                                Text(
+                                    text = platformLabel.uppercase(),
+                                    color = AlertYellow,
+                                    fontSize = 10.sp,
+                                    fontFamily = FontFamily.Monospace,
+                                    fontWeight = FontWeight.Bold
+                                )
+                                Spacer(modifier = Modifier.height(2.dp))
+                                Text(
+                                    text = nonNullUrl,
+                                    color = TextGray,
+                                    fontSize = 11.sp,
+                                    lineHeight = 14.sp,
+                                    maxLines = 1,
+                                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+                                )
+                                Spacer(modifier = Modifier.height(2.dp))
+                                Text(
+                                    text = if (lang == "RU") "Нажмите, чтобы открыть защищенный канал..." else "Tap to establish neural connection...",
+                                    color = StarkWhite,
+                                    fontSize = 10.sp,
+                                    fontWeight = FontWeight.SemiBold
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+
             // --- Media Attachment Visualizer ---
             if (post.mediaUrl != null) {
                 Spacer(modifier = Modifier.height(12.dp))
+                
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -789,17 +806,7 @@ fun PostItem(
                         .background(DeepGray)
                         .clickable { onMediaClick(post.mediaUrl) }
                 ) {
-                    if (post.mediaType == "VIDEO") {
-                        val context = androidx.compose.ui.platform.LocalContext.current
-                        
-                        // Use DisposableEffect to manage VideoView lifecycle properly
-                        androidx.compose.runtime.DisposableEffect(post.mediaUrl) {
-                            onDispose {
-                                // We don't have direct access to the View here easily, 
-                                // but the AndroidView factory will be cleared.
-                            }
-                        }
-
+                    if (post.mediaType == "VIDEO" || post.mediaUrl.endsWith(".mp4") || post.mediaUrl.contains("gtv-videos-bucket")) {
                         androidx.compose.ui.viewinterop.AndroidView(
                             factory = { ctx ->
                                 android.widget.VideoView(ctx).apply {
@@ -822,14 +829,28 @@ fun PostItem(
                                 }
                             }
                         )
+                        // Play overlay indicator
+                        Box(
+                            modifier = Modifier
+                                .size(36.dp)
+                                .align(Alignment.Center)
+                                .background(Color(0x7F000000), CircleShape)
+                                .border(1f.dp, PureWhite, CircleShape),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Filled.PlayArrow,
+                                contentDescription = "Play Inline",
+                                tint = PureWhite,
+                                modifier = Modifier.size(18.dp)
+                            )
+                        }
                     } else {
                         AsyncImage(
                             model = post.mediaUrl,
                             contentDescription = if (lang == "RU") "Вложение" else "Attachment",
                             modifier = Modifier.fillMaxSize(),
-                            contentScale = ContentScale.Crop,
-                            placeholder = androidx.compose.ui.res.painterResource(id = android.R.drawable.ic_menu_gallery),
-                            error = androidx.compose.ui.res.painterResource(id = android.R.drawable.ic_dialog_alert)
+                            contentScale = ContentScale.Crop
                         )
                     }
                 }
@@ -1237,74 +1258,6 @@ fun CreatePostDialog(
                                 }
                             )
                         }
-                    }
-                }
-
-                // --- Photo/Video Generation simulation selection ---
-                Text(
-                    if (lang == "RU") "СИМУЛИРОВАТЬ НЕЙРОСЕТЕВОЙ АССЕТ:" else "SIMULATE NEURAL EMBED PRESET:",
-                    color = PureWhite,
-                    fontSize = 11.sp,
-                    fontFamily = FontFamily.Monospace,
-                    fontWeight = FontWeight.Bold
-                )
-
-                Spacer(modifier = Modifier.height(8.dp))
-
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    imageOptions.forEach { opt ->
-                        val isSelected = attachedImage == opt.second
-                        Box(
-                            modifier = Modifier
-                                .size(50.dp)
-                                .clip(RoundedCornerShape(4.dp))
-                                .border(
-                                    width = if (isSelected) 2.dp else 1.dp,
-                                    color = if (isSelected) PureWhite else BorderGray,
-                                    shape = RoundedCornerShape(4.dp)
-                                )
-                                .clickable {
-                                    attachedImage = if (isSelected) null else opt.second
-                                    attachedVideo = null
-                                }
-                        ) {
-                            AsyncImage(
-                                model = opt.second,
-                                contentDescription = opt.first,
-                                modifier = Modifier.fillMaxSize(),
-                                contentScale = ContentScale.Crop
-                            )
-                        }
-                    }
-                    
-                    // Video Simulate toggle
-                    val isVideoSelected = attachedVideo != null && attachedVideo?.startsWith("http") == true
-                    Box(
-                        modifier = Modifier
-                            .height(50.dp)
-                            .weight(1f)
-                            .border(
-                                width = if (isVideoSelected) 2.dp else 1.dp,
-                                color = if (isVideoSelected) PureWhite else BorderGray,
-                                shape = RoundedCornerShape(4.dp)
-                            )
-                            .background(if (isVideoSelected) StarkWhite else PureBlack)
-                            .clickable {
-                                attachedVideo = if (isVideoSelected) null else "https://images.unsplash.com/photo-1550751827-4bd374c3f58b?auto=format&fit=crop&w=600&q=80"
-                                attachedImage = null
-                             },
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            text = if (lang == "RU") "ВИДЕО 🎬" else "VIDEO 🎬",
-                            color = if (isVideoSelected) PureBlack else PureWhite,
-                            fontSize = 10.sp,
-                            fontFamily = FontFamily.Monospace,
-                            fontWeight = FontWeight.Bold
-                        )
                     }
                 }
             }

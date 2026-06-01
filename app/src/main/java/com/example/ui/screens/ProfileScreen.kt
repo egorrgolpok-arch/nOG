@@ -42,11 +42,16 @@ fun ProfileScreen(
     innerPadding: PaddingValues
 ) {
     val userProfile by viewModel.currentUser.collectAsState()
+    val allPosts by viewModel.allPosts.collectAsState()
+    val myPosts = allPosts.filter { it.authorId == "user" }
     val archivedPosts by viewModel.archivedPosts.collectAsState()
     val users by viewModel.allUsers.collectAsState()
     val lang by viewModel.selectedLanguage.collectAsState()
 
     var isEditing by remember { mutableStateOf(false) }
+    // Add Edit State
+    var postToEdit by remember { mutableStateOf<com.example.data.PostEntity?>(null) }
+    var editContent by remember { mutableStateOf("") }
     
     // Form states
     var tempUsername by remember { mutableStateOf("") }
@@ -54,6 +59,7 @@ fun ProfileScreen(
     var tempBio by remember { mutableStateOf("") }
     var tempAvatarUrl by remember { mutableStateOf("") }
     var showVerificationSheet by remember { mutableStateOf(false) }
+    var verificationCode by remember { mutableStateOf("") }
     val context = LocalContext.current
 
     // Synchronize form values on loaded
@@ -260,11 +266,26 @@ fun ProfileScreen(
                                             .clickable {
                                                 val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://nog1.tilda.ws/nogshop"))
                                                 context.startActivity(intent)
-                                                viewModel.verifyUser()
-                                                showVerificationSheet = false
                                             }
                                             .padding(4.dp)
                                     )
+                                    Spacer(modifier = Modifier.height(16.dp))
+                                    OutlinedTextField(
+                                        value = verificationCode,
+                                        onValueChange = { verificationCode = it },
+                                        label = { Text(if (lang == "RU") "Код заказа" else "Order Code") },
+                                        modifier = Modifier.fillMaxWidth(),
+                                        colors = OutlinedTextFieldDefaults.colors(
+                                            focusedTextColor = PureWhite,
+                                            unfocusedBorderColor = PureWhite
+                                        )
+                                    )
+                                    Button(onClick = {
+                                        viewModel.verifyPermanently(verificationCode)
+                                        showVerificationSheet = false
+                                    }, modifier = Modifier.fillMaxWidth().padding(top = 8.dp)) {
+                                        Text(if (lang == "RU") "ВЕРИФИЦИРОВАТЬСЯ НАВСЕГДА" else "VERIFY PERMANENTLY")
+                                    }
                                 }
                             }
                         }
@@ -569,6 +590,28 @@ fun ProfileScreen(
                                     tint = AlertRed,
                                     modifier = Modifier.size(20.dp)
                                 )
+                            }
+                        }
+                    }
+                }
+                
+                // 4. MY POSTS
+                item {
+                    Text(
+                        text = if (lang == "RU") "МОИ ПУБЛИКАЦИИ (${myPosts.size})" else "MY POSTS (${myPosts.size})",
+                        color = PureWhite,
+                        fontSize = 12.sp,
+                        fontFamily = FontFamily.Monospace,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.padding(top = 16.dp, bottom = 4.dp)
+                    )
+                }
+                items(myPosts, key = { "mypost-${it.id}" }) { post ->
+                    Card(modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp), colors = CardDefaults.cardColors(containerColor = DeepGray)) {
+                        Row(modifier = Modifier.padding(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                            Text(post.content, color = PureWhite, modifier = Modifier.weight(1f), maxLines = 1)
+                            IconButton(onClick = { viewModel.deletePost(post.id) }) {
+                                Icon(Icons.Filled.Delete, contentDescription = "Delete", tint = AlertRed)
                             }
                         }
                     }

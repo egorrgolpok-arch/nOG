@@ -27,8 +27,8 @@ import coil.decode.ImageDecoderDecoder
 import com.example.ui.theme.MyApplicationTheme
 import com.example.ui.Screen
 import com.example.ui.SocialViewModel
+import com.example.ui.screens.CommunityScreen
 import com.example.ui.screens.FeedScreen
-import com.example.ui.screens.NogAiScreen
 import com.example.ui.screens.NotificationsScreen
 import com.example.ui.screens.ProfileScreen
 import com.example.ui.screens.AnalyticsScreen
@@ -102,19 +102,19 @@ class MainActivity : ComponentActivity() {
                                 )
                             )
 
-                            // nOG AI Hub
+                            // Community Hub
                             NavigationBarItem(
-                                selected = currentScreen is Screen.NogAi,
-                                onClick = { viewModel.navigateTo(Screen.NogAi) },
+                                selected = currentScreen is Screen.Community,
+                                onClick = { viewModel.navigateTo(Screen.Community) },
                                 icon = {
                                     Icon(
-                                        imageVector = if (currentScreen is Screen.NogAi) Icons.Filled.AutoAwesome else Icons.Outlined.AutoAwesome,
-                                        contentDescription = "nOG AI"
+                                        imageVector = if (currentScreen is Screen.Community) Icons.Filled.Groups else Icons.Outlined.Groups,
+                                        contentDescription = "Community"
                                     )
                                 },
                                 label = {
                                     Text(
-                                        "nOG AI",
+                                        "Community",
                                         fontFamily = FontFamily.Monospace,
                                         fontSize = 10.sp,
                                         fontWeight = FontWeight.Bold
@@ -228,7 +228,7 @@ class MainActivity : ComponentActivity() {
                     // Screen dispatcher
                     when (currentScreen) {
                         is Screen.Feed -> FeedScreen(viewModel = viewModel, innerPadding = innerPadding)
-                        is Screen.NogAi -> NogAiScreen(viewModel = viewModel, innerPadding = innerPadding)
+                        is Screen.Community -> CommunityScreen(viewModel = viewModel, innerPadding = innerPadding)
                         is Screen.Notifications -> NotificationsScreen(viewModel = viewModel, innerPadding = innerPadding)
                         is Screen.Analytics -> AnalyticsScreen(viewModel = viewModel, innerPadding = innerPadding)
                         is Screen.Profile -> ProfileScreen(viewModel = viewModel, innerPadding = innerPadding)
