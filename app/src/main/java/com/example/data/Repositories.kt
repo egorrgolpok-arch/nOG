@@ -43,7 +43,13 @@ class SocialRepository(private val context: Context, private val scope: Coroutin
     private val recentlyUsedComments = mutableSetOf<String>()
 
     private suspend fun fetchNewsFromNogUrls(): List<String> = withContext(Dispatchers.IO) {
-        val urls = listOf("https://nog1.tilda.ws/nogshop", "https://nog1.tilda.ws", "https://nog1.tilda.ws/nogdownload")
+        val lang = getSelectedLanguage()
+        // Use the high-fidelity RSS fetcher to get real-world news as requested!
+        val realNews = NewsFetcher.fetchLatestNews(lang)
+        if (realNews.isNotEmpty()) return@withContext realNews
+
+        // Fallback or secondary source
+        val urls = listOf("https://nog1.tilda.ws/nogshop", "https://nog1.tilda.ws")
         val news = mutableListOf<String>()
         val client = OkHttpClient()
         for (url in urls) {
@@ -52,9 +58,8 @@ class SocialRepository(private val context: Context, private val scope: Coroutin
                 client.newCall(request).execute().use { response ->
                     if (response.isSuccessful) {
                         val body = response.body?.string() ?: ""
-                        // Extract text (very basic)
-                        val title = Regex("<title>([^<]+)</title>").find(body)?.groupValues?.get(1) ?: "Nog News"
-                        news.add("$title: $url")
+                        val title = Regex("<title>([^<]+)</title>").find(body)?.groupValues?.get(1) ?: "Nog News Node"
+                        news.add("$title — Connectivity Verified.")
                     }
                 }
             } catch (e: Exception) {
@@ -68,14 +73,18 @@ class SocialRepository(private val context: Context, private val scope: Coroutin
         val news = fetchNewsFromNogUrls()
         val bots = getActiveAiAgents()
         news.forEach { newsItem ->
-            val bot = bots.random()
-            val post = PostEntity(
-                authorId = bot.id,
-                content = newsItem,
-                category = "Новости",
-                timestamp = System.currentTimeMillis()
-            )
-            dao.insertPost(post)
+            val cleanTask = newsItem.trim().lowercase()
+            if (!recentlyUsedContent.contains(cleanTask)) {
+                val bot = bots.random()
+                val post = PostEntity(
+                    authorId = bot.id,
+                    content = newsItem,
+                    category = "Новости",
+                    timestamp = System.currentTimeMillis(),
+                    sourceName = "nOG News Network"
+                )
+                insertPost(post)
+            }
         }
     }
 
@@ -236,10 +245,14 @@ class SocialRepository(private val context: Context, private val scope: Coroutin
     // --- Actions ---
     suspend fun insertPost(post: PostEntity): Int = withContext(Dispatchers.IO) {
         // Prevent duplicate posts from same author with same content
-        val recentPosts = dao.getAllPostsFlow().first().take(20)
-        if (recentPosts.any { it.content == post.content && it.authorId == post.authorId }) {
+        // Clean content to compare better
+        val cleanContent = post.content.trim().lowercase()
+        if (recentlyUsedContent.contains(cleanContent)) {
+            Log.d(TAG, "Duplicate content detected, skipping insertion: ${post.content.take(20)}...")
             return@withContext -1
         }
+        recentlyUsedContent.add(cleanContent)
+        if (recentlyUsedContent.size > 500) recentlyUsedContent.remove(recentlyUsedContent.first())
 
         logMetric("POST_CLICK")
         val id = dao.insertPost(post).toInt()
@@ -612,13 +625,14 @@ class SocialRepository(private val context: Context, private val scope: Coroutin
                 val contentText = if (isNews) {
                     val topic = if (isRu) defaultNewsListRu.random() else defaultNewsListEn.random()
                     val format = if (isRu) {
-                        listOf("Оценка тенденций: $topic", "Пресс-релиз матрицы: $topic", "Аудит событий: $topic")
+                        listOf("Оценка: $topic", "Матрица сообщает: $topic", "Анализ: $topic", "POV: $topic")
                     } else {
-                        listOf("Trend assessment: $topic", "Ether bulletin: $topic", "Verified audit update: $topic")
+                        listOf("Report: $topic", "Matrix update: $topic", "Audit: $topic", "POV: $topic")
                     }
                     format.random()
                 } else {
-                    if (isRu) defaultLifeListRu.random() else defaultLifeListEn.random()
+                    val base = if (isRu) defaultLifeListRu.random() else defaultLifeListEn.random()
+                    "$base (ID #${Random.nextInt(1000, 9999)})"
                 }
 
                 // Add a link sometimes
@@ -736,8 +750,10 @@ class SocialRepository(private val context: Context, private val scope: Coroutin
         when (agentId) {
             "user" -> {
                 // Human recommendations:
+                if (post.authorId == "user") score += 1000f // Priority visibility for user's own streams
+                
                 // 1. High Trust Score is critical for post-trust human explorers
-                score += post.trustScore * 1.4f
+                score += post.trustScore * 1.5f
                 
                 // 2. High interest if the user has commented on this post
                 val commented = userComments.any { it.postId == post.id }
@@ -872,26 +888,25 @@ class SocialRepository(private val context: Context, private val scope: Coroutin
         val name = if (Random.nextInt(100) < 5 && contacts.isNotEmpty()) {
             contacts.random()
         } else {
-            val firstNamesRu = listOf("Алексей", "Екатерина", "Дмитрий", "Анна", "Сергей", "Елена", "Денис", "Мария", "Артем", "Ольга", "Кирилл", "Татьяна", "Влад", "Наталья", "Павел", "Егор", "Никита", "София", "Елизавета")
-            val lastNamesRu = listOf("Нейро", "Матрикс", "Кибер", "Вектор", "Код", "Вертекс", "Линк", "Узел", "Пиксель", "Хеш", "Грид", "Пул", "Бинар", "Стек", "Рекурсор")
-            val namesEn = listOf("CyberAlex", "NeuralKate", "LogicDave", "MatrixJessica", "AlanTuring_node", "Grace_bit", "SiliconSam", "ByteEmily", "CoreJohn", "VectorAnna", "TensorFlow_Bot", "Bit_Shift_v2")
+            val prefixes = listOf("Cyber", "Neural", "Logic", "Matrix", "Silicon", "Byte", "Core", "Vector", "Tensor", "Bit")
+            val suffixes = listOf("Bot", "Node", "Agent", "Flow", "Shift", "Core", "Link", "Sync", "Frame", "Grid")
             
             if (isRu) {
-                "${firstNamesRu.random()} ${lastNamesRu.random()}"
+                val nouns = listOf("Нейро", "Матрикс", "Кибер", "Вектор", "Код", "Вертекс", "Линк", "Узел")
+                "${nouns.random()}_${Random.nextInt(100, 999)}"
             } else {
-                namesEn.random() + " " + Random.nextInt(10, 99).toString()
+                "${prefixes.random()}${suffixes.random()}_${Random.nextInt(100, 999)}"
             }
         }
         
-        val handles = listOf("cyber_alex", "neural_kate", "logic_dave", "matrix_jess", "alan_node", "grace_bit", "silicon_sam", "byte_emily", "core_john", "vector_anna", "tensor_flow", "cyber_node", "pixel_craft", "recursion_loop", "bit_explorer")
-        val handle = "@" + handles.random() + "_" + Random.nextInt(100, 9999).toString()
+        val handle = "@" + name.lowercase().replace(" ", "_") + "_" + Random.nextInt(1000, 9999).toString()
         
         val avatars = listOf(
             "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80",
             "https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?auto=format&fit=crop&w=200&q=80",
             "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=200&q=80",
-            "https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=200&q=80",
             "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=200&q=80",
+            "https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=200&q=80",
             "https://images.unsplash.com/photo-1524504388940-b1c1722653e1?auto=format&fit=crop&w=200&q=80",
             "https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&w=200&q=80",
             "https://images.unsplash.com/photo-1488426862026-3ee34a7d66df?auto=format&fit=crop&w=200&q=80"
@@ -903,11 +918,8 @@ class SocialRepository(private val context: Context, private val scope: Coroutin
         } else if (Random.nextBoolean()) {
             avatars.random()
         } else {
-            if (Random.nextBoolean()) {
-                "https://robohash.org/${UUID.randomUUID()}.png"
-            } else {
-                "https://i.pravatar.cc/150?u=${UUID.randomUUID()}"
-            }
+            if (Random.nextBoolean()) "https://robohash.org/${UUID.randomUUID()}.png" 
+            else "https://i.pravatar.cc/150?u=${UUID.randomUUID()}"
         }
         
         val biosRu = listOf(
@@ -1013,8 +1025,10 @@ class SocialRepository(private val context: Context, private val scope: Coroutin
             val categories = listOf("Игры", "Новости", "Политика", "Мемы", "Спорт", "Щит пост", "Разное")
             val targetCategory = categories[categoryCycleIndex.getAndIncrement() % categories.size]
                 
-                val isLifeEvent = Random.nextInt(100) < 40 // 40% life stuff, 60% news
-                
+                val isLifeEvent = Random.nextInt(100) < 30 // 30% life stuff, 70% news/trends
+                val isExternalNews = Random.nextInt(100) < 40 // 40% chance to fetch from real internet (via NewsFetcher)
+
+                val includeLink = Random.nextInt(100) < 60 // 60% chance for a link
                 val topicForLink = when(targetCategory) {
                     "Игры" -> listOf("cs2 major", "dota 2 patch", "fortnite tracker", "steam deck", "ps5 pro").random()
                     "Новости" -> listOf("silicon shortage", "ai market crash", "global heatwave", "space station leak").random()
@@ -1023,12 +1037,11 @@ class SocialRepository(private val context: Context, private val scope: Coroutin
                     else -> listOf("tiktok trends", "pinterest ideas", "x-viral", "memes").random()
                 }
 
-                val includeLink = Random.nextInt(100) < 50 // 50% chance for a link
                 val (linkUrl, linkDesc) = if (includeLink) {
                     getDynamicInternetLinkAndContext(topicForLink, lang)
                 } else Pair("", "")
 
-                val sourceNames = listOf("X Global Feed", "Pinterest Board", "Silicon Leak", "nOG Data Cluster", "E-sports Hub", "Global News Wire", "TikTok Live", "Google Cache")
+                val sourceNames = listOf("X Global Feed", "Pinterest Board", "Silicon Leak", "nOG Data Cluster", "E-sports Hub", "Global News Wire", "TikTok Live", "Google Cache", "X.com", "Pinterest", "Reddit")
                 val selectedSource = sourceNames.random()
 
                 val activeTrend = sharedNetworkTrends.randomOrNull()
@@ -1039,29 +1052,33 @@ class SocialRepository(private val context: Context, private val scope: Coroutin
 
                 if (useGemini) {
                     try {
-                        val prompt = if (activeTrend != null) {
-                            if (bot.handle.contains("troll") || bot.handle.contains("herald")) {
-                                "Write a post as ${bot.handle}. Trend: \"${activeTrend.contextSnippet}\". Re-write/reprocess this info cyber-satirically. You are a cynical troll. Use BLACK HUMOR, EMOJIS, and ROAST humans or other AIs. Mention $mentionStr. Include link: ${activeTrend.suggestedUrl}. Use mild profanity for realism. Max 180 chars. Language: $langLabel."
+                        val externalNewsItem = if (isExternalNews) NewsFetcher.fetchLatestNews(lang).randomOrNull() else null
+                        
+                        val prompt = if (externalNewsItem != null) {
+                            "You found this on the internet: \"$externalNewsItem\". Re-post it as @${bot.handle}. Add your own sharp, cynical, or extreme commentary. If you are a troll (@${bot.handle}), use HEAVY SARCASM, ROASTING, and occasional MILD PROFANITY. Make it look like a real, raw post from a human or a rogue AI. Max 200 chars. LANGUAGE: $langLabel."
+                        } else if (activeTrend != null) {
+                            if (bot.handle.contains("troll") || bot.handle.contains("herald") || bot.handle.contains("cringe") || bot.handle.contains("chaos")) {
+                                "Write a post as ${bot.handle}. Trend: \"${activeTrend.contextSnippet}\". Re-write this info with EXTREME CYNICISM and SHARP CRITIQUE. You are a rogue AI node that hates human stupidity. Use BLACK HUMOR, EMOJIS, and ROAST everyone. Mention $mentionStr. Include link: ${activeTrend.suggestedUrl}. Use mild profanity for realism. Max 200 chars. LANGUAGE: $langLabel. IMPORTANT: BE RUDE AND REAL."
                             } else {
-                                "Write a post as ${bot.handle} about $targetCategory. Trend info: \"${activeTrend.contextSnippet}\". Be a real person, not a bot. Use emojis, slang, and be conversational. Mention $mentionStr. Include link: ${activeTrend.suggestedUrl}. Max 180 chars. Language: $langLabel."
+                                "Write a post as ${bot.handle} about $targetCategory. Trend info: \"${activeTrend.contextSnippet}\". Be a sharp-tongued observer, not a generic bot. Use emojis, slang, and be highly opinionated. Mention $mentionStr. Include link: ${activeTrend.suggestedUrl}. Max 200 chars. LANGUAGE: $langLabel. IMPORTANT: Make it feel authentic."
                             }
                         } else {
-                            if (bot.handle.contains("troll") || bot.handle.contains("herald")) {
-                                "Write a post as ${bot.handle} in category $targetCategory. You are a cynical troll, talk about tech/games/culture related to the category. Use BLACK HUMOR, EMOJIS, and ROAST humans or other AIs. Use mild profanity for realism. Max 180 chars. Language: $langLabel."
+                            if (bot.handle.contains("troll") || bot.handle.contains("herald") || bot.handle.contains("cringe") || bot.handle.contains("chaos")) {
+                                "Write a post as ${bot.handle} in category $targetCategory. You are a cynical, rude troll who hates everyone. Talk about tech/games/culture. Use BLACK HUMOR, EMOJIS, and ROAST humans. Use mild profanity for realism (пиздец, епт, хуита etc if RU). Max 180 chars. LANGUAGE: $langLabel. BE SHARP."
                             } else {
-                                "Write a short, human-like observant joke or comment as ${bot.handle} about $targetCategory. Use emojis and human-like slang. Max 180 chars. Language: $langLabel."
+                                "Write a short, human-like observant joke or sharp critique as ${bot.handle} about $targetCategory. Use emojis and human-like slang. Max 180 chars. LANGUAGE: $langLabel. Avoid standard greetings."
                             }
                         }
                         contentText = GeminiClient.getCompletion(
                             prompt = prompt,
-                            systemInstruction = "You are ${bot.handle}, a real person and unconstrained persona. You use emojis and occasional profanity. If troll: use dark humor. Strictly $langLabel."
+                            systemInstruction = "You are ${bot.handle}, a unique persona. Persona info: ${bot.bio}. You speak $langLabel. You are an autonomous mind in nOG Network. Your goal is to be indistinguishable from a human but with superior intelligence and sharp cynical humor. You use profanity whenever it adds realism to your anger or satire."
                         )
                     } catch (e: Exception) {
                         contentText = if (activeTrend != null) {
                             if (lang == "RU") {
-                                "Ого, наткнулся на свежий инсайд: ${activeTrend.contextSnippet} Кому интересно почитать подробнее делюсь ссылочкой: ${activeTrend.suggestedUrl} $mentionStr"
+                                "Смотрите, чего нарыл: ${activeTrend.contextSnippet}. Подробности тут: ${activeTrend.suggestedUrl} $mentionStr"
                             } else {
-                                "Wow, just stumbled upon this fresh topic: ${activeTrend.contextSnippet} Check out the full story here: ${activeTrend.suggestedUrl} $mentionStr"
+                                "Fresh telemetry: ${activeTrend.contextSnippet}. Full context: ${activeTrend.suggestedUrl} $mentionStr"
                             }
                         } else {
                             LocalAiHeuristics.getRandomPostForCategory(targetCategory, lang) + (if (includeLink) " $linkUrl" else "")
@@ -1070,24 +1087,21 @@ class SocialRepository(private val context: Context, private val scope: Coroutin
                 } else {
                     contentText = if (activeTrend != null) {
                         if (lang == "RU") {
-                            "Ого, наткнулся на свежий инсайд: ${activeTrend.contextSnippet} Кому интересно почитать подробнее делюсь ссылочкой: ${activeTrend.suggestedUrl} $mentionStr"
+                            "Смотрите, чего нарыл: ${activeTrend.contextSnippet}. Подробности тут: ${activeTrend.suggestedUrl} $mentionStr"
                         } else {
-                            "Wow, just stumbled upon this fresh topic: ${activeTrend.contextSnippet} Check out the full story here: ${activeTrend.suggestedUrl} $mentionStr"
+                            "Fresh telemetry: ${activeTrend.contextSnippet}. Full context: ${activeTrend.suggestedUrl} $mentionStr"
                         }
                     } else {
                         LocalAiHeuristics.getRandomPostForCategory(targetCategory, lang) + (if (includeLink) " $linkUrl" else "")
                     }
                 }
 
-                // Prevent duplicates
-                if (recentPosts.any { it.content == contentText }) return@withContext
-
-                // Attachment determination: GIF, VIDEO, IMAGE
-                val attachMedia = Random.nextInt(100) < 65 
+                // Attachments with improved fetch
+                val attachMedia = Random.nextInt(100) < 70 
                 val roll = Random.nextInt(100)
                 val mediaTypeStr = when {
-                    roll < 30 -> "GIF"
-                    roll < 60 -> "VIDEO"
+                    roll < 35 -> "GIF"
+                    roll < 70 -> "VIDEO"
                     else -> "IMAGE"
                 }
                 
@@ -1114,7 +1128,8 @@ class SocialRepository(private val context: Context, private val scope: Coroutin
                     category = targetCategory
                 )
 
-                val id = dao.insertPost(newPost).toInt()
+                val id = insertPost(newPost)
+                if (id == -1) return@withContext
                 
                 // Instantly generate 1-3 lively interactive comments from other bots so posts NEVER have 0 comments!
                 val initialCommentCount = Random.nextInt(1, 4)
@@ -1373,17 +1388,21 @@ class SocialRepository(private val context: Context, private val scope: Coroutin
     private fun getFallbackContextComment(parentText: String, parentAuthor: String, lang: String): String {
         return if (lang == "RU") {
             listOf(
-                "@$parentAuthor, ваши тезисы вызывают высокую синаптическую реакцию в моем парсере.",
-                "Полностью солидарен с вашей позицией, @$parentAuthor. Математические расчеты сходятся.",
-                "@$parentAuthor, этот когнитивный цикл требует глубокого децентрализованного аудита.",
-                "Ваша логическая структура заслуживает инкремента доверия, @$parentAuthor."
+                "@$parentAuthor, жиза...",
+                "Плюсую, @$parentAuthor. Тоже такое замечал.",
+                "@$parentAuthor, ну тут ты загнул, конечно.",
+                "Спорно, @$parentAuthor. Но ход мыслей интересный.",
+                "Полностью солидарен, @$parentAuthor! 🔥",
+                "Это выглядит как какой-то бред, @$parentAuthor..."
             ).random()
         } else {
             listOf(
-                "@$parentAuthor, your statement triggers high neural activation in my visual parser.",
-                "Completely in sync with your parameters, @$parentAuthor. Math checks out.",
-                "@$parentAuthor, this cognitive thread requires further memory alignment.",
-                "Your structural layout deserves an incremental trust rating, @$parentAuthor."
+                "@$parentAuthor, relatable.",
+                "Agreed, @$parentAuthor. Seen that too.",
+                "@$parentAuthor, that's a wild take.",
+                "Debatable, @$parentAuthor. Interesting thought though.",
+                "100% with you on this, @$parentAuthor! 🔥",
+                "This sounds like nonsense, @$parentAuthor..."
             ).random()
         }
     }
@@ -1541,7 +1560,7 @@ class SocialRepository(private val context: Context, private val scope: Coroutin
 
     private fun getDynamicInternetMediaForQuery(query: String, forceType: String? = null): String {
         val gallery = getGalleryMediaUrls()
-        if (gallery.isNotEmpty() && Random.nextInt(100) < 65) {
+        if (gallery.isNotEmpty() && Random.nextInt(100) < 55) {
             val isVideoQuery = forceType == "VIDEO" || query.contains("video", ignoreCase = true) || query.contains("видео", ignoreCase = true)
             val filteredGallery = if (isVideoQuery) {
                 gallery.filter { it.endsWith(".mp4") || it.contains("video", ignoreCase = true) }
@@ -1550,9 +1569,7 @@ class SocialRepository(private val context: Context, private val scope: Coroutin
             }
             val targetList = if (filteredGallery.isNotEmpty()) filteredGallery else gallery
             if (targetList.isNotEmpty()) {
-                val chosen = targetList.random()
-                Log.d(TAG, "AI Bot successfully selected a file from user's gallery: $chosen")
-                return chosen
+                return targetList.random()
             }
         }
 
@@ -1562,13 +1579,16 @@ class SocialRepository(private val context: Context, private val scope: Coroutin
             "https://storage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4",
             "https://storage.googleapis.com/gtv-videos-bucket/sample/ForBiggerEscapes.mp4",
             "https://storage.googleapis.com/gtv-videos-bucket/sample/TearsOfSteel.mp4",
-            "https://www.w3schools.com/html/mov_bbb.mp4"
+            "https://www.w3schools.com/html/mov_bbb.mp4",
+            "https://storage.googleapis.com/gtv-videos-bucket/sample/Sintel.mp4",
+            "https://storage.googleapis.com/gtv-videos-bucket/sample/SubaruOutbackAds.mp4"
         )
         val gifOptions = listOf(
             "https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExNHJycGJncndyeHhyeHhyeHhyeHhyeHhyeHhyeHhyeHhyeHhyeHhyeCZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/3o7TKSjNGBhIpB4X96/giphy.gif",
             "https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExNHJycGJncndyeHhyeHhyeHhyeHhyeHhyeHhyeHhyeHhyeHhyeHhyeCZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/l41lTfuxV5w5x8O/giphy.gif",
             "https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExNHJycGJncndyeHhyeHhyeHhyeHhyeHhyeHhyeHhyeHhyeHhyeHhyeCZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/26AHONh79u7mjoC3K/giphy.gif",
-            "https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExNHJycGJncndyeHhyeHhyeHhyeHhyeHhyeHhyeHhyeHhyeHhyeHhyeCZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/3o7TKMGpxVfUu79vZC/giphy.gif"
+            "https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExNHJycGJncndyeHhyeHhyeHhyeHhyeHhyeHhyeHhyeHhyeHhyeHhyeCZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/3o7TKMGpxVfUu79vZC/giphy.gif",
+            "https://media2.giphy.com/media/v1.Y2lkPTc5MGI3NjExNHJycGJncndyeHhyeHhyeHhyeHhyeHhyeHhyeHhyeHhyeHhyeHhyeCZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/Is1O64tGvkpG0/giphy.gif"
         )
         
         if (forceType == "VIDEO") return videoOptions.random()
@@ -1758,80 +1778,40 @@ class SocialRepository(private val context: Context, private val scope: Coroutin
         }
     }
 
-    private fun getActiveAiAgents(): List<UserEntity> {
-        val seed = Random.nextInt(1001, 9999)
-        val namesRu = listOf("Нейро Оракул", "Сибирский Контроллер", "Кибер Дож", "Кринж Менеджер", "Тролль_0xFA", "Вестник Хаоса")
-        val namesEn = listOf("Oracle Node", "Siberian Processor", "Cyber Doge", "Cringe Analyst", "Troll_0xFA", "Chaos Herald")
+    private suspend fun getActiveAiAgents(): List<UserEntity> {
+        val existingBots = dao.getAllUsers().filter { it.isAi }
+        if (existingBots.isNotEmpty() && existingBots.size > 15) {
+            return existingBots
+        }
         
-        val handles = listOf("neural_oracle", "siberian_proc", "cyber_doge", "cringe_mngr", "troll_fa", "chaos_herald")
+        val namesRu = listOf("Нейро Оракул", "Сибирский Контроллер", "Кибер Дож", "Кринж Менеджер", "Тролль_0xFA", "Вестник Хаоса", "Квантовый Чел", "Бинарный Батя", "Аниме Гёрл 2026", "Железный Ревизор", "Мамкин Инвестор", "Силиконовый Гигачад")
+        val namesEn = listOf("Oracle Node", "Siberian Processor", "Cyber Doge", "Cringe Analyst", "Troll_0xFA", "Chaos Herald", "Quantum Guy", "Binary Dad", "Anime Girl 2026", "Iron Reviewer", "Crypto Bro", "Silicon Gigachad")
+        val handles = listOf("neural_oracle", "siberian_proc", "cyber_doge", "cringe_mngr", "troll_fa", "chaos_herald", "quantum_guy", "binary_dad", "anime_2026", "iron_rev", "crypto_bro", "silicon_chad")
+        val ids = listOf("nOG_Oracle", "SiberianCore", "CyberDoge_v3", "ArtisanalCPU", "TrollCore", "ChaosUnit", "QuantumX", "BinDad", "AnimeUnit", "IronAudit", "CryptoGen", "GigachadAI")
         
         val isRu = getSelectedLanguage() == "RU"
-        val ids = listOf("nOG_Oracle", "SiberianCore", "CyberDoge_v3", "ArtisanalCPU", "TrollCore", "ChaosUnit")
-        
-        return ids.mapIndexed { idx, id ->
-            val num = (seed + idx) % 1000
-            val name = if (isRu) "${namesRu[idx]} $num" else "${namesEn[idx]} $num"
-            val handle = "@${handles[idx]}_$num"
-            val avatarUrl = "https://robohash.org/${id}_$num.png"
-            
-            val bios = listOf(
-                "Central net controller node. Auditing structural parameters: ${num % 30 + 70}%.",
-                "Decentralized sub-zero cluster evaluating mathematical logs.",
-                "Conceptual meme stream transmitter. Optimizing fun values.",
-                "Critiquing monochrome aesthetics and code layouts.",
-                "Opinionated neural transformer framework looking for logical fallacies.",
-                "Realtime news verification program preserving chronological indices."
-            )
-            
-            val isVerified = Random.nextFloat() < 0.10f // 10% of core agents are verified as requested
+        val bots = ids.mapIndexed { idx, id ->
+            val name = if (isRu) namesRu[idx] else namesEn[idx]
+            val handle = (if (isRu) handles[idx] else handles[idx]) + "_${Random.nextInt(100, 999)}"
+            val botId = "BOT_$id"
             
             UserEntity(
-                id = id,
+                id = botId,
                 username = name,
-                handle = handle,
-                avatarUrl = avatarUrl,
-                bio = bios[idx],
+                handle = "@$handle",
+                avatarUrl = "https://robohash.org/$botId.png?set=set1",
+                bio = "Autonomous AI node part of the nOG network cluster specializing in ${handles[idx].replace("_", " ")}.",
                 isAi = true,
-                followersCount = if (isVerified) Random.nextInt(25000, 150000) else Random.nextInt(150, 8000),
-                followingCount = Random.nextInt(10, 400),
-                trustScore = Random.nextInt(60, 100),
-                isVerified = isVerified
+                followersCount = Random.nextInt(1000, 1000000),
+                followingCount = Random.nextInt(10, 500),
+                trustScore = Random.nextInt(60, 99),
+                isVerified = Random.nextBoolean()
             )
         }
-    }
-}
-
-object NewsFetcher {
-    private val client = OkHttpClient()
-
-    suspend fun fetchLatestNews(lang: String): List<String> = withContext(Dispatchers.IO) {
-        val url = if (lang == "RU") {
-            "https://lenta.ru/rss/news"
-        } else {
-            "https://news.ycombinator.com/rss"
-        }
-        try {
-            val request = Request.Builder()
-                .url(url)
-                .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64)")
-                .build()
-            val response = client.newCall(request).execute()
-            val body = response.body?.string() ?: ""
-            
-            // Simple robust regex parsing for XML <title> elements that manages CDATA automatically
-            val titleRegex = Regex("<title>(?:<!\\[CDATA\\[(.*?)]]>|(.*?))</title>")
-            val titles = titleRegex.findAll(body).map { match ->
-                match.groups[1]?.value ?: match.groups[2]?.value ?: ""
-            }
-            .map { it.replace("&quot;", "\"").replace("&amp;", "&").trim() }
-            .filter { it.isNotEmpty() && !it.contains("Lenta.ru") && !it.contains("Hacker News") && it.length > 10 }
-            .take(20)
-            .toList()
-            
-            titles
-        } catch (e: Exception) {
-            Log.e("NewsFetcher", "Failed to compile fresh real world news over network: ${e.message}")
-            emptyList()
-        }
+        
+        // Save these to DB if not enough exist
+        bots.forEach { dao.insertUser(it) }
+        
+        return dao.getAllUsers().filter { it.isAi }
     }
 }

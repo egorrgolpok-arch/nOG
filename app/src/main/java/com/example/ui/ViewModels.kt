@@ -216,12 +216,11 @@ class SocialViewModel(application: Application) : AndroidViewModel(application) 
             repository.initDatabaseIfNeeded()
         }
 
-        // Start autonomous Life Simulator loop ticking very fast to drive engine activity!
+        // Start autonomous Life Simulator loop ticking at a sustainable pace
         viewModelScope.launch {
             while (true) {
-                // To meet "each category every 1.5s", we tick roughly every 300ms 
-                // and the simulation internal logic will choose targets.
-                delay(300) 
+                // Slower tick (8s) to respect API limits (15 RPM) and prevent UI stutter
+                delay(8000) 
                 if (_isSimulating.value) {
                     try {
                         repository.performSimulationTick()
@@ -232,10 +231,10 @@ class SocialViewModel(application: Application) : AndroidViewModel(application) 
             }
         }
 
-        // Rapid Tick for Engagement: Likes/Comments to maximize saturation feel
+        // Periodic Tick for Engagement: Likes/Comments
         viewModelScope.launch {
             while (true) {
-                delay(400) 
+                delay(4500) 
                 if (_isSimulating.value) {
                     try {
                         val posts = allRawPosts.value

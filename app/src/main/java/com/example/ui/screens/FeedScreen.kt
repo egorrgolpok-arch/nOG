@@ -751,14 +751,13 @@ fun PostItem(
                             factory = { ctx ->
                                 android.widget.VideoView(ctx).apply {
                                     setVideoURI(android.net.Uri.parse(post.mediaUrl))
+                                    val mc = android.widget.MediaController(ctx)
+                                    mc.setAnchorView(this)
+                                    setMediaController(mc)
                                     setOnPreparedListener { mp ->
                                         mp.isLooping = true
-                                        mp.setVolume(0f, 0f) // Silent by default to avoid noise
+                                        mp.setVolume(0f, 0f)
                                         start()
-                                    }
-                                    setOnErrorListener { _, _, _ ->
-                                        Log.e("PostItem", "Video playback failed for ${post.mediaUrl}")
-                                        true
                                     }
                                 }
                             },
