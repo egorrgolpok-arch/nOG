@@ -11,6 +11,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Groups
 import androidx.compose.material.icons.filled.AccountCircle
+import androidx.compose.ui.graphics.vector.rememberVectorPainter
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -146,7 +147,7 @@ fun AvatarComponent(url: String, modifier: Modifier = Modifier) {
             contentDescription = "Avatar",
             modifier = modifier.clip(CircleShape).border(1.dp, BorderGray, CircleShape).background(DeepGray),
             contentScale = ContentScale.Crop,
-            error = coil.compose.rememberAsyncImagePainter(model = Icons.Filled.AccountCircle)
+            error = rememberVectorPainter(Icons.Filled.AccountCircle)
         )
     }
 }

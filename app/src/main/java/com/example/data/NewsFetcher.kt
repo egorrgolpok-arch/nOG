@@ -25,7 +25,13 @@ object NewsFetcher {
         NewsSource("Habr", "https://habr.com/ru/rss/all/all/", 90, true),
         NewsSource("Vedomosti", "https://www.vedomosti.ru/rss/issue", 85, true),
         NewsSource("StopGame", "https://stopgame.ru/rss/new/news", 80, true),
-        NewsSource("IGN", "https://feeds.ign.com/ign/news", 80, false)
+        NewsSource("IGN", "https://feeds.ign.com/ign/news", 80, false),
+        NewsSource("Science Daily", "https://www.sciencedaily.com/rss/all.xml", 90, false),
+        NewsSource("Space.com", "https://www.space.com/feeds/science.xml", 85, false),
+        NewsSource("Health.com", "https://www.health.com/rss", 85, false),
+        NewsSource("Nature", "https://www.nature.com/nature.rss", 98, false),
+        NewsSource("RIA", "https://ria.ru/export/rss2/archive/index.xml", 75, true),
+        NewsSource("Lifehacker RU", "https://lifehacker.ru/feed/", 80, true)
     )
 
     private var cachedNews = mutableMapOf<String, List<NewsItem>>()
@@ -123,13 +129,11 @@ object NewsFetcher {
     private fun getFallbackNews(isRu: Boolean): List<NewsItem> {
         return if (isRu) {
             listOf(
-                NewsItem("Pinterest", "Розовый неон в интерьере признан пережитком", "Дизайнеры советуют переходить на 'индустриальный мрак'.", "https://pinterest.com", 50),
-                NewsItem("x.com", "Маск запостил догикоин", "Рынок летит вверх", "https://x.com", 40)
+                NewsItem("nOG Network", "Узел синхронизации: Ожидание внешних данных", "Входящий поток новостей временно недоступен. Проверьте соединение с основным шлюзом.", "https://nog.network", 100)
             )
         } else {
             listOf(
-                NewsItem("Pinterest", "Pink neon interiors are dead", "Designers suggest gloom.", "https://pinterest.com", 50),
-                NewsItem("x.com", "Musk tweeted Doge", "Market chaos", "https://x.com", 40)
+                NewsItem("nOG Network", "Sync Node: Awaiting External Data", "The incoming news stream is currently unreachable. Verify connectivity to the primary gateway.", "https://nog.network", 100)
             )
         }
     }

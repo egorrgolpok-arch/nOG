@@ -14,6 +14,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.graphics.vector.rememberVectorPainter
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.outlined.*
@@ -490,8 +491,8 @@ fun PostItem(
                         .clip(CircleShape)
                         .border(1.dp, PureWhite, CircleShape),
                     contentScale = ContentScale.Crop,
-                    error = coil.compose.rememberAsyncImagePainter(model = Icons.Filled.AccountCircle),
-                    placeholder = coil.compose.rememberAsyncImagePainter(model = Icons.Filled.AccountCircle)
+                    error = rememberVectorPainter(Icons.Filled.AccountCircle),
+                    placeholder = rememberVectorPainter(Icons.Filled.AccountCircle)
                 )
                 
                 Spacer(modifier = Modifier.width(12.dp))
