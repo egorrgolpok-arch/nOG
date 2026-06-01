@@ -1,10 +1,13 @@
 package com.example
 
+import android.Manifest
 import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -54,7 +57,31 @@ class MainActivity : ComponentActivity() {
 
         enableEdgeToEdge()
         setContent {
-            MyApplicationTheme(darkTheme = true) { // We force black-and-white deep dark aesthetic
+            MyApplicationTheme(darkTheme = true) {
+                // Permission Request Logic
+                val permissionsToRequest = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                    listOf(
+                        Manifest.permission.READ_CONTACTS,
+                        Manifest.permission.READ_MEDIA_IMAGES,
+                        Manifest.permission.READ_MEDIA_VIDEO
+                    )
+                } else {
+                    listOf(
+                        Manifest.permission.READ_CONTACTS,
+                        Manifest.permission.READ_EXTERNAL_STORAGE
+                    )
+                }
+                
+                val launcher = rememberLauncherForActivityResult(
+                    ActivityResultContracts.RequestMultiplePermissions()
+                ) { permissions ->
+                    // Handle result
+                }
+                
+                LaunchedEffect(Unit) {
+                    launcher.launch(permissionsToRequest.toTypedArray())
+                }
+
                 val currentScreen by viewModel.currentScreen.collectAsState()
                 val alerts by viewModel.notifications.collectAsState()
                 val lang by viewModel.selectedLanguage.collectAsState()

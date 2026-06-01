@@ -22,6 +22,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import com.example.ui.SocialViewModel
+import com.example.ui.Screen
 import com.example.ui.theme.*
 
 @Composable
@@ -37,8 +38,18 @@ fun CommunityScreen(viewModel: SocialViewModel, innerPadding: PaddingValues) {
     val isPermVerified = currentUser?.isVerified == true && currentUser?.verificationExpiry == null
     
     if (!isTempVerified && !isPermVerified) {
-        Box(modifier = Modifier.fillMaxSize().padding(innerPadding), contentAlignment = Alignment.Center) {
-            Text(if (lang == "RU") "Требуется верификация" else "Verification required", color = PureWhite)
+        Box(modifier = Modifier.fillMaxSize().background(PureBlack).padding(innerPadding), contentAlignment = Alignment.Center) {
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Text(if (lang == "RU") "Требуется верификация" else "Verification required", color = PureWhite, fontSize = 20.sp, fontWeight = FontWeight.Bold)
+                Spacer(modifier = Modifier.height(16.dp))
+                Button(onClick = { viewModel.navigateTo(Screen.Profile) }) {
+                 Text(if (lang == "RU") "ПЕРЕЙТИ В ПРОФИЛЬ" else "GO TO PROFILE")
+                }
+                Spacer(modifier = Modifier.height(8.dp))
+                TextButton(onClick = { viewModel.verifyTemporarily() }) {
+                    Text(if (lang == "RU") "ВРЕМЕННАЯ (2 ЧАСА)" else "TEMP (2 HOURS)", color = TextGray)
+                }
+            }
         }
     } else {
         Box(

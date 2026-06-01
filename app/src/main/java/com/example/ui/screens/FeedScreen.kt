@@ -173,67 +173,7 @@ fun FeedScreen(
                 }
             }
                 
-                // Cat List for Filter Bar - Secured and locked without checkmark (Verification)
-                Spacer(modifier = Modifier.height(8.dp))
-                val catList = listOf("Игры", "Новости", "Политика", "Мемы", "Спорт", "Щит пост", "Разное")
-                val context = androidx.compose.ui.platform.LocalContext.current
-                
-                androidx.compose.foundation.lazy.LazyRow(
-                    modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    item {
-                        FilterChip(
-                            selected = selectedCategory == null,
-                            onClick = { viewModel.selectCategory(null) },
-                            label = { Text(if (lang == "RU") "Все" else "All", fontFamily = FontFamily.Monospace, fontSize = 10.sp) },
-                            colors = androidx.compose.material3.FilterChipDefaults.filterChipColors(
-                                selectedContainerColor = PureWhite,
-                                selectedLabelColor = PureBlack,
-                                containerColor = DeepGray,
-                                labelColor = StarkWhite
-                            ),
-                            border = androidx.compose.material3.FilterChipDefaults.filterChipBorder(
-                                enabled = true,
-                                selected = selectedCategory == null,
-                                borderColor = BorderGray,
-                                selectedBorderColor = PureWhite
-                            )
-                        )
-                    }
-                    items(catList) { cat ->
-                        FilterChip(
-                            selected = selectedCategory == cat,
-                            onClick = {
-                                viewModel.selectCategory(cat)
-                            },
-                            label = { 
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Icon(
-                                        imageVector = Icons.Default.Tag,
-                                        contentDescription = "Category Tag",
-                                        modifier = Modifier.size(10.dp),
-                                        tint = if (selectedCategory == cat) PureBlack else TextGray
-                                    )
-                                    Spacer(modifier = Modifier.width(4.dp))
-                                    Text(cat, fontFamily = FontFamily.Monospace, fontSize = 10.sp)
-                                }
-                            },
-                            colors = androidx.compose.material3.FilterChipDefaults.filterChipColors(
-                                selectedContainerColor = PureWhite,
-                                selectedLabelColor = PureBlack,
-                                containerColor = DeepGray,
-                                labelColor = StarkWhite
-                            ),
-                            border = androidx.compose.material3.FilterChipDefaults.filterChipBorder(
-                                enabled = true,
-                                selected = selectedCategory == cat,
-                                borderColor = BorderGray,
-                                selectedBorderColor = PureWhite
-                            )
-                        )
-                    }
-                }
+            Spacer(modifier = Modifier.height(16.dp))
 
             // --- Recommendation Engine Sub-Tabs ---
             val tabs = if (lang == "RU") {

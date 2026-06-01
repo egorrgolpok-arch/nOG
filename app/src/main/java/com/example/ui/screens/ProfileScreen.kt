@@ -607,9 +607,18 @@ fun ProfileScreen(
                     )
                 }
                 items(myPosts, key = { "mypost-${it.id}" }) { post ->
-                    Card(modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp), colors = CardDefaults.cardColors(containerColor = DeepGray)) {
-                        Row(modifier = Modifier.padding(8.dp), verticalAlignment = Alignment.CenterVertically) {
-                            Text(post.content, color = PureWhite, modifier = Modifier.weight(1f), maxLines = 1)
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 4.dp)
+                            .clickable { 
+                                // Navigate to post or show comments/detail
+                                viewModel.selectPostForComments(post.id)
+                            },
+                        colors = CardDefaults.cardColors(containerColor = DeepGray)
+                    ) {
+                        Row(modifier = Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                            Text(post.content, color = PureWhite, modifier = Modifier.weight(1f), maxLines = 2, fontFamily = FontFamily.Monospace)
                             IconButton(onClick = { viewModel.deletePost(post.id) }) {
                                 Icon(Icons.Filled.Delete, contentDescription = "Delete", tint = AlertRed)
                             }

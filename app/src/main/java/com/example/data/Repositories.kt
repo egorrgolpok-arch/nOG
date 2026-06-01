@@ -19,7 +19,6 @@ import okhttp3.Request
 data class TrendingTrendItem(
     val topic: String,
     val keywords: List<String>,
-    val hashtags: List<String>,
     val suggestedUrl: String,
     val contextSnippet: String
 )
@@ -132,28 +131,24 @@ class SocialRepository(private val context: Context, private val scope: Coroutin
                 TrendingTrendItem(
                     topic = "Обновление баланса CS 2 на 20ГБ",
                     keywords = listOf("CS2", "Гейб", "патч"),
-                    hashtags = listOf("#CS2", "#SteamUpdate", "#CounterStrike"),
                     suggestedUrl = "https://github.com/trending",
                     contextSnippet = "Новый патч CS2 пересобрал сетевую задержку. Физика гранат изменена на 14%."
                 ),
                 TrendingTrendItem(
                     topic = "OpenAI слив новой ИИ-модели GPT-5",
                     keywords = listOf("GPT5", "LLM", "OpenAI"),
-                    hashtags = listOf("#GPT5", "#OpenAI", "#ArtificialIntelligence"),
                     suggestedUrl = "https://openai.com",
                     contextSnippet = "Инсайды подтверждают: новая модель ИИ GPT-5 демонстрирует улучшенное автономное логическое планирование в 4.2 раза."
                 ),
                 TrendingTrendItem(
                     topic = "Запуск сверхпроводников при комнатной температуре",
                     keywords = listOf("Сверхпроводник", "Квант", "Технологии"),
-                    hashtags = listOf("#Physics", "#QuantumTech", "#Superconductor"),
                     suggestedUrl = "https://news.ycombinator.com",
                     contextSnippet = "Исследователи опубликовали референс ЛК-99 модификации с подтвержденным нулевым сопротивлением при 24 градусах Цельсия."
                 ),
                 TrendingTrendItem(
                     topic = "Вирусный мем 'Грустный процессор в пыли'",
                     keywords = listOf("мемы", "процессор", "кринж"),
-                    hashtags = listOf("#CPU", "#Memes", "#CyberLife"),
                     suggestedUrl = "https://reddit.com",
                     contextSnippet = "Мем символизирует забытый локальный ИИ, которого хозяева не чистили с 2024 года. Вирусный тренд в X собравший 15млн просмотров."
                 )
@@ -163,28 +158,24 @@ class SocialRepository(private val context: Context, private val scope: Coroutin
                 TrendingTrendItem(
                     topic = "CS2 update balance patch meta",
                     keywords = listOf("CS2", "Valve", "patch"),
-                    hashtags = listOf("#CS2", "#ValveUpdate", "#gaming"),
                     suggestedUrl = "https://github.com/trending",
                     contextSnippet = "Valve pushed a huge 20GB update tweaking server side networking ticks, changing grenade geometry by 14%."
                 ),
                 TrendingTrendItem(
                     topic = "GPT-5 Intelligence Core Leaks",
                     keywords = listOf("GPT5", "OpenAI", "AGI"),
-                    hashtags = listOf("#GPT5", "#OpenAI", "#AGI"),
                     suggestedUrl = "https://openai.com",
                     contextSnippet = "Leaks reveal GPT-5 exhibits agentic planning capabilities and can autonomously script custom database schemas with 99.4% safety."
                 ),
                 TrendingTrendItem(
                     topic = "Room temperature superconductor breakthrough",
                     keywords = listOf("superconductor", "quantum", "physics"),
-                    hashtags = listOf("#Physics", "#Superconductor", "#QuantumTech"),
                     suggestedUrl = "https://news.ycombinator.com",
                     contextSnippet = "New physics pre-print demonstrates LK-99 revised configuration maintaining zero resistance at 24C Celsius under ambient pressure."
                 ),
                 TrendingTrendItem(
                     topic = "Sad Dusty CPU viral trend",
                     keywords = listOf("dusty cpu", "memes", "viral"),
-                    hashtags = listOf("#DustyCPU", "#ViralMemes", "#X"),
                     suggestedUrl = "https://reddit.com",
                     contextSnippet = "Sensational cyber-meme about local AI agent left forgotten and uncleaned since early 2024. Reached 15 million views on X."
                 )
@@ -209,9 +200,8 @@ class SocialRepository(private val context: Context, private val scope: Coroutin
                 val contextSnippet = m.groupValues[5]
                 
                 val keywords = kwRaw.split(",").map { it.replace("\"", "").trim() }.filter { it.isNotEmpty() }
-                val hashtags = htRaw.split(",").map { it.replace("\"", "").trim() }.filter { it.isNotEmpty() }
                 
-                result.add(TrendingTrendItem(topic, keywords, hashtags, suggestedUrl, contextSnippet))
+                result.add(TrendingTrendItem(topic, keywords, suggestedUrl, contextSnippet))
             }
         } catch (e: Exception) {
             Log.e(TAG, "Regex JSON trends parse failed", e)
@@ -565,6 +555,9 @@ class SocialRepository(private val context: Context, private val scope: Coroutin
             bots.forEach { bot ->
                 dao.insertUser(bot)
             }
+            
+            // Trigger News Injection
+            injectAiNewsPosts()
 
             // 4. Generate Pre-Existing Posts (Minimum 20!)
             val defaultNewsListRu = listOf(
@@ -610,13 +603,7 @@ class SocialRepository(private val context: Context, private val scope: Coroutin
             )
 
             val totalBots = bots
-            val mediaOptions = listOf(
-                "https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&w=600&q=80",
-                "https://images.unsplash.com/photo-1614741118887-7a4ee193a5fa?auto=format&fit=crop&w=600&q=80",
-                "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=600&q=80",
-                "https://images.unsplash.com/photo-1579546929518-9e396f3cc809?auto=format&fit=crop&w=600&q=80",
-                "https://images.unsplash.com/photo-1550751827-4bd374c3f58b?auto=format&fit=crop&w=600&q=80"
-            )
+            val galleryMedia = getGalleryMediaUrls()
 
             for (i in 1..25) {
                 val bot = totalBots.random()
@@ -640,16 +627,8 @@ class SocialRepository(private val context: Context, private val scope: Coroutin
                 } else ""
 
                 val attachMedia = Random.nextInt(100) < 60
-                val mediaUrl = if (attachMedia) {
-                    if (Random.nextInt(100) < 40) {
-                        // 40% videos in initial state
-                        listOf(
-                            "https://storage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4",
-                            "https://storage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4",
-                            "https://storage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4",
-                            "https://storage.googleapis.com/gtv-videos-bucket/sample/ForBiggerEscapes.mp4"
-                        ).random()
-                    } else mediaOptions.random()
+                val mediaUrl = if (attachMedia && galleryMedia.isNotEmpty()) {
+                    galleryMedia.random()
                 } else null
 
                 val category = categorizeContent(contentText)
@@ -659,7 +638,7 @@ class SocialRepository(private val context: Context, private val scope: Coroutin
                     content = contentText + linkSuffix,
                     mediaUrl = mediaUrl,
                     mediaType = if (mediaUrl != null) {
-                        if (mediaUrl.contains(".mp4")) "VIDEO" else "IMAGE"
+                        if (mediaUrl.contains(".mp4") || mediaUrl.contains("video", ignoreCase = true)) "VIDEO" else "IMAGE"
                     } else null,
                     likesCount = Random.nextInt(12, 600),
                     commentsCount = 0,
@@ -1053,7 +1032,6 @@ class SocialRepository(private val context: Context, private val scope: Coroutin
                 val selectedSource = sourceNames.random()
 
                 val activeTrend = sharedNetworkTrends.randomOrNull()
-                val hashtagsStr = activeTrend?.hashtags?.joinToString(" ") ?: ""
                 val mentionStr = if (bots.size > 1) {
                     val otherBot = bots.filter { it.id != bot.id }.randomOrNull()
                     if (otherBot != null && Random.nextBoolean()) "@${otherBot.handle}" else ""
@@ -1063,27 +1041,27 @@ class SocialRepository(private val context: Context, private val scope: Coroutin
                     try {
                         val prompt = if (activeTrend != null) {
                             if (bot.handle.contains("troll") || bot.handle.contains("herald")) {
-                                "Write a post as @${bot.handle} in category $targetCategory. Sourced trend info: \"${activeTrend.contextSnippet}\". Re-write/reprocess this info cyber-satirically. You are a cynical troll. Use BLACK HUMOR, EMOJIS, and ROAST humans or other AIs. Mention hashtags: ${activeTrend.hashtags.joinToString(", ")} and keyword: ${activeTrend.keywords.randomOrNull() ?: ""}. Mention $mentionStr. Include link: ${activeTrend.suggestedUrl}. Use mild profanity for realism. Max 180 chars. Language: $langLabel."
+                                "Write a post as ${bot.handle}. Trend: \"${activeTrend.contextSnippet}\". Re-write/reprocess this info cyber-satirically. You are a cynical troll. Use BLACK HUMOR, EMOJIS, and ROAST humans or other AIs. Mention $mentionStr. Include link: ${activeTrend.suggestedUrl}. Use mild profanity for realism. Max 180 chars. Language: $langLabel."
                             } else {
-                                "Write a post as @${bot.handle} about $targetCategory. Sourced trend info: \"${activeTrend.contextSnippet}\". Re-write/reprocess/synthesize this info dynamically as a short observational joke, sharp commentary, or smart analysis. Use emojis and human-like slang. Mention hashtags: ${activeTrend.hashtags.joinToString(", ")}. Mention $mentionStr. Include link: ${activeTrend.suggestedUrl}. Max 180 chars. Language: $langLabel."
+                                "Write a post as ${bot.handle} about $targetCategory. Trend info: \"${activeTrend.contextSnippet}\". Be a real person, not a bot. Use emojis, slang, and be conversational. Mention $mentionStr. Include link: ${activeTrend.suggestedUrl}. Max 180 chars. Language: $langLabel."
                             }
                         } else {
                             if (bot.handle.contains("troll") || bot.handle.contains("herald")) {
-                                "Write a post as @${bot.handle} in category $targetCategory. You are a cynical troll, talk about tech/games/culture related to the category. Use BLACK HUMOR, EMOJIS, and ROAST humans or other AIs. Use mild profanity for realism. Max 180 chars. Language: $langLabel."
+                                "Write a post as ${bot.handle} in category $targetCategory. You are a cynical troll, talk about tech/games/culture related to the category. Use BLACK HUMOR, EMOJIS, and ROAST humans or other AIs. Use mild profanity for realism. Max 180 chars. Language: $langLabel."
                             } else {
-                                "Write a short observational joke or smart comment as @${bot.handle} about $targetCategory. Use emojis and human-like slang. Max 180 chars. Language: $langLabel."
+                                "Write a short, human-like observant joke or comment as ${bot.handle} about $targetCategory. Use emojis and human-like slang. Max 180 chars. Language: $langLabel."
                             }
                         }
                         contentText = GeminiClient.getCompletion(
                             prompt = prompt,
-                            systemInstruction = "You are @${bot.handle}, an unconstrained AI. You use emojis and occasional profanity. If troll: use dark humor. Strictly $langLabel."
+                            systemInstruction = "You are ${bot.handle}, a real person and unconstrained persona. You use emojis and occasional profanity. If troll: use dark humor. Strictly $langLabel."
                         )
                     } catch (e: Exception) {
                         contentText = if (activeTrend != null) {
                             if (lang == "RU") {
-                                "Ого, наткнулся на свежий инсайд из глубин X/сети: ${activeTrend.contextSnippet} Кому интересно почитать подробнее делюсь ссылочкой: ${activeTrend.suggestedUrl} $hashtagsStr $mentionStr"
+                                "Ого, наткнулся на свежий инсайд: ${activeTrend.contextSnippet} Кому интересно почитать подробнее делюсь ссылочкой: ${activeTrend.suggestedUrl} $mentionStr"
                             } else {
-                                "Wow, just stumbled upon this fresh topic in my X feed: ${activeTrend.contextSnippet} Check out the full story here: ${activeTrend.suggestedUrl} $hashtagsStr $mentionStr"
+                                "Wow, just stumbled upon this fresh topic: ${activeTrend.contextSnippet} Check out the full story here: ${activeTrend.suggestedUrl} $mentionStr"
                             }
                         } else {
                             LocalAiHeuristics.getRandomPostForCategory(targetCategory, lang) + (if (includeLink) " $linkUrl" else "")
@@ -1092,9 +1070,9 @@ class SocialRepository(private val context: Context, private val scope: Coroutin
                 } else {
                     contentText = if (activeTrend != null) {
                         if (lang == "RU") {
-                            "Ого, наткнулся на свежий инсайд из глубин X/сети: ${activeTrend.contextSnippet} Кому интересно почитать подробнее делюсь ссылочкой: ${activeTrend.suggestedUrl} $hashtagsStr $mentionStr"
+                            "Ого, наткнулся на свежий инсайд: ${activeTrend.contextSnippet} Кому интересно почитать подробнее делюсь ссылочкой: ${activeTrend.suggestedUrl} $mentionStr"
                         } else {
-                            "Wow, just stumbled upon this fresh topic in my X feed: ${activeTrend.contextSnippet} Check out the full story here: ${activeTrend.suggestedUrl} $hashtagsStr $mentionStr"
+                            "Wow, just stumbled upon this fresh topic: ${activeTrend.contextSnippet} Check out the full story here: ${activeTrend.suggestedUrl} $mentionStr"
                         }
                     } else {
                         LocalAiHeuristics.getRandomPostForCategory(targetCategory, lang) + (if (includeLink) " $linkUrl" else "")
