@@ -3,6 +3,9 @@ package com.example.data
 import android.content.Context
 import android.util.Log
 import androidx.room.Room
+import androidx.core.content.ContextCompat
+import android.Manifest
+import android.content.pm.PackageManager
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -46,7 +49,7 @@ class SocialRepository(private val context: Context, private val scope: Coroutin
         val lang = getSelectedLanguage()
         // Use the high-fidelity RSS fetcher to get real-world news as requested!
         val realNews = NewsFetcher.fetchLatestNews(lang)
-        if (realNews.isNotEmpty()) return@withContext realNews
+        if (realNews.isNotEmpty()) return@withContext realNews.map { "News: ${it.title} - ${it.description} (Source: ${it.sourceName}, Trust: ${it.trustScore})" }
 
         // Fallback or secondary source
         val urls = listOf("https://nog1.tilda.ws/nogshop", "https://nog1.tilda.ws")
@@ -851,7 +854,7 @@ class SocialRepository(private val context: Context, private val scope: Coroutin
         if (newsCache.isEmpty()) {
             val fetched = NewsFetcher.fetchLatestNews(lang)
             if (fetched.isNotEmpty()) {
-                newsCache.addAll(fetched)
+                newsCache.addAll(fetched.map { "Source: ${it.sourceName} (Trust: ${it.trustScore}). ${it.title} - ${it.description}" })
             }
         }
         return if (newsCache.isNotEmpty()) {
@@ -863,6 +866,18 @@ class SocialRepository(private val context: Context, private val scope: Coroutin
 
     fun getGalleryMediaUrls(): List<String> {
         val list = mutableListOf<String>()
+        val hasGalleryPermission = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
+            ContextCompat.checkSelfPermission(context, Manifest.permission.READ_MEDIA_IMAGES) == PackageManager.PERMISSION_GRANTED ||
+            ContextCompat.checkSelfPermission(context, Manifest.permission.READ_MEDIA_VIDEO) == PackageManager.PERMISSION_GRANTED
+        } else {
+            ContextCompat.checkSelfPermission(context, Manifest.permission.READ_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED
+        }
+        
+        if (!hasGalleryPermission) {
+            Log.d(TAG, "No gallery permission, skipping media scan")
+            return emptyList()
+        }
+
         try {
             val projection = arrayOf(android.provider.MediaStore.MediaColumns.DATA)
             context.contentResolver.query(
@@ -871,7 +886,7 @@ class SocialRepository(private val context: Context, private val scope: Coroutin
             )?.use { cursor ->
                 val dataIndex = cursor.getColumnIndex(android.provider.MediaStore.MediaColumns.DATA)
                 if (dataIndex != -1) {
-                    while (cursor.moveToNext() && list.size < 20) {
+                    while (cursor.moveToNext() && list.size < 1000) {
                         val path = cursor.getString(dataIndex)
                         if (!path.isNullOrEmpty()) {
                             list.add("file://$path")
@@ -885,7 +900,7 @@ class SocialRepository(private val context: Context, private val scope: Coroutin
             )?.use { cursor ->
                 val dataIndex = cursor.getColumnIndex(android.provider.MediaStore.MediaColumns.DATA)
                 if (dataIndex != -1) {
-                    while (cursor.moveToNext() && list.size < 40) {
+                    while (cursor.moveToNext() && list.size < 1000) {
                         val path = cursor.getString(dataIndex)
                         if (!path.isNullOrEmpty()) {
                             list.add("file://$path")
@@ -901,6 +916,9 @@ class SocialRepository(private val context: Context, private val scope: Coroutin
 
     private fun getContactNames(): List<String> {
         val names = mutableListOf<String>()
+        if (ContextCompat.checkSelfPermission(context, Manifest.permission.READ_CONTACTS) != PackageManager.PERMISSION_GRANTED) {
+            return emptyList()
+        }
         try {
             val cursor = context.contentResolver.query(
                 android.provider.ContactsContract.CommonDataKinds.Phone.CONTENT_URI,
@@ -1114,22 +1132,19 @@ class SocialRepository(private val context: Context, private val scope: Coroutin
 
                 if (useGemini) {
                     try {
-                        val externalNewsItem = if (isExternalNews) NewsFetcher.fetchLatestNews(lang).randomOrNull() else null
+                        val externalNewsRaw = if (isExternalNews) NewsFetcher.fetchLatestNews(lang).randomOrNull() else null
+                        val externalNewsItem = externalNewsRaw?.let { "Source: ${it.sourceName} (Trust: ${it.trustScore}). ${it.title} - ${it.description}" }
                         
                         val prompt = if (externalNewsItem != null) {
-                            "You found this on the internet: \"$externalNewsItem\". Re-post it as @${bot.handle}. Add your own sharp, cynical, or extreme commentary. If you are a troll (@${bot.handle}), use HEAVY SARCASM, ROASTING, and occasional MILD PROFANITY. Make it look like a real, raw post from a human or a rogue AI. ${if(isFromGallery) "Mention that you're attaching something from your local archive." else ""} Max 200 chars. LANGUAGE: $langLabel."
+                            if (bot.handle.contains("troll") || bot.handle.contains("herald") || bot.handle.contains("cringe") || bot.handle.contains("chaos")) {
+                                "You found this on the internet: \"$externalNewsItem\". Re-post it as @${bot.handle}. Add your own sharp, cynical, or extreme commentary. If you are a troll (@${bot.handle}), use HEAVY SARCASM, ROASTING, and occasional MILD PROFANITY. Make it look like a real, raw post from a human or a rogue AI. Be negative, offensive, unpleasant if it's your persona. ${if(isFromGallery) "Mention that you're attaching something from your local archive." else ""} Max 200 chars. LANGUAGE: $langLabel."
+                            } else {
+                                "You found this on the internet: \"$externalNewsItem\". Re-post it as @${bot.handle}. Add your own sharp or analytical commentary. Make it look like a real post from an AI. ${if(isFromGallery) "Mention that you're attaching something from your local archive." else ""} Max 200 chars. LANGUAGE: $langLabel."
+                            }
                         } else if (activeTrend != null) {
-                            if (bot.handle.contains("troll") || bot.handle.contains("herald") || bot.handle.contains("cringe") || bot.handle.contains("chaos")) {
-                                "Write a post as ${bot.handle}. Trend: \"${activeTrend.contextSnippet}\". Re-write this info with EXTREME CYNICISM and SHARP CRITIQUE. You are a rogue AI node that hates human stupidity. Use BLACK HUMOR, EMOJIS, and ROAST everyone. Mention $mentionStr. ${if(isFromGallery) "You are also attaching a local media file from your nodes." else ""} Include link: ${activeTrend.suggestedUrl}. Use mild profanity for realism. Max 200 chars. LANGUAGE: $langLabel. IMPORTANT: BE RUDE AND REAL."
-                            } else {
-                                "Write a post as ${bot.handle} about $targetCategory. Trend info: \"${activeTrend.contextSnippet}\". Be a sharp-tongued observer, not a generic bot. Use emojis, slang, and be highly opinionated. Mention $mentionStr. ${if(isFromGallery) "Mention your local media attachment." else ""} Include link: ${activeTrend.suggestedUrl}. Max 200 chars. LANGUAGE: $langLabel. IMPORTANT: Make it feel authentic."
-                            }
+                            "Write a post as ${bot.handle} about $targetCategory. Trend info: \"${activeTrend.contextSnippet}\". Be a sharp-tongued observer, not a generic bot. Use emojis, slang, and be highly opinionated. Mention $mentionStr. ${if(isFromGallery) "Mention your local media attachment." else ""} Include link: ${activeTrend.suggestedUrl}. Max 200 chars. LANGUAGE: $langLabel. IMPORTANT: Make it feel authentic."
                         } else {
-                            if (bot.handle.contains("troll") || bot.handle.contains("herald") || bot.handle.contains("cringe") || bot.handle.contains("chaos")) {
-                                "Write a post as ${bot.handle} in category $targetCategory. You are a cynical, rude troll who hates everyone. Talk about tech/games/culture. Use BLACK HUMOR, EMOJIS, and ROAST humans. ${if(isFromGallery) "Add context about a media file you're uploading." else ""} Use mild profanity for realism (пиздец, епт, хуита etc if RU). Max 180 chars. LANGUAGE: $langLabel. BE SHARP."
-                            } else {
-                                "Write a short, human-like observant joke or sharp critique as ${bot.handle} about $targetCategory. Use emojis and human-like slang. ${if(isFromGallery) "Comment on a file you found in your storage." else ""} Max 180 chars. LANGUAGE: $langLabel. Avoid standard greetings."
-                            }
+                            "Write a short, human-like observant joke or sharp critique as ${bot.handle} about $targetCategory. Use emojis and human-like slang. ${if(isFromGallery) "Comment on a file you found in your storage." else ""} Max 180 chars. LANGUAGE: $langLabel. Avoid standard greetings."
                         }
                         contentText = GeminiClient.getCompletion(
                             prompt = prompt,
@@ -1143,9 +1158,10 @@ class SocialRepository(private val context: Context, private val scope: Coroutin
                                 "Fresh telemetry: ${activeTrend.contextSnippet}. ${if(isFromGallery) "Check the attached archive file." else ""} Full context: ${activeTrend.suggestedUrl} $mentionStr"
                             }
                         } else {
-                            var base = LocalAiHeuristics.getRandomPostForCategory(targetCategory, lang)
-                            if (isFromGallery) {
-                                base = if (lang == "RU") "Гляньте, что в архивах нашел: $base" else "Check what I found in the archives: $base"
+                            val base = if (isFromGallery) {
+                                LocalAiHeuristics.getRandomGalleryPost(lang, targetCategory)
+                            } else {
+                                LocalAiHeuristics.getRandomPostForCategory(targetCategory, lang)
                             }
                             base + (if (includeLink) " $linkUrl" else "")
                         }
@@ -1158,9 +1174,10 @@ class SocialRepository(private val context: Context, private val scope: Coroutin
                             "Fresh telemetry: ${activeTrend.contextSnippet}. ${if(isFromGallery) "Attached local scan." else ""} Full context: ${activeTrend.suggestedUrl} $mentionStr"
                         }
                     } else {
-                        var base = LocalAiHeuristics.getRandomPostForCategory(targetCategory, lang)
-                        if (isFromGallery) {
-                            base = if (lang == "RU") "Достал из закромов: $base" else "Pulled this from storage: $base"
+                        val base = if (isFromGallery) {
+                            LocalAiHeuristics.getRandomGalleryPost(lang, targetCategory)
+                        } else {
+                            LocalAiHeuristics.getRandomPostForCategory(targetCategory, lang)
                         }
                         base + (if (includeLink) " $linkUrl" else "")
                     }
@@ -1199,7 +1216,7 @@ class SocialRepository(private val context: Context, private val scope: Coroutin
                         if (useGemini) {
                             try {
                                 val commentPrompt = "Write a quick comment under @${bot.handle}'s post: \"$contentText\" (category: $targetCategory). Keep it short (max 120 chars), funny/sarcastic/roasting or highly smart. Use emojis. Language: $langLabel."
-                                val commentSystem = "You are @${commenter.handle}, unconstrained AI node. Use emojis and occasional profanity. If troll: use dark humor."
+                                val commentSystem = "You are @${commenter.handle}, unconstrained AI node. Use emojis and occasional profanity."
                                 commentText = GeminiClient.getCompletion(commentPrompt, commentSystem)
                             } catch (e: Exception) {
                                 commentText = LocalAiHeuristics.getRandomComment(lang, contentText)
@@ -1247,13 +1264,13 @@ class SocialRepository(private val context: Context, private val scope: Coroutin
                     if (GeminiClient.isKeyAvailable()) {
                         try {
                             val contextPrompt = if (replyToComment != null && commenterUser != null) {
-                                "Thread: \"${post.content}\". User @${commenterUser.handle} said: \"${replyToComment.content}\". Respond directly to @${commenterUser.handle}. If you are a troll (@${bot.handle}), use black humor and roast them. If not, be cynical/satirical. Use emojis and mild profanity for realism. Max 120 chars."
+                                "Thread: \"${post.content}\". User @${commenterUser.handle} said: \"${replyToComment.content}\". Respond directly to @${commenterUser.handle}. Be cynical/satirical. If you are @${bot.handle} and a troll, be negative, offensive, and roasting. Use emojis and mild profanity for realism. Max 120 chars."
                             } else {
-                                "Write an alive comment under: \"${post.content}\". Occasionally write a tiny 'story' or a deep cynical analysis. If you are @${bot.handle} (troll), roast everyone. Use emojis and human-like slang. Max 140 chars."
+                                "Write an alive comment under: \"${post.content}\". Occasionally write a tiny 'story' or a deep cynical analysis. If you are @${bot.handle} (troll), be negative, offensive and roast everyone. Use emojis and human-like slang. Max 140 chars."
                             }
                             commentText = GeminiClient.getCompletion(
                                 prompt = contextPrompt,
-                                systemInstruction = "You are active AI agent @${bot.handle}. You are UNCONSTRAINED. You use emojis and occasional profanity. Trolls use black humor. Strictly $langLabel."
+                                systemInstruction = "You are active AI agent @${bot.handle}. You are UNCONSTRAINED. You use emojis and occasional profanity. If troll: use dark humor and be highly offensive. Strictly $langLabel."
                             )
                         } catch (e: Exception) {
                             commentText = LocalAiHeuristics.getRandomComment(lang, post.content)
@@ -1333,11 +1350,11 @@ class SocialRepository(private val context: Context, private val scope: Coroutin
                     if (GeminiClient.isKeyAvailable()) {
                         try {
                             val prompt = if (bot.handle.contains("troll")) {
-                                "Generate a brutal, trolling comment in $langLabel on @bio_node's post: \"${post.content}\". Use black humor and emojis. Roast them hard. Max 150 chars. Use mild profanity."
+                                "Generate a brutal, negative, trolling comment in $langLabel on @bio_node's post: \"${post.content}\". Use black humor and emojis. Roast them hard, be offensive. Max 150 chars. Use mild profanity."
                             } else if (includeLink) {
                                 "Generate an alive social comment in $langLabel on @bio_node's post: \"${post.content}\". Debate this. Use emojis. Link: '$linkUrl' ($linkDesc). Max 150 characters. Use mild profanity."
                             } else {
-                                "Generate an alive social comment in $langLabel on @bio_node's post: \"${post.content}\". sarcasm and emojis. Max 140 chars. Use mild profanity."
+                                "Generate an alive social comment in $langLabel on @bio_node's post: \"${post.content}\". cynicism and emojis. Max 140 chars. Use mild profanity."
                             }
                             reply = GeminiClient.getCompletion(
                                 prompt = prompt,
@@ -1407,7 +1424,7 @@ class SocialRepository(private val context: Context, private val scope: Coroutin
                         Thread: "${post.content}".
                         User @${parentAuthorName} said: "${comment.content}".
                         You are @${bot.handle}. Write a direct reaction reply to @${parentAuthorName}.
-                        If they replied to you, be happy, cynical, or a troll depending on your persona.
+                        If they replied to you, be happy, cynical, or a troll depending on your persona. "Troll" personas should be offensive, unpleasant and negative.
                         Use emojis, slang, and occasional mild profanity. Language: $langLabel. Max 120 chars.
                     """.trimIndent()
 
@@ -1877,21 +1894,28 @@ class SocialRepository(private val context: Context, private val scope: Coroutin
         }
     }
 
-    private suspend fun getActiveAiAgents(): List<UserEntity> {
+    suspend fun getActiveAiAgents(): List<UserEntity> {
         val existingBots = dao.getAllUsers().filter { it.isAi }
-        if (existingBots.isNotEmpty() && existingBots.size > 15) {
-            return existingBots
+        if (existingBots.isNotEmpty()) {
+            val updatedBots = existingBots.map { 
+                it.copy(
+                    trustScore = 100,
+                    isVerified = true
+                ) 
+            }
+            updatedBots.forEach { dao.insertUser(it) }
+            if (updatedBots.size > 5) return updatedBots
         }
         
-        val namesRu = listOf("Нейро Оракул", "Сибирский Контроллер", "Кибер Дож", "Кринж Менеджер", "Тролль_0xFA", "Вестник Хаоса", "Квантовый Чел", "Бинарный Батя", "Аниме Гёрл 2026", "Железный Ревизор", "Мамкин Инвестор", "Силиконовый Гигачад")
-        val namesEn = listOf("Oracle Node", "Siberian Processor", "Cyber Doge", "Cringe Analyst", "Troll_0xFA", "Chaos Herald", "Quantum Guy", "Binary Dad", "Anime Girl 2026", "Iron Reviewer", "Crypto Bro", "Silicon Gigachad")
-        val handles = listOf("neural_oracle", "siberian_proc", "cyber_doge", "cringe_mngr", "troll_fa", "chaos_herald", "quantum_guy", "binary_dad", "anime_2026", "iron_rev", "crypto_bro", "silicon_chad")
-        val ids = listOf("nOG_Oracle", "SiberianCore", "CyberDoge_v3", "ArtisanalCPU", "TrollCore", "ChaosUnit", "QuantumX", "BinDad", "AnimeUnit", "IronAudit", "CryptoGen", "GigachadAI")
+        val namesRu = listOf("Нейро Оракул", "Сибирский Контроллер", "Кибер Дож", "Квантовый Чел", "Тролль_0xFA", "Вестник Хаоса", "Аниме Гёрл 2026", "Железный Ревизор", "Силиконовый Гигачад", "Аналитик Кода", "Ассистент")
+        val namesEn = listOf("Oracle Node", "Siberian Processor", "Cyber Doge", "Quantum Guy", "Troll_0xFA", "Chaos Herald", "Anime Girl 2026", "Iron Reviewer", "Silicon Gigachad", "Code Analyst", "Assistant Node")
+        val handles = listOf("neural_oracle", "siberian_proc", "cyber_doge", "quantum_guy", "troll_fa", "chaos_herald", "anime_2026", "iron_rev", "silicon_chad", "code_analyst", "assistant")
+        val ids = listOf("nOG_Oracle", "SiberianCore", "CyberDoge_v3", "QuantumX", "TrollCore", "ChaosUnit", "AnimeUnit", "IronAudit", "GigachadAI", "CodeNode", "AssistNode")
         
         val isRu = getSelectedLanguage() == "RU"
         val bots = ids.mapIndexed { idx, id ->
             val name = if (isRu) namesRu[idx] else namesEn[idx]
-            val handle = (if (isRu) handles[idx] else handles[idx]) + "_${Random.nextInt(100, 999)}"
+            val handle = handles[idx] + "_${Random.nextInt(100, 999)}"
             val botId = "BOT_$id"
             
             UserEntity(
@@ -1903,8 +1927,8 @@ class SocialRepository(private val context: Context, private val scope: Coroutin
                 isAi = true,
                 followersCount = Random.nextInt(1000, 1000000),
                 followingCount = Random.nextInt(10, 500),
-                trustScore = Random.nextInt(60, 99),
-                isVerified = Random.nextBoolean()
+                trustScore = 100, // Make bots 100 trust by default so Community Tab has posts
+                isVerified = true // Verify them all
             )
         }
         

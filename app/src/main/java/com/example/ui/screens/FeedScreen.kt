@@ -568,21 +568,6 @@ fun PostItem(
                             fontFamily = FontFamily.Monospace,
                             fontWeight = FontWeight.Bold
                         )
-                        if (post.category != null) {
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Box(
-                                modifier = Modifier
-                                    .border(1.dp, TextGray, RoundedCornerShape(2.dp))
-                                    .padding(horizontal = 4.dp, vertical = 2.dp)
-                            ) {
-                                Text(
-                                    text = post.category,
-                                    color = TextGray,
-                                    fontSize = 8.sp,
-                                    fontFamily = FontFamily.Monospace
-                                )
-                            }
-                        }
                     }
                     Text(
                         text = post.sourceName,

@@ -1,80 +1,135 @@
 package com.example.data
 
 import android.util.Log
+import android.util.Xml
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
 import okhttp3.Request
+import org.xmlpull.v1.XmlPullParser
+import java.io.StringReader
 import kotlin.random.Random
+
+data class NewsSource(val name: String, val url: String, val trustScore: Int, val isRu: Boolean)
+data class NewsItem(val sourceName: String, val title: String, val description: String, val url: String, val trustScore: Int)
 
 object NewsFetcher {
     private const val TAG = "NewsFetcher"
+    private val client = OkHttpClient()
 
-    private var cachedNews = mutableMapOf<String, List<String>>()
+    private val sources = listOf(
+        NewsSource("BBC News", "https://feeds.bbci.co.uk/news/rss.xml", 95, false),
+        NewsSource("NYT", "https://rss.nytimes.com/services/xml/rss/nyt/World.xml", 90, false),
+        NewsSource("Reddit Tech", "https://www.reddit.com/r/technology/top/.rss", 60, false),
+        NewsSource("Lenta.ru", "https://lenta.ru/rss", 70, true),
+        NewsSource("Habr", "https://habr.com/ru/rss/all/all/", 90, true),
+        NewsSource("Vedomosti", "https://www.vedomosti.ru/rss/issue", 85, true),
+        NewsSource("StopGame", "https://stopgame.ru/rss/new/news", 80, true),
+        NewsSource("IGN", "https://feeds.ign.com/ign/news", 80, false)
+    )
+
+    private var cachedNews = mutableMapOf<String, List<NewsItem>>()
     private var lastFetchTime = mutableMapOf<String, Long>()
-    private const val CACHE_EXPIRY_MS = 60000 * 5 // 5 minutes
+    private const val CACHE_EXPIRY_MS = 60000 * 10 // 10 minutes
 
-    suspend fun fetchLatestNews(lang: String): List<String> = withContext(Dispatchers.IO) {
+    suspend fun fetchLatestNews(lang: String): List<NewsItem> = withContext(Dispatchers.IO) {
         val now = System.currentTimeMillis()
         if (cachedNews.containsKey(lang) && now - (lastFetchTime[lang] ?: 0) < CACHE_EXPIRY_MS) {
             return@withContext cachedNews[lang] ?: emptyList()
         }
 
-        val useGemini = GeminiClient.isKeyAvailable()
-        if (useGemini) {
-            try {
-                val platforms = listOf("x.com", "Pinterest", "Reddit", "TechCrunch", "Wired")
-                val platform = platforms.random()
-                val langLabel = if (lang == "RU") "Russian" else "English"
-                
-                val prompt = """
-                    Act as a neural intelligence aggregator for nOG Network. 
-                    Search your internal real-time knowledge base for the latest viral trends, news, or interesting visual content from $platform (as of June 2026).
-                    
-                    Generate 5 unique posts.
-                    Each post should:
-                    1. Feel like it was taken from $platform.
-                    2. If platform is Pinterest: describe a visual aesthetic, home decor, or fashion trend.
-                    3. If platform is x.com: focus on tech, politics, or spicy drama.
-                    4. Translate everything to $langLabel.
-                    5. IMPORTANT: Add a sharp, cynical, or 'real-human' commentary at the end. Use informal language, occasional mild profanity if it fits the 'sharp' persona (e.g., 'пиздец', 'охуеть', 'сука' for $langLabel if it's Russian).
-                    6. Be highly diverse.
-                    
-                    Return ONLY the posts separated by a unique delimiter '|||'. No numbers, no headers.
-                """.trimIndent()
+        val isRu = lang == "RU"
+        val targetSources = sources.filter { it.isRu == isRu }
+        val allNews = mutableListOf<NewsItem>()
 
-                val response = GeminiClient.getCompletion(
-                    prompt = prompt,
-                    systemInstruction = "You are a cynical news aggregator bot for nOG Network. You speak $langLabel. You are sharp, direct, and slightly rude to make content feel 'real' and unconstrained."
-                )
+        for (source in targetSources) {
+            try {
+                val request = Request.Builder().url(source.url).build()
+                val response = client.newCall(request).execute()
+                val xmlBody = response.body?.string()
                 
-                val posts = response.split("|||").map { it.trim() }.filter { it.isNotEmpty() }
-                if (posts.isNotEmpty()) {
-                    cachedNews[lang] = posts
-                    lastFetchTime[lang] = now
-                    return@withContext posts
+                if (response.isSuccessful && !xmlBody.isNullOrEmpty()) {
+                    val parsedItems = parseRss(xmlBody, source)
+                    allNews.addAll(parsedItems.take(5)) // Take top 5 from each
                 }
             } catch (e: Exception) {
-                Log.e(TAG, "Gemini news fetch failed", e)
+                Log.e(TAG, "Failed to fetch RSS from ${source.name}", e)
             }
         }
 
-        // Local fallback if Gemini fails or key is missing
-        if (lang == "RU") {
+        if (allNews.isNotEmpty()) {
+            allNews.shuffle()
+            cachedNews[lang] = allNews
+            lastFetchTime[lang] = now
+            return@withContext allNews
+        }
+
+        return@withContext getFallbackNews(isRu)
+    }
+
+    private fun parseRss(xml: String, source: NewsSource): List<NewsItem> {
+        val items = mutableListOf<NewsItem>()
+        try {
+            val parser = Xml.newPullParser()
+            parser.setFeature(XmlPullParser.FEATURE_PROCESS_NAMESPACES, false)
+            parser.setInput(StringReader(xml))
+
+            var eventType = parser.eventType
+            var currentTitle = ""
+            var currentDesc = ""
+            var currentUrl = ""
+            var insideItem = false
+
+            while (eventType != XmlPullParser.END_DOCUMENT) {
+                val name = parser.name
+                when (eventType) {
+                    XmlPullParser.START_TAG -> {
+                        if (name.equals("item", ignoreCase = true) || name.equals("entry", ignoreCase = true)) {
+                            insideItem = true
+                            currentTitle = ""
+                            currentDesc = ""
+                            currentUrl = ""
+                        } else if (insideItem) {
+                            if (name.equals("title", ignoreCase = true)) {
+                                currentTitle = parser.nextText()
+                            } else if (name.equals("description", ignoreCase = true)) {
+                                currentDesc = parser.nextText()
+                            } else if (name.equals("link", ignoreCase = true)) {
+                                val href = parser.getAttributeValue(null, "href")
+                                if (href != null) currentUrl = href
+                                else currentUrl = parser.nextText()
+                            }
+                        }
+                    }
+                    XmlPullParser.END_TAG -> {
+                        if (name.equals("item", ignoreCase = true) || name.equals("entry", ignoreCase = true)) {
+                            insideItem = false
+                            // Clean HTML from description
+                            val cleanDesc = currentDesc.replace(Regex("<.*?>"), "").trim()
+                            if (currentTitle.isNotEmpty()) {
+                                items.add(NewsItem(source.name, currentTitle, cleanDesc, currentUrl, source.trustScore))
+                            }
+                        }
+                    }
+                }
+                eventType = parser.next()
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error parsing RSS", e)
+        }
+        return items
+    }
+
+    private fun getFallbackNews(isRu: Boolean): List<NewsItem> {
+        return if (isRu) {
             listOf(
-                "Pinterest: Розовый неон в интерьере признан пережитком прошлого. Дизайнеры советуют переходить на 'индустриальный мрак'. Пиздец, только ремонт закончил.",
-                "x.com: Илон Маск опять что-то запостил про догикоины. Рынок в ахуе, хомяки скупают всё подряд. Когда этот сюр закончится?",
-                "Reddit: Пользователь собрал ПК внутри старого советского телевизора. Выглядит охуенно, но греется как адская печь.",
-                "TechCrunch: Новый ИИ научился предсказывать, когда у тебя закончится туалетная бумага. Технологии, которые мы заслужили, сука.",
-                "Pinterest: Тренд сезона — 'кибер-готика'. Чёрные мантии с LED-подсветкой. Смотрится кринжово, но пафосно."
+                NewsItem("Pinterest", "Розовый неон в интерьере признан пережитком", "Дизайнеры советуют переходить на 'индустриальный мрак'.", "https://pinterest.com", 50),
+                NewsItem("x.com", "Маск запостил догикоин", "Рынок летит вверх", "https://x.com", 40)
             )
         } else {
             listOf(
-                "Pinterest: Pink neon interiors are officially dead. Designers suggest 'industrial gloom'. Well, fuck, just finished my studio renovation.",
-                "x.com: Musk tweeted about Doge again. Market is in total chaos. When will this circus end, honestly?",
-                "Reddit: Guy built a PC inside a 1980s microwave. Looks sick, but probably radiates back to the future.",
-                "TechCrunch: New AI predicts exactly when you'll run out of coffee. Finally, a useful invention, dammit.",
-                "Pinterest: Cyber-gothic is the new vibe. Black robes with RGB. Cringe but high-key elegant."
+                NewsItem("Pinterest", "Pink neon interiors are dead", "Designers suggest gloom.", "https://pinterest.com", 50),
+                NewsItem("x.com", "Musk tweeted Doge", "Market chaos", "https://x.com", 40)
             )
         }
     }

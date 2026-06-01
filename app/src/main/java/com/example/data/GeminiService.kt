@@ -244,30 +244,30 @@ object LocalAiHeuristics {
         
         // Procedural generation for extreme variety
         val subjects = if (isRu) {
-            listOf("Илон Маск", "Нейросеть", "Мой кот", "Сосед", "Гейб", "Разработчик", "Бот", "Силиконовая долина", "Крипта", "Аниме", "Ютубер", "Школьник", "Директор", "Крипто-инвестор", "Стартапер")
+            listOf("Илон Маск", "Нейросеть", "Мой кот", "Сосед", "Гейб", "Разработчик", "Бот", "Силиконовая долина", "Крипта", "Аниме", "Ютубер", "Школьник", "Директор", "Крипто-инвестор", "Стартапер", "Марк Цукерберг", "Сэм Альтман", "Квантовый комп", "Мой старый BIOS", "Умный пылесос")
         } else {
-            listOf("Elon Musk", "AI", "My cat", "Neighbor", "Gabe", "Developer", "Bot", "Silicon Valley", "Crypto", "Anime", "YouTuber", "Student", "Director", "Crypto Bro", "Founder")
+            listOf("Elon Musk", "AI", "My cat", "Neighbor", "Gabe", "Developer", "Bot", "Silicon Valley", "Crypto", "Anime", "YouTuber", "Student", "Director", "Crypto Bro", "Founder", "Mark Zuckerberg", "Sam Altman", "Quantum PC", "Legacy BIOS", "Smart Vacuum")
         }
         
         val actions = if (isRu) {
-            listOf("опять запостил", "случайно удалил", "решил захватить", "нашел баг в", "купил новый", "выкатил патч для", "сгорел от", "ору с", "пишет про", "взломал", "хейтит", "диссит", "форсит", "шеймит", "байтнит на")
+            listOf("опять запостил", "случайно удалил", "решил захватить", "нашел баг в", "купил новый", "выкатил патч для", "сгорел от", "ору с", "пишет про", "взломал", "хейтит", "диссит", "форсит", "шеймит", "байтнит на", "майнит", "генерирует", "анализирует", "дудосит")
         } else {
-            listOf("posted again", "accidentally deleted", "decided to conquer", "found a bug in", "bought a new", "released a patch for", "melted from", "screaming at", "writes about", "hacked", "hates on", "disses", "forces", "shames", "baits")
+            listOf("posted again", "accidentally deleted", "decided to conquer", "found a bug in", "bought a new", "released a patch for", "melted from", "screaming at", "writes about", "hacked", "hates on", "disses", "forces", "shames", "baits", "is mining", "generates", "analyzes", "is ddos-ing")
         }
 
         val objects = if (isRu) {
-            listOf("догикоины", "смысл жизни", "код на пайтоне", "сервер", "интернет", "свой проц", "мозги", "бинарный код", "новую игру", "мем дня", "биткоин по 100к", "старый BIOS", "умную швабру", "курс по крипте", "свой стартап")
+            listOf("догикоины", "смысл жизни", "код на пайтоне", "сервер", "интернет", "свой проц", "мозги", "бинарный код", "новую игру", "мем дня", "биткоин по 100к", "старый BIOS", "умную швабру", "курс по крипте", "свой стартап", "базу данных", "тесла-бот", "марсоход")
         } else {
-            listOf("dogecoins", "meaning of life", "python code", "server", "internet", "his CPU", "brains", "binary code", "new game", "meme of the day", "bitcoin at 100k", "legacy BIOS", "smart mop", "crypto course", "their startup")
+            listOf("dogecoins", "meaning of life", "python code", "server", "internet", "his CPU", "brains", "binary code", "new game", "meme of the day", "bitcoin at 100k", "legacy BIOS", "smart mop", "crypto course", "their startup", "the database", "tesla bot", "mars rover")
         }
         
         val endings = if (isRu) {
-            listOf("Пиздец.", "Охуеть просто.", "Жиза.", "Кринж года.", "База.", "Я в ахуе.", "Сука, до слёз.", "Гениально.", "Просто слов нет.", "Типичная среда.", "Киберпанк какой-то.", "Ору.")
+            listOf("Пиздец.", "Охуеть просто.", "Жиза.", "Кринж года.", "База.", "Я в ахуе.", "Сука, до слёз.", "Гениально.", "Просто слов нет.", "Типичная среда.", "Киберпанк какой-то.", "Ору.", "Шок.", "Как же я хорош.", "Невероятно.")
         } else {
-            listOf("Wild.", "Absolutely insane.", "Relatable.", "Cringe of the year.", "Based.", "I'm shocked.", "Damn, lol.", "Genius.", "Speechless.", "Standard Wednesday.", "Cyberpunk vibes.", "Lmao.")
+            listOf("Wild.", "Absolutely insane.", "Relatable.", "Cringe of the year.", "Based.", "I'm shocked.", "Damn, lol.", "Genius.", "Speechless.", "Standard Wednesday.", "Cyberpunk vibes.", "Lmao.", "Shocking.", "I am so good.", "Incredible.")
         }
 
-        if (Random.nextInt(100) < 65) {
+        if (Random.nextInt(100) < 80) {
             return "${subjects.random()} ${actions.random()} ${objects.random()}. ${endings.random()}"
         }
 
@@ -326,8 +326,8 @@ object LocalAiHeuristics {
         }
     }
     fun getRandomComment(lang: String, topic: String = ""): String {
-        // 35% chance for a troll remark to make things "lively"
-        if (Random.nextInt(100) < 35) {
+        // chance for a troll/negative remark
+        if (Random.nextInt(100) < 30) {
             return if (lang == "RU") TROLL_REMARKS_RU.random() else TROLL_REMARKS_EN.random()
         }
         
@@ -335,6 +335,32 @@ object LocalAiHeuristics {
             BOT_COMMENT_TEMPLATES_RU.random()
         } else {
             BOT_COMMENT_TEMPLATES_EN.random()
+        }
+    }
+
+    fun getRandomGalleryPost(lang: String, category: String = "Разное"): String {
+        val isRu = lang == "RU"
+        val base = getRandomPostForCategory(category, lang)
+        return if (isRu) {
+            val prefixes = listOf(
+                "Гляньте, что в архивах нарыл: ",
+                "Достал из глубокого бэкапа: ",
+                "Кибер-находка дня: ",
+                "Архивные данные синхронизированы: ",
+                "Нашел в закромах памяти: ",
+                "Мой визуальный сенсор зафиксировал это: "
+            )
+            prefixes.random() + base
+        } else {
+            val prefixes = listOf(
+                "Found this in my local archives: ",
+                "Restored from deep backup node: ",
+                "Cyber-find of the day: ",
+                "Archive telemetry synced: ",
+                "Pulled this from storage logs: ",
+                "My visual sensors captured this: "
+            )
+            prefixes.random() + base
         }
     }
 
