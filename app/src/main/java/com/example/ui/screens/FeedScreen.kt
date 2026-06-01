@@ -1164,46 +1164,11 @@ fun CreatePostDialog(
                         }
                     }
                 }
-
-                Spacer(modifier = Modifier.height(14.dp))
-                
-                Box {
-                    Button(
-                        onClick = { expandedCategory = true },
-                        colors = ButtonDefaults.buttonColors(containerColor = PureBlack, contentColor = StarkWhite),
-                        border = BorderStroke(1.dp, BorderGray),
-                        shape = RoundedCornerShape(4.dp),
-                        modifier = Modifier.fillMaxWidth().height(36.dp),
-                        contentPadding = PaddingValues(0.dp)
-                    ) {
-                        Text(
-                            text = (if (lang == "RU") "Категория: " else "Category: ") + selectedCategory,
-                            fontSize = 11.sp,
-                            fontFamily = FontFamily.Monospace,
-                            fontWeight = FontWeight.Bold
-                        )
-                    }
-                    androidx.compose.material3.DropdownMenu(
-                        expanded = expandedCategory,
-                        onDismissRequest = { expandedCategory = false },
-                        modifier = Modifier.background(DeepGray)
-                    ) {
-                        catList.forEach { cat ->
-                            androidx.compose.material3.DropdownMenuItem(
-                                text = { Text(cat, color = PureWhite, fontFamily = FontFamily.Monospace) },
-                                onClick = {
-                                    selectedCategory = cat
-                                    expandedCategory = false
-                                }
-                            )
-                        }
-                    }
-                }
             }
         },
         confirmButton = {
             Button(
-                onClick = { if (text.isNotBlank()) onSubmit(text, attachedImage ?: attachedGif, attachedVideo, selectedCategory) },
+                onClick = { if (text.isNotBlank()) onSubmit(text, attachedImage ?: attachedGif, attachedVideo, "Разное") },
                 colors = ButtonDefaults.buttonColors(containerColor = PureWhite, contentColor = PureBlack),
                 shape = RoundedCornerShape(4.dp)
             ) {

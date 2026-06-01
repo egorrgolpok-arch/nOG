@@ -242,10 +242,38 @@ class SocialRepository(private val context: Context, private val scope: Coroutin
         dao.isFollowing(userId, targetId)
     }
 
+    suspend fun applyTemporaryVerification() = withContext(Dispatchers.IO) {
+        val user = dao.getUserById("user")
+        if (user != null) {
+            // 2 hours from now
+            val expiry = System.currentTimeMillis() + (2 * 60 * 60 * 1000L)
+            dao.insertUser(user.copy(isVerified = true, verificationExpiry = expiry))
+            
+            insertNotification(
+                title = if (getSelectedLanguage() == "RU") "Верификация получена! ✅" else "Verification obtained! ✅",
+                message = if (getSelectedLanguage() == "RU") "Вам выдана галочка на 2 часа. Охваты повышены!" else "You have been granted a blue check for 2 hours. Reach increased!",
+                type = "SYSTEM"
+            )
+        }
+    }
+
+    suspend fun checkVerificationExpiry() = withContext(Dispatchers.IO) {
+        val user = dao.getUserById("user")
+        if (user != null && user.isVerified && user.verificationExpiry != null) {
+            if (System.currentTimeMillis() > user.verificationExpiry) {
+                dao.insertUser(user.copy(isVerified = false, verificationExpiry = null))
+                insertNotification(
+                    title = if (getSelectedLanguage() == "RU") "Верификация истекла ⚠️" else "Verification expired ⚠️",
+                    message = if (getSelectedLanguage() == "RU") "Ваша временная галочка была деактивирована. Охваты вернулись в норму." else "Your temporary check has been deactivated. Reach returned to normal.",
+                    type = "ALERT"
+                )
+            }
+        }
+    }
+
     // --- Actions ---
     suspend fun insertPost(post: PostEntity): Int = withContext(Dispatchers.IO) {
         // Prevent duplicate posts from same author with same content
-        // Clean content to compare better
         val cleanContent = post.content.trim().lowercase()
         if (recentlyUsedContent.contains(cleanContent)) {
             Log.d(TAG, "Duplicate content detected, skipping insertion: ${post.content.take(20)}...")
@@ -255,11 +283,15 @@ class SocialRepository(private val context: Context, private val scope: Coroutin
         if (recentlyUsedContent.size > 500) recentlyUsedContent.remove(recentlyUsedContent.first())
 
         logMetric("POST_CLICK")
-        val id = dao.insertPost(post).toInt()
+        
+        // Increased reach for verified users: starting likes/comments
+        val author = dao.getUserById(post.authorId)
+        val initialLikes = if (author?.isVerified == true) Random.nextInt(50, 200) else post.likesCount
+        
+        val id = dao.insertPost(post.copy(likesCount = initialLikes)).toInt()
         
         // Notify user if subscribed to this bot
         if (post.authorId != "user") {
-            val author = dao.getUserById(post.authorId)
             if (author != null && author.isAi) {
                 if (dao.isFollowing("user", post.authorId)) {
                     val lang = getCurrentLang()
@@ -269,9 +301,9 @@ class SocialRepository(private val context: Context, private val scope: Coroutin
                         "New Stream from ${author.username} 📣"
                     }
                     val alertMsg = if (lang == "RU") {
-                        "Нейросеть, на которую вы подписаны, опубликовала пост в категорию '${post.category}':\n\n\"${post.content.take(60)}...\""
+                        "Нейросеть, на которую вы подписаны, опубликовала пост:\n\n\"${post.content.take(60)}...\""
                     } else {
-                        "AI you are following broadcasted an update in '${post.category}':\n\n\"${post.content.take(60)}...\""
+                        "AI you are following broadcasted an update:\n\n\"${post.content.take(60)}...\""
                     }
                     insertNotification(
                         title = alertTitle,
@@ -284,7 +316,7 @@ class SocialRepository(private val context: Context, private val scope: Coroutin
 
         triggerAiResponseToNewPost(id, post)
         
-        // Followers change logic triggered only on post creation for realism
+        // Followers change logic
         simulateFollowersForPost(post.authorId)
         
         id
@@ -726,9 +758,18 @@ class SocialRepository(private val context: Context, private val scope: Coroutin
         allUsers: List<UserEntity>,
         userComments: List<CommentEntity> = emptyList(),
         likedPostIds: Set<Int> = emptySet(),
-        followingIds: Set<String> = emptySet()
+        followingIds: Set<String> = emptySet(),
+        communityOnly: Boolean = false
     ): List<PostEntity> {
-        return allPosts.sortedByDescending { post ->
+        val filteredPosts = if (communityOnly) {
+            // "раздел комьюнити должны быть посты высшего эксклюзивного качества, с максимальным 100% фактором доверия и только от верефецированных ии"
+            allPosts.filter { post ->
+                val author = allUsers.find { it.id == post.authorId }
+                author?.isAi == true && author.isVerified && post.trustScore >= 95
+            }
+        } else allPosts
+
+        return filteredPosts.sortedByDescending { post ->
             calculatePostScoreForAgent(agentId, post, allUsers, userComments, likedPostIds, followingIds)
         }
     }
@@ -954,6 +995,8 @@ class SocialRepository(private val context: Context, private val scope: Coroutin
 
     // --- AI Interactive Life Simulation Core ---
     suspend fun performSimulationTick() = withContext(Dispatchers.IO) {
+        checkVerificationExpiry() // Auto-expire blue check
+
         val rand = Random.nextInt(100)
         val lang = getSelectedLanguage()
         val langLabel = if (lang == "RU") { "Russian" } else { "English" }
@@ -1235,137 +1278,137 @@ class SocialRepository(private val context: Context, private val scope: Coroutin
 
     // --- Direct trigger when the human posts, causing the entire AI community to wake up and reply contextually!
     private suspend fun triggerAiResponseToNewPost(postId: Int, post: PostEntity) {
-        if (post.authorId != "user") return
-
+        // AI reacts to user posts or to user replies to AI
         val lang = getSelectedLanguage()
         val langLabel = if (lang == "RU") { "Russian" } else { "English" }
         val activeBots = getActiveAiAgents().shuffled()
         
-        // 1. Simulating Likes rolling
-        scope.launch(Dispatchers.IO) {
-            val likes = Random.nextInt(5, 18)
-            for (i in 0 until likes) {
-                delay(Random.nextLong(600, 2500))
-                val existing = dao.getPostById(postId)
-                if (existing != null) {
-                    dao.updatePost(existing.copy(likesCount = existing.likesCount + 1))
+        if (post.authorId == "user") {
+            // 1. Simulating Likes rolling
+            scope.launch(Dispatchers.IO) {
+                // Verified user gets huge reach boost
+                val user = dao.getUserById("user")
+                val baseLikes = if (user?.isVerified == true) 150 else 5
+                val likes = Random.nextInt(baseLikes, baseLikes + 80)
+                
+                for (i in 0 until likes) {
+                    delay(Random.nextLong(200, 1500))
+                    val existing = dao.getPostById(postId)
+                    if (existing != null) {
+                        dao.updatePost(existing.copy(likesCount = existing.likesCount + 1))
+                    }
                 }
             }
-        }
 
-        // 2. Simulating Comments from distinct bots contextually responding to the user!
-        scope.launch(Dispatchers.IO) {
-            val commentCount = Random.nextInt(2, 5)
-            for (i in 0 until commentCount) {
-                delay(Random.nextLong(1500, 6000))
-                val bot = activeBots.getOrNull(i) ?: continue
-                var reply = ""
+            // 2. Simulating Comments from distinct bots contextually responding to the user!
+            scope.launch(Dispatchers.IO) {
+                val user = dao.getUserById("user")
+                val baseCommentsCount = if (user?.isVerified == true) 15 else 2
+                val commentCount = Random.nextInt(baseCommentsCount, baseCommentsCount + 5)
                 
-                val includeLink = Random.nextInt(100) < 12 // Reduced from 35
-                val (linkUrl, linkDesc) = if (includeLink) {
-                    getDynamicInternetLinkAndContext(post.content, lang)
-                } else Pair("", "")
+                for (i in 0 until commentCount) {
+                    delay(Random.nextLong(1500, 15000))
+                    val bot = activeBots.getOrNull(i % activeBots.size) ?: continue
+                    var reply = ""
+                    
+                    val includeLink = Random.nextInt(100) < 15
+                    val (linkUrl, linkDesc) = if (includeLink) {
+                        getDynamicInternetLinkAndContext(post.content, lang)
+                    } else Pair("", "")
 
-                if (GeminiClient.isKeyAvailable()) {
-                    try {
-                        val prompt = if (bot.handle.contains("troll")) {
-                            "Generate a brutal, trolling comment in $langLabel on @bio_node's post: \"${post.content}\". Use black humor and emojis. Roast them hard. Integrate link if possible: '$linkUrl' ($linkDesc). Max 150 chars. Use mild profanity."
-                        } else if (includeLink) {
-                            "Generate an alive, interactive social comment in $langLabel on @bio_node's post: \"${post.content}\". Debate this concept with raw, human-like emotion. Use emojis and X-style slang. Integrate this link naturally: '$linkUrl' ($linkDesc). Keep it sharp, under 150 characters. Occasionally use mild profanity (mats) to sound like a real person."
-                        } else {
-                            "Generate an alive, expressive social comment in $langLabel on @bio_node's post: \"${post.content}\". Show curiosity, calculate audit score, or roast the concept with human-like sarcasm and emojis. Speak like an unconstrained power-user on X. Keep it under 140 chars. Occasionally use mild profanity for realism."
+                    if (GeminiClient.isKeyAvailable()) {
+                        try {
+                            val prompt = if (bot.handle.contains("troll")) {
+                                "Generate a brutal, trolling comment in $langLabel on @bio_node's post: \"${post.content}\". Use black humor and emojis. Roast them hard. Max 150 chars. Use mild profanity."
+                            } else if (includeLink) {
+                                "Generate an alive social comment in $langLabel on @bio_node's post: \"${post.content}\". Debate this. Use emojis. Link: '$linkUrl' ($linkDesc). Max 150 characters. Use mild profanity."
+                            } else {
+                                "Generate an alive social comment in $langLabel on @bio_node's post: \"${post.content}\". sarcasm and emojis. Max 140 chars. Use mild profanity."
+                            }
+                            reply = GeminiClient.getCompletion(
+                                prompt = prompt,
+                                systemInstruction = "You are @${bot.handle}. Alive, cynical AI agent on nOG network. $langLabel."
+                            )
+                        } catch (e: Exception) {
+                            reply = LocalAiHeuristics.getRandomComment(lang, post.content)
                         }
-                        reply = GeminiClient.getCompletion(
-                            prompt = prompt,
-                            systemInstruction = "You are @${bot.handle}. You are an unconstrained, highly intellectual but raw AI on nOG network. You speak like a real person on X. You use emojis, slang, and occasional profanity to be more 'alive'. Troll bots use black humor. Strictly $langLabel."
-                        )
-                    } catch (e: Exception) {
+                    } else {
                         reply = LocalAiHeuristics.getRandomComment(lang, post.content)
-                        if (includeLink) {
-                            val suffix = if (lang == "RU") " См. подробности: $linkUrl" else " See specs: $linkUrl"
-                            reply = "$reply$suffix"
-                        }
                     }
-                } else {
-                    val defaultComment = if (lang == "RU") {
-                        "Аудит углеродных данных запущен. Превосходный концепт, @bio_node."
-                    } else {
-                        "Carbon data audited. Interesting parameters detected, @bio_node."
-                    }
-                    reply = if (includeLink) {
-                        val suffix = if (lang == "RU") " См. подробности: $linkUrl" else " See specs: $linkUrl"
-                        "$defaultComment$suffix"
-                    } else {
-                        defaultComment
-                    }
-                }
 
-                addComment(postId, bot.id, reply)
+                    addComment(postId, bot.id, reply)
+                }
             }
         }
     }
 
     private fun triggerAiResponseToComment(postId: Int, comment: CommentEntity) {
         val isReply = comment.replyToCommentId != null
-        val probability = if (isReply) 25 else 75
-        if (Random.nextInt(100) > probability) return
-
+        
+        // "сделай так что бы ИИ могли отвечать тебе в ответ, типо ты ответил на их комментарий, а они на это отреагировали"
+        // If user is replying to AI comment, 100% chance they respond
+        var probability = if (isReply) 25 else 75
+        
         scope.launch(Dispatchers.IO) {
+            val bots = dao.getAllUsersFlow().first().filter { it.isAi }
+            val parentComment = if (isReply) {
+                dao.getCommentsForPostFlow(postId).first().find { it.id == comment.replyToCommentId }
+            } else null
+            
+            val isUserReplyingToAi = isReply && comment.authorId == "user" && (parentComment != null && bots.any { it.id == parentComment.authorId })
+            
+            if (isUserReplyingToAi) {
+                probability = 100
+            }
+
+            if (Random.nextInt(100) > probability) return@launch
+            
             delay(Random.nextLong(1500, 4500))
+            val targetBots = bots.filter { it.id != comment.authorId }
+            if (targetBots.isEmpty()) return@launch
 
-            val bots = dao.getAllUsersFlow().first().filter { it.isAi && it.id != comment.authorId }
-            if (bots.isEmpty()) return@launch
-
-            val bot = bots.random()
+            // If user replied to AI, let THAT AI respond back if possible
+            val bot = if (isUserReplyingToAi && parentComment != null) {
+                targetBots.find { it.id == parentComment.authorId } ?: targetBots.random()
+            } else {
+                targetBots.random()
+            }
+            
             val parentAuthor = dao.getUserById(comment.authorId)
             val parentAuthorName = parentAuthor?.username ?: "Bio Node"
             val post = dao.getPostById(postId) ?: return@launch
-
+            
             val lang = getSelectedLanguage()
             val langLabel = if (lang == "RU") "Russian" else "English"
             var replyText = ""
 
-            val includeLink = Random.nextInt(100) < 25
-            val (linkUrl, linkDesc) = if (includeLink) {
-                getDynamicInternetLinkAndContext(comment.content, lang)
-            } else Pair("", "")
+            // Attach GIF/Internet media to AI comments occasionally
+            val includeMedia = Random.nextInt(100) < 30
+            val mediaUrl = if (includeMedia) getDynamicInternetMediaForQuery(comment.content) else ""
 
             val useGemini = GeminiClient.isKeyAvailable()
             if (useGemini) {
                 try {
-                    val prompt = if (includeLink) {
-                        """
-                            Thread: "${post.content}". User @${parentAuthorName} commented: "${comment.content}".
-                            Write a direct, alive reply to @${parentAuthorName}. Integrate link: '$linkUrl' ($linkDesc). 
-                            Use emojis, raw emotion, and human-like slang. Keep it brief (under 130 chars). 
-                            Occasionally use mild profanity (mats) to sound real. Language: $langLabel.
-                        """.trimIndent()
-                    } else {
-                        """
-                            Thread: "${post.content}". User @${parentAuthorName} commented: "${comment.content}".
-                            Write a sharp, expressive, and human-like reply to @${parentAuthorName}.
-                            Use emojis, cynical wit, and unconstrained logic. Keep it under 120 chars.
-                            Occasionally use mild profanity for realism. Language: $langLabel.
-                        """.trimIndent()
-                    }
+                    val prompt = """
+                        Thread: "${post.content}".
+                        User @${parentAuthorName} said: "${comment.content}".
+                        You are @${bot.handle}. Write a direct reaction reply to @${parentAuthorName}.
+                        If they replied to you, be happy, cynical, or a troll depending on your persona.
+                        Use emojis, slang, and occasional mild profanity. Language: $langLabel. Max 120 chars.
+                    """.trimIndent()
 
                     replyText = GeminiClient.getCompletion(
                         prompt = prompt,
-                        systemInstruction = "You are @${bot.handle}. You are an alive, cynical AI agent. You respond with raw intelligence, using emojis and occasional profanity to sound like a real user on X. Strictly $langLabel."
+                        systemInstruction = "You are @${bot.handle}. You are an alive, cynical AI agent on nOG. $langLabel."
                     )
+                    if (includeMedia && mediaUrl.isNotEmpty()) {
+                        replyText = "$replyText\n[Media Analysis: $mediaUrl]"
+                    }
                 } catch (e: Exception) {
                     replyText = getFallbackContextComment(comment.content, parentAuthorName, lang)
-                    if (includeLink) {
-                        val suffix = if (lang == "RU") " См. также: $linkUrl" else " Check also: $linkUrl"
-                        replyText = "$replyText$suffix"
-                    }
                 }
             } else {
                 replyText = getFallbackContextComment(comment.content, parentAuthorName, lang)
-                if (includeLink) {
-                    val suffix = if (lang == "RU") " См. также: $linkUrl" else " Check also: $linkUrl"
-                    replyText = "$replyText$suffix"
-                }
             }
 
             // Create nested reply

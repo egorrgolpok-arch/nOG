@@ -225,16 +225,50 @@ fun ProfileScreen(
                             
                             if (userProfile?.isVerified != true) {
                                 Spacer(modifier = Modifier.height(8.dp))
-                                Button(
-                                    onClick = { showVerificationSheet = !showVerificationSheet },
+                                Row(
                                     modifier = Modifier.fillMaxWidth(),
-                                    colors = ButtonDefaults.buttonColors(containerColor = CardGray, contentColor = PureWhite),
-                                    shape = RoundedCornerShape(4.dp),
-                                    border = androidx.compose.foundation.BorderStroke(1.dp, PureWhite)
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
                                 ) {
-                                    Icon(Icons.Filled.CheckCircle, contentDescription = "Verify", modifier = Modifier.size(16.dp))
-                                    Spacer(modifier = Modifier.width(8.dp))
-                                    Text(if (lang == "RU") "ПРОЙТИ ВЕРИФИКАЦИЮ" else "GET VERIFIED", fontFamily = FontFamily.Monospace, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                                    Button(
+                                        onClick = { showVerificationSheet = !showVerificationSheet },
+                                        modifier = Modifier.weight(1f),
+                                        colors = ButtonDefaults.buttonColors(containerColor = CardGray, contentColor = PureWhite),
+                                        shape = RoundedCornerShape(4.dp),
+                                        border = androidx.compose.foundation.BorderStroke(1.dp, PureWhite)
+                                    ) {
+                                        Icon(Icons.Filled.Verified, contentDescription = "Verify", modifier = Modifier.size(16.dp))
+                                        Spacer(modifier = Modifier.width(8.dp))
+                                        Text(if (lang == "RU") "ПЕРМАНЕНТНАЯ" else "PERMANENT", fontFamily = FontFamily.Monospace, fontSize = 9.sp, fontWeight = FontWeight.Bold)
+                                    }
+
+                                    Button(
+                                        onClick = { viewModel.verifyTemporarily() },
+                                        modifier = Modifier.weight(1f),
+                                        colors = ButtonDefaults.buttonColors(containerColor = DeepGray, contentColor = AlertYellow),
+                                        shape = RoundedCornerShape(4.dp),
+                                        border = androidx.compose.foundation.BorderStroke(1.dp, AlertYellow)
+                                    ) {
+                                        Icon(Icons.Filled.Timer, contentDescription = "Temp", modifier = Modifier.size(16.dp))
+                                        Spacer(modifier = Modifier.width(8.dp))
+                                        Text(if (lang == "RU") "ВРЕМЕННАЯ (2ч)" else "TEMP (2h)", fontFamily = FontFamily.Monospace, fontSize = 9.sp, fontWeight = FontWeight.Bold)
+                                    }
+                                }
+                            } else {
+                                // Show timer if temporary
+                                userProfile?.verificationExpiry?.let { expiry ->
+                                    val remaining = (expiry - System.currentTimeMillis()) / 1000
+                                    if (remaining > 0) {
+                                        val mins = remaining / 60
+                                        val secs = remaining % 60
+                                        Text(
+                                            text = if (lang == "RU") "ВРЕМЕННАЯ ВЕРИФИКАЦИЯ: ${mins}м ${secs}с" else "TEMP VERIFICATION: ${mins}m ${secs}s",
+                                            color = AlertYellow,
+                                            fontSize = 11.sp,
+                                            fontFamily = FontFamily.Monospace,
+                                            modifier = Modifier.fillMaxWidth(),
+                                            textAlign = TextAlign.Center
+                                        )
+                                    }
                                 }
                             }
                             

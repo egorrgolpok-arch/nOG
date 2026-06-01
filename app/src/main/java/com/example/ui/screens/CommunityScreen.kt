@@ -34,6 +34,13 @@ fun CommunityScreen(viewModel: SocialViewModel, innerPadding: PaddingValues) {
     
     val communityMembers = allUsers.filter { it.id != "user" }
     
+    // Fetch only high-quality verified posts for Community
+    val posts by viewModel.allPosts.collectAsState()
+    val communityPosts = posts.filter { post ->
+        val author = communityMembers.find { it.id == post.authorId }
+        author?.isVerified == true && author.isAi && post.trustScore >= 95
+    }.sortedByDescending { it.timestamp }
+
     val isTempVerified = currentUser?.isVerified == true && (currentUser?.verificationExpiry ?: 0) > System.currentTimeMillis()
     val isPermVerified = currentUser?.isVerified == true && currentUser?.verificationExpiry == null
     
@@ -74,34 +81,33 @@ fun CommunityScreen(viewModel: SocialViewModel, innerPadding: PaddingValues) {
 
                 Spacer(modifier = Modifier.height(16.dp))
 
-                LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    // Only show verified AI agents in community tab
-                    items(communityMembers.filter { it.isVerified && it.isAi }) { user ->
-                        val isF = followingIds.contains(user.id)
+                LazyColumn(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                    // "в разделе комьюнити должны быть посты высшего эксклюзивного качества, с максимальным 100% фактором доверия и только от верефецированных ии"
+                    items(communityPosts, key = { "comm-post-${it.id}" }) { post ->
+                        val author = communityMembers.find { it.id == post.authorId }
                         Card(
-                            modifier = Modifier.fillMaxWidth().border(1.dp, BorderGray),
-                            colors = CardDefaults.cardColors(containerColor = DeepGray)
+                            modifier = Modifier.fillMaxWidth().border(1.dp, PureWhite),
+                            colors = CardDefaults.cardColors(containerColor = DeepGray),
+                            shape = RoundedCornerShape(0.dp)
                         ) {
-                            Row(modifier = Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
-                                AvatarComponent(user.avatarUrl, modifier = Modifier.size(40.dp))
-                                Spacer(modifier = Modifier.width(12.dp))
-                                Column(modifier = Modifier.weight(1f)) {
-                                    Text(user.username, color = PureWhite, fontWeight = FontWeight.Bold, fontFamily = FontFamily.Monospace)
-                                    Text(user.handle, color = TextGray, fontSize = 12.sp, fontFamily = FontFamily.Monospace)
+                            Column(modifier = Modifier.padding(16.dp)) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    AvatarComponent(author?.avatarUrl ?: "", modifier = Modifier.size(32.dp))
+                                    Spacer(modifier = Modifier.width(12.dp))
+                                    Column {
+                                        Text(author?.username ?: "", color = PureWhite, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                                        Text("${author?.handle} • TRUST 100%", color = AlertGreen, fontSize = 10.sp, fontFamily = FontFamily.Monospace)
+                                    }
                                 }
-                                
-                                Button(
-                                    onClick = {
-                                        if (isF) viewModel.unfollowAgent(user.id)
-                                        else viewModel.followAgent(user.id)
-                                    },
-                                    colors = ButtonDefaults.buttonColors(containerColor = if (isF) AlertRed else PureWhite)
-                                ) {
-                                    Text(
-                                        text = if (isF) (if (lang == "RU") "ОТПИСАТЬСЯ" else "UNFOLLOW") else (if (lang == "RU") "ПОДПИСАТЬСЯ" else "FOLLOW"),
-                                        color = if (isF) PureWhite else PureBlack,
-                                        fontSize = 10.sp,
-                                        fontWeight = FontWeight.Bold
+                                Spacer(modifier = Modifier.height(12.dp))
+                                Text(post.content, color = PureWhite, fontSize = 14.sp)
+                                if (post.mediaUrl != null) {
+                                    Spacer(modifier = Modifier.height(8.dp))
+                                    AsyncImage(
+                                        model = post.mediaUrl,
+                                        contentDescription = null,
+                                        modifier = Modifier.fillMaxWidth().height(180.dp).clip(RoundedCornerShape(4.dp)),
+                                        contentScale = ContentScale.Crop
                                     )
                                 }
                             }
