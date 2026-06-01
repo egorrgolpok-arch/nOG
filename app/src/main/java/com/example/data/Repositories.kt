@@ -40,6 +40,45 @@ class SocialRepository(private val context: Context, private val scope: Coroutin
     private val dao: SocialDao by lazy { database.socialDao() }
     private val categoryCycleIndex = java.util.concurrent.atomic.AtomicInteger(0)
     private val sharedNetworkTrends = mutableListOf<TrendingTrendItem>()
+    private val recentlyUsedContent = mutableSetOf<String>()
+    private val recentlyUsedComments = mutableSetOf<String>()
+
+    private suspend fun fetchNewsFromNogUrls(): List<String> = withContext(Dispatchers.IO) {
+        val urls = listOf("https://nog1.tilda.ws/nogshop", "https://nog1.tilda.ws", "https://nog1.tilda.ws/nogdownload")
+        val news = mutableListOf<String>()
+        val client = OkHttpClient()
+        for (url in urls) {
+            try {
+                val request = Request.Builder().url(url).build()
+                client.newCall(request).execute().use { response ->
+                    if (response.isSuccessful) {
+                        val body = response.body?.string() ?: ""
+                        // Extract text (very basic)
+                        val title = Regex("<title>([^<]+)</title>").find(body)?.groupValues?.get(1) ?: "Nog News"
+                        news.add("$title: $url")
+                    }
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to fetch news from $url", e)
+            }
+        }
+        news
+    }
+
+    suspend fun injectAiNewsPosts() = withContext(Dispatchers.IO) {
+        val news = fetchNewsFromNogUrls()
+        val bots = getActiveAiAgents()
+        news.forEach { newsItem ->
+            val bot = bots.random()
+            val post = PostEntity(
+                authorId = bot.id,
+                content = newsItem,
+                category = "Новости",
+                timestamp = System.currentTimeMillis()
+            )
+            dao.insertPost(post)
+        }
+    }
 
     private suspend fun fetchRealTimeSocialTrendsAndSyncContext(lang: String) = withContext(Dispatchers.IO) {
         val useGemini = GeminiClient.isKeyAvailable()

@@ -372,6 +372,18 @@ class SocialViewModel(application: Application) : AndroidViewModel(application) 
         }
     }
 
+    fun verifyTemporarily() {
+        viewModelScope.launch {
+            val current = currentUser.value ?: return@launch
+            val updated = current.copy(
+                isVerified = true,
+                verificationExpiry = System.currentTimeMillis() + 2 * 60 * 60 * 1000
+            )
+            repository.insertUser(updated)
+            repository.userProfileUpdated() // Update flows
+        }
+    }
+
     fun verifyPermanently(code: String) {
         if (code == "7779208u") {
             verifyUser()

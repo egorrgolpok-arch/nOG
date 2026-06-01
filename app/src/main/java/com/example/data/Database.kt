@@ -14,7 +14,8 @@ data class UserEntity(
     val followersCount: Int,
     val followingCount: Int,
     val trustScore: Int,
-    val isVerified: Boolean = false
+    val isVerified: Boolean = false,
+    val verificationExpiry: Long? = null
 )
 
 @Entity(tableName = "posts")
@@ -185,7 +186,7 @@ interface SocialDao {
         NotificationEntity::class,
         AnalyticsEntity::class
     ],
-    version = 4,
+    version = 5,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {

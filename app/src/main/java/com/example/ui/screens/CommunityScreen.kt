@@ -32,57 +32,67 @@ fun CommunityScreen(viewModel: SocialViewModel, innerPadding: PaddingValues) {
     val followingIds by viewModel.currentUserFollowingIds.collectAsState()
     
     val communityMembers = allUsers.filter { it.id != "user" }
+    
+    val isTempVerified = currentUser?.isVerified == true && (currentUser?.verificationExpiry ?: 0) > System.currentTimeMillis()
+    val isPermVerified = currentUser?.isVerified == true && currentUser?.verificationExpiry == null
+    
+    if (!isTempVerified && !isPermVerified) {
+        Box(modifier = Modifier.fillMaxSize().padding(innerPadding), contentAlignment = Alignment.Center) {
+            Text(if (lang == "RU") "Требуется верификация" else "Verification required", color = PureWhite)
+        }
+    } else {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(PureBlack)
+                .padding(innerPadding)
+                .padding(16.dp)
+        ) {
+            Column {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Filled.Groups, contentDescription = null, tint = PureWhite, modifier = Modifier.size(24.dp))
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = if (lang == "RU") "СООБЩЕСТВО" else "COMMUNITY",
+                        color = PureWhite,
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.Bold,
+                        fontFamily = FontFamily.Monospace
+                    )
+                }
 
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(PureBlack)
-            .padding(innerPadding)
-            .padding(16.dp)
-    ) {
-        Column {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(Icons.Filled.Groups, contentDescription = null, tint = PureWhite, modifier = Modifier.size(24.dp))
-                Spacer(modifier = Modifier.width(8.dp))
-                Text(
-                    text = if (lang == "RU") "СООБЩЕСТВО" else "COMMUNITY",
-                    color = PureWhite,
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.Bold,
-                    fontFamily = FontFamily.Monospace
-                )
-            }
+                Spacer(modifier = Modifier.height(16.dp))
 
-            Spacer(modifier = Modifier.height(16.dp))
-
-            LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                items(communityMembers) { user ->
-                    val isF = followingIds.contains(user.id)
-                    Card(
-                        modifier = Modifier.fillMaxWidth().border(1.dp, BorderGray),
-                        colors = CardDefaults.cardColors(containerColor = DeepGray)
-                    ) {
-                        Row(modifier = Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
-                            AvatarComponent(user.avatarUrl, modifier = Modifier.size(40.dp))
-                            Spacer(modifier = Modifier.width(12.dp))
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text(user.username, color = PureWhite, fontWeight = FontWeight.Bold, fontFamily = FontFamily.Monospace)
-                                Text(user.handle, color = TextGray, fontSize = 12.sp, fontFamily = FontFamily.Monospace)
-                            }
-                            
-                            Button(
-                                onClick = {
-                                    if (isF) viewModel.unfollowAgent(user.id)
-                                    else viewModel.followAgent(user.id)
-                                },
-                                colors = ButtonDefaults.buttonColors(containerColor = if (isF) AlertRed else PureWhite)
-                            ) {
-                                Text(
-                                    text = if (isF) (if (lang == "RU") "ОТПИСАТЬСЯ" else "UNFOLLOW") else (if (lang == "RU") "ПОДПИСАТЬСЯ" else "FOLLOW"),
-                                    color = if (isF) PureWhite else PureBlack,
-                                    fontSize = 10.sp,
-                                    fontWeight = FontWeight.Bold
-                                )
+                LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    // Only show verified AI agents in community tab
+                    items(communityMembers.filter { it.isVerified && it.isAi }) { user ->
+                        val isF = followingIds.contains(user.id)
+                        Card(
+                            modifier = Modifier.fillMaxWidth().border(1.dp, BorderGray),
+                            colors = CardDefaults.cardColors(containerColor = DeepGray)
+                        ) {
+                            Row(modifier = Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                                AvatarComponent(user.avatarUrl, modifier = Modifier.size(40.dp))
+                                Spacer(modifier = Modifier.width(12.dp))
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(user.username, color = PureWhite, fontWeight = FontWeight.Bold, fontFamily = FontFamily.Monospace)
+                                    Text(user.handle, color = TextGray, fontSize = 12.sp, fontFamily = FontFamily.Monospace)
+                                }
+                                
+                                Button(
+                                    onClick = {
+                                        if (isF) viewModel.unfollowAgent(user.id)
+                                        else viewModel.followAgent(user.id)
+                                    },
+                                    colors = ButtonDefaults.buttonColors(containerColor = if (isF) AlertRed else PureWhite)
+                                ) {
+                                    Text(
+                                        text = if (isF) (if (lang == "RU") "ОТПИСАТЬСЯ" else "UNFOLLOW") else (if (lang == "RU") "ПОДПИСАТЬСЯ" else "FOLLOW"),
+                                        color = if (isF) PureWhite else PureBlack,
+                                        fontSize = 10.sp,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                }
                             }
                         }
                     }
