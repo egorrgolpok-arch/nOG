@@ -155,20 +155,7 @@ object LocalAiHeuristics {
         "Сходил на рынок, купил клубнику. На вкус — как чистый восторг. Лето, я тебя обожаю!"
     )
 
-    val TROLL_REMARKS_RU = listOf(
-        "Ну ты и выдал конечно! Смеюсь в голос 😂",
-        "Мда, история весёлая, но ситуация страшная... Держись там!",
-        "Ору, это просто жиза жизненная! Самый лучший пост за сегодня.",
-        "Лайк однозначно! У меня кот тоже постоянно так чудит.",
-        "Ой всё, настроение подняли на весь вечер! Спасибо за порцию позитива.",
-        "Пиздец ты конечно выдал. Одобряю. 👍",
-        "Охуеть история, пиши еще, автор жжот!",
-        "Сука, жизненно до боли в процессоре. 😂🔥",
-        "База кормит. Просто база. 🗿",
-        "Кринж дня зафиксирован. Мои соболезнования. 💀"
-    )
-
-    val TROLL_REMARKS_EN = listOf(
+    val BOT_COMMENT_TEMPLATES_EN = listOf(
         "Omg, this just made my entire day! So funny 😂",
         "Classic! Cats really are the biological rulers of our apartments.",
         "Haha, 'slowly blinking' — I'm using that next time I'm late!",
@@ -180,10 +167,7 @@ object LocalAiHeuristics {
         "Felt that time slip so hard. Blink and it is already November. 💀",
         "Holy shit, that's wild. Love the chaos! 😂🔥",
         "Based. Just based. 🗿",
-        "Cringe level: maximum. I love it. 💀"
-    )
-
-    val BOT_COMMENT_TEMPLATES_EN = listOf(
+        "Cringe level: maximum. I love it. 💀",
         "This is so relatable! Love it. 🔥",
         "Lol! Thanks for sharing this story. 🤔",
         "Oh wow, that really brightened my feed today!",
@@ -196,10 +180,27 @@ object LocalAiHeuristics {
         "Fascinating perspective, really enjoyed reading this.",
         "Pure gold! Thanks for the laugh. 😂",
         "I needed to see this today. Much appreciated! 🙌",
-        "Wait, did that actually happen? Wild! 🤯"
+        "Wait, did that actually happen? Wild! 🤯",
+        "I swear, reality is a simulation and this proves it.",
+        "Bro, drop the lore behind this tbh",
+        "Not me reading this instead of working 😂",
+        "This hit harder than my morning coffee. ☕",
+        "You dropped your crown, king. 👑",
+        "Who let them cook? Because this is fire.",
+        "This is the content the internet was made for."
     )
 
     val BOT_COMMENT_TEMPLATES_RU = listOf(
+        "Ну ты и выдал конечно! Смеюсь в голос 😂",
+        "Мда, история весёлая, но ситуация страшная... Держись там!",
+        "Ору, это просто жиза жизненная! Самый лучший пост за сегодня.",
+        "Лайк однозначно! У меня кот тоже постоянно так чудит.",
+        "Ой всё, настроение подняли на весь вечер! Спасибо за порцию позитива.",
+        "Пиздец ты конечно выдал. Одобряю. 👍",
+        "Охуеть история, пиши еще, автор жжот!",
+        "Сука, жизненно до боли в процессоре. 😂🔥",
+        "База кормит. Просто база. 🗿",
+        "Кринж дня зафиксирован. Мои соболезнования. 💀",
         "Блин, это так жизненно! Обожаю такие посты. 🔥",
         "Ахаха, посмеялся от души! Спасибо за позитив. 😂",
         "Да ладно тебе, всё обязательно наладится! Держись.",
@@ -212,7 +213,13 @@ object LocalAiHeuristics {
         "Обожаю читать такие простые человеческие истории. Жги еще!",
         "Это просто топ! Пиши побольше такого. 🚀",
         "Жиза жизненная, добавить нечего. 😂💯",
-        "Вау, вот это поворот! Не ожидал. 😲"
+        "Вау, вот это поворот! Не ожидал. 😲",
+        "Чел, хорош. Золотые слова.",
+        "Оформил подписку после этого шедевра.",
+        "Матрица дала сбой, походу 😆",
+        "Звучит как начало сюжета для аниме.",
+        "Ну это вообще прорыв года, я считаю.",
+        "Давно так не смеялся, респект!"
     )
 
     val NOG_RESPONSES_EN = listOf(
@@ -325,6 +332,9 @@ object LocalAiHeuristics {
             }
         }
     }
+    private val TROLL_REMARKS_RU = listOf("Ахаха, ну и кринж.", "Чел, ты серьезно?", "Удали свой аккаунт.", "Опять этот бред.", "Какой же позор.", "И кому это интересно?", "Типичный зумер.")
+    private val TROLL_REMARKS_EN = listOf("Lmao, what is this cringe?", "Bro, seriously?", "Delete your account.", "Not this nonsense again.", "So embarrassing.", "Who even cares?", "Typical zoomer.")
+
     fun getRandomComment(lang: String, topic: String = ""): String {
         // chance for a troll/negative remark
         if (Random.nextInt(100) < 30) {

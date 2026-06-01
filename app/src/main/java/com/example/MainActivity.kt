@@ -1,6 +1,11 @@
 package com.example
 
 import android.Manifest
+import android.content.Context
+import android.net.ConnectivityManager
+import android.net.Network
+import android.net.NetworkCapabilities
+import android.net.NetworkRequest
 import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
@@ -19,9 +24,12 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.ImageLoader
@@ -58,36 +66,41 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         setContent {
             MyApplicationTheme(darkTheme = true) {
-                // Permission Request Logic
-                val permissionsToRequest = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                    listOf(
-                        Manifest.permission.READ_MEDIA_IMAGES,
-                        Manifest.permission.READ_MEDIA_VIDEO
-                    )
+                val isOnline by rememberConnectivityStatus()
+                
+                if (!isOnline) {
+                    NoInternetScreen()
                 } else {
-                    listOf(
-                        Manifest.permission.READ_EXTERNAL_STORAGE
-                    )
-                }
-                
-                val launcher = rememberLauncherForActivityResult(
-                    ActivityResultContracts.RequestMultiplePermissions()
-                ) { permissions ->
-                    // Handle result
-                }
-                
-                LaunchedEffect(Unit) {
-                    launcher.launch(permissionsToRequest.toTypedArray())
-                }
-
-                val currentScreen by viewModel.currentScreen.collectAsState()
-                val alerts by viewModel.notifications.collectAsState()
-                val lang by viewModel.selectedLanguage.collectAsState()
-                
-                // Count unread notifications to show numerical badge
-                val unreadAlertsCount = alerts.filter { !it.isRead }.size
-
-                Scaffold(
+                    // Permission Request Logic
+                    val permissionsToRequest = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                        listOf(
+                            Manifest.permission.READ_MEDIA_IMAGES,
+                            Manifest.permission.READ_MEDIA_VIDEO
+                        )
+                    } else {
+                        listOf(
+                            Manifest.permission.READ_EXTERNAL_STORAGE
+                        )
+                    }
+                    
+                    val launcher = rememberLauncherForActivityResult(
+                        ActivityResultContracts.RequestMultiplePermissions()
+                    ) { permissions ->
+                        // Handle result
+                    }
+                    
+                    LaunchedEffect(Unit) {
+                        launcher.launch(permissionsToRequest.toTypedArray())
+                    }
+    
+                    val currentScreen by viewModel.currentScreen.collectAsState()
+                    val alerts by viewModel.notifications.collectAsState()
+                    val lang by viewModel.selectedLanguage.collectAsState()
+                    
+                    // Count unread notifications to show numerical badge
+                    val unreadAlertsCount = alerts.filter { !it.isRead }.size
+    
+                    Scaffold(
                     modifier = Modifier
                         .fillMaxSize()
                         .background(PureBlack),
@@ -258,8 +271,82 @@ class MainActivity : ComponentActivity() {
                         is Screen.Analytics -> AnalyticsScreen(viewModel = viewModel, innerPadding = innerPadding)
                         is Screen.Profile -> ProfileScreen(viewModel = viewModel, innerPadding = innerPadding)
                     }
+                    }
                 }
             }
+        }
+    }
+}
+
+@Composable
+fun rememberConnectivityStatus(): State<Boolean> {
+    val context = LocalContext.current
+    val manager = context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+    
+    val isConnected = remember { mutableStateOf(false) }
+
+    DisposableEffect(manager) {
+        val networkCallback = object : ConnectivityManager.NetworkCallback() {
+            override fun onAvailable(network: Network) {
+                isConnected.value = true
+            }
+            override fun onLost(network: Network) {
+                isConnected.value = false
+            }
+        }
+        
+        val request = NetworkRequest.Builder()
+            .addCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
+            .build()
+            
+        manager.registerNetworkCallback(request, networkCallback)
+        
+        // Initial check
+        val activeNetwork = manager.activeNetwork
+        val caps = manager.getNetworkCapabilities(activeNetwork)
+        isConnected.value = caps?.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) == true
+        
+        onDispose {
+            manager.unregisterNetworkCallback(networkCallback)
+        }
+    }
+    
+    return isConnected
+}
+
+@Composable
+fun NoInternetScreen() {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(PureBlack)
+            .padding(24.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Icon(
+                imageVector = Icons.Filled.WifiOff,
+                contentDescription = "No Internet",
+                tint = AlertRed,
+                modifier = Modifier.size(64.dp)
+            )
+            Spacer(modifier = Modifier.height(16.dp))
+            Text(
+                "НЕТ ПОДКЛЮЧЕНИЯ",
+                color = PureWhite,
+                fontSize = 20.sp,
+                fontWeight = FontWeight.Bold,
+                fontFamily = FontFamily.Monospace,
+                textAlign = TextAlign.Center
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(
+                "Приложение nOG Network требует активного подключения к Интернету для работы. Пожалуйста, проверьте ваше соединение.",
+                color = TextGray,
+                fontSize = 14.sp,
+                fontFamily = FontFamily.Monospace,
+                textAlign = TextAlign.Center
+            )
         }
     }
 }

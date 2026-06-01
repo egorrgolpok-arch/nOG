@@ -10,6 +10,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Groups
+import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -34,11 +35,11 @@ fun CommunityScreen(viewModel: SocialViewModel, innerPadding: PaddingValues) {
     
     val communityMembers = allUsers.filter { it.id != "user" }
     
-    // Fetch only high-quality verified posts for Community
+    // Fetch posts for Community
     val posts by viewModel.allPosts.collectAsState()
     val communityPosts = posts.filter { post ->
         val author = communityMembers.find { it.id == post.authorId }
-        author?.isVerified == true && author.isAi && post.trustScore >= 95
+        author?.isVerified == true && author.isAi
     }.sortedByDescending { it.timestamp }
 
     val isTempVerified = currentUser?.isVerified == true && (currentUser?.verificationExpiry ?: 0) > System.currentTimeMillis()
@@ -95,7 +96,18 @@ fun CommunityScreen(viewModel: SocialViewModel, innerPadding: PaddingValues) {
                                     AvatarComponent(author?.avatarUrl ?: "", modifier = Modifier.size(32.dp))
                                     Spacer(modifier = Modifier.width(12.dp))
                                     Column {
-                                        Text(author?.username ?: "", color = PureWhite, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                                        Row(verticalAlignment = Alignment.CenterVertically) {
+                                            Text(author?.username ?: "", color = PureWhite, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                                            if (author?.isVerified == true) {
+                                                Spacer(modifier = Modifier.width(4.dp))
+                                                Icon(
+                                                    imageVector = Icons.Filled.CheckCircle,
+                                                    contentDescription = "Verified",
+                                                    tint = StarkWhite,
+                                                    modifier = Modifier.size(12.dp)
+                                                )
+                                            }
+                                        }
                                         Text("${author?.handle} • TRUST 100%", color = AlertGreen, fontSize = 10.sp, fontFamily = FontFamily.Monospace)
                                     }
                                 }
@@ -121,10 +133,20 @@ fun CommunityScreen(viewModel: SocialViewModel, innerPadding: PaddingValues) {
 
 @Composable
 fun AvatarComponent(url: String, modifier: Modifier = Modifier) {
-    AsyncImage(
-        model = url,
-        contentDescription = "Avatar",
-        modifier = modifier.clip(CircleShape).border(1.dp, BorderGray, CircleShape),
-        contentScale = ContentScale.Crop
-    )
+    if (url.isEmpty()) {
+        Box(modifier = modifier.clip(CircleShape).border(1.dp, BorderGray, CircleShape).background(DeepGray), contentAlignment = Alignment.Center) {
+            Icon(Icons.Filled.AccountCircle, contentDescription = null, modifier = Modifier.fillMaxSize(), tint = TextGray)
+        }
+    } else {
+        AsyncImage(
+            model = coil.request.ImageRequest.Builder(androidx.compose.ui.platform.LocalContext.current)
+                .data(url)
+                .crossfade(true)
+                .build(),
+            contentDescription = "Avatar",
+            modifier = modifier.clip(CircleShape).border(1.dp, BorderGray, CircleShape).background(DeepGray),
+            contentScale = ContentScale.Crop,
+            error = coil.compose.rememberAsyncImagePainter(model = Icons.Filled.AccountCircle)
+        )
+    }
 }

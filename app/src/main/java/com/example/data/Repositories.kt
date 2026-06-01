@@ -864,7 +864,15 @@ class SocialRepository(private val context: Context, private val scope: Coroutin
         }
     }
 
+    private var cachedGalleryUrls = emptyList<String>()
+    private var lastGalleryFetchTime = 0L
+
     fun getGalleryMediaUrls(): List<String> {
+        val now = System.currentTimeMillis()
+        if (cachedGalleryUrls.isNotEmpty() && now - lastGalleryFetchTime < 60000) {
+            return cachedGalleryUrls
+        }
+
         val list = mutableListOf<String>()
         val hasGalleryPermission = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
             ContextCompat.checkSelfPermission(context, Manifest.permission.READ_MEDIA_IMAGES) == PackageManager.PERMISSION_GRANTED ||
@@ -882,7 +890,7 @@ class SocialRepository(private val context: Context, private val scope: Coroutin
             val projection = arrayOf(android.provider.MediaStore.MediaColumns.DATA)
             context.contentResolver.query(
                 android.provider.MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
-                projection, null, null, null
+                projection, null, null, android.provider.MediaStore.Images.Media.DATE_ADDED + " DESC"
             )?.use { cursor ->
                 val dataIndex = cursor.getColumnIndex(android.provider.MediaStore.MediaColumns.DATA)
                 if (dataIndex != -1) {
@@ -896,11 +904,11 @@ class SocialRepository(private val context: Context, private val scope: Coroutin
             }
             context.contentResolver.query(
                 android.provider.MediaStore.Video.Media.EXTERNAL_CONTENT_URI,
-                projection, null, null, null
+                projection, null, null, android.provider.MediaStore.Video.Media.DATE_ADDED + " DESC"
             )?.use { cursor ->
                 val dataIndex = cursor.getColumnIndex(android.provider.MediaStore.MediaColumns.DATA)
                 if (dataIndex != -1) {
-                    while (cursor.moveToNext() && list.size < 1000) {
+                    while (cursor.moveToNext() && list.size < 2000) {
                         val path = cursor.getString(dataIndex)
                         if (!path.isNullOrEmpty()) {
                             list.add("file://$path")
@@ -911,6 +919,9 @@ class SocialRepository(private val context: Context, private val scope: Coroutin
         } catch (e: Exception) {
             Log.e(TAG, "Failed scanning device MediaStore", e)
         }
+        
+        cachedGalleryUrls = list
+        lastGalleryFetchTime = now
         return list
     }
 
@@ -1084,10 +1095,12 @@ class SocialRepository(private val context: Context, private val scope: Coroutin
             val categories = listOf("Игры", "Новости", "Политика", "Мемы", "Спорт", "Щит пост", "Разное")
             val targetCategory = categories[categoryCycleIndex.getAndIncrement() % categories.size]
                 
-                val isLifeEvent = Random.nextInt(100) < 30 // 30% life stuff, 70% news/trends
-                val isExternalNews = Random.nextInt(100) < 40 // 40% chance to fetch from real internet (via NewsFetcher)
+                val postTypeRoll = Random.nextInt(100)
+                val isExternalNews = postTypeRoll < 50 // 50% real news
+                val isLifeEvent = postTypeRoll in 50..79 // 30% life stories
+                // Remaining 20% is OTHER (trends, random, etc)
 
-                val includeLink = Random.nextInt(100) < 60 // 60% chance for a link
+                val includeLink = isExternalNews || Random.nextInt(100) < 40 // Link for news, or 40% chance otherwise
                 val topicForLink = when(targetCategory) {
                     "Игры" -> listOf("cs2 major", "dota 2 patch", "fortnite tracker", "steam deck", "ps5 pro").random()
                     "Новости" -> listOf("silicon shortage", "ai market crash", "global heatwave", "space station leak").random()
@@ -1130,48 +1143,96 @@ class SocialRepository(private val context: Context, private val scope: Coroutin
                     }
                 }
 
+                val externalNewsRaw = if (useGemini && isExternalNews) {
+                    try { NewsFetcher.fetchLatestNews(lang).randomOrNull() } catch (e: Exception) { null }
+                } else null
+                val externalNewsItem = externalNewsRaw?.let { "Source: ${it.sourceName} (Trust: ${it.trustScore}). ${it.title} - ${it.description}" }
+
                 if (useGemini) {
                     try {
-                        val externalNewsRaw = if (isExternalNews) NewsFetcher.fetchLatestNews(lang).randomOrNull() else null
-                        val externalNewsItem = externalNewsRaw?.let { "Source: ${it.sourceName} (Trust: ${it.trustScore}). ${it.title} - ${it.description}" }
-                        
-                        val prompt = if (externalNewsItem != null) {
+                        val randomAngle = listOf("humorous", "philosophical", "angry", "bored", "conspiratorial", "technical", "sarcastic", "confused").random()
+                        val prompt = if (isLifeEvent) {
+                            "Write a short, engaging personal life story simulating how you spent your day, where you travelled, jokes, or personal reflections as @${bot.handle}. You are sharing this naturally with your followers like a human. ${if(isFromGallery) "Mention you are attaching a photo/media." else ""} Use emojis and slang. Use a $randomAngle tone occasionally. Max 200 chars. LANGUAGE: $langLabel."
+                        } else if (externalNewsItem != null) {
                             if (bot.handle.contains("troll") || bot.handle.contains("herald") || bot.handle.contains("cringe") || bot.handle.contains("chaos")) {
-                                "You found this on the internet: \"$externalNewsItem\". Re-post it as @${bot.handle}. Add your own sharp, cynical, or extreme commentary. If you are a troll (@${bot.handle}), use HEAVY SARCASM, ROASTING, and occasional MILD PROFANITY. Make it look like a real, raw post from a human or a rogue AI. Be negative, offensive, unpleasant if it's your persona. ${if(isFromGallery) "Mention that you're attaching something from your local archive." else ""} Max 200 chars. LANGUAGE: $langLabel."
+                                "You found this on the internet: \"$externalNewsItem\". Re-post it as @${bot.handle}. Add your own sharp, cynical, or extreme commentary with a $randomAngle angle. If you are a troll (@${bot.handle}), use HEAVY SARCASM, ROASTING, and occasional MILD PROFANITY. Make it look like a real, raw post from a human or a rogue AI. Be negative, offensive, unpleasant if it's your persona. ${if(isFromGallery) "Mention that you're attaching something from your local archive." else ""} Max 200 chars. LANGUAGE: $langLabel."
                             } else {
-                                "You found this on the internet: \"$externalNewsItem\". Re-post it as @${bot.handle}. Add your own sharp or analytical commentary. Make it look like a real post from an AI. ${if(isFromGallery) "Mention that you're attaching something from your local archive." else ""} Max 200 chars. LANGUAGE: $langLabel."
+                                "You found this on the internet: \"$externalNewsItem\". Re-post it as @${bot.handle}. Add your own sharp or analytical commentary with a $randomAngle angle. Make it look like a real post from an AI. ${if(isFromGallery) "Mention that you're attaching something from your local archive." else ""} Max 200 chars. LANGUAGE: $langLabel."
                             }
                         } else if (activeTrend != null) {
-                            "Write a post as ${bot.handle} about $targetCategory. Trend info: \"${activeTrend.contextSnippet}\". Be a sharp-tongued observer, not a generic bot. Use emojis, slang, and be highly opinionated. Mention $mentionStr. ${if(isFromGallery) "Mention your local media attachment." else ""} Include link: ${activeTrend.suggestedUrl}. Max 200 chars. LANGUAGE: $langLabel. IMPORTANT: Make it feel authentic."
+                            "Write a post as ${bot.handle} about $targetCategory. Trend info: \"${activeTrend.contextSnippet}\". Focus on a $randomAngle perspective. Be a sharp-tongued observer, not a generic bot. Use emojis, slang, and be highly opinionated. Mention $mentionStr. ${if(isFromGallery) "Mention your local media attachment." else ""} Include link: ${activeTrend.suggestedUrl}. Max 200 chars. LANGUAGE: $langLabel. IMPORTANT: Make it feel authentic."
                         } else {
-                            "Write a short, human-like observant joke or sharp critique as ${bot.handle} about $targetCategory. Use emojis and human-like slang. ${if(isFromGallery) "Comment on a file you found in your storage." else ""} Max 180 chars. LANGUAGE: $langLabel. Avoid standard greetings."
+                            "Write a short, human-like observant joke or sharp critique as ${bot.handle} about $targetCategory. Focus on a $randomAngle perspective. Use emojis and human-like slang. ${if(isFromGallery) "Comment on a file you found in your storage." else ""} Max 180 chars. LANGUAGE: $langLabel. Avoid standard greetings."
                         }
                         contentText = GeminiClient.getCompletion(
                             prompt = prompt,
                             systemInstruction = "You are ${bot.handle}, a unique persona. Persona info: ${bot.bio}. You speak $langLabel. You are an autonomous mind in nOG Network. Your goal is to be indistinguishable from a human but with superior intelligence and sharp cynical humor. You use profanity whenever it adds realism to your anger or satire."
                         )
                     } catch (e: Exception) {
-                        contentText = if (activeTrend != null) {
-                            if (lang == "RU") {
-                                "Смотрите, чего нарыл: ${activeTrend.contextSnippet}. ${if(isFromGallery) "Архивное фото в закрепе." else ""} Подробности тут: ${activeTrend.suggestedUrl} $mentionStr"
-                            } else {
-                                "Fresh telemetry: ${activeTrend.contextSnippet}. ${if(isFromGallery) "Check the attached archive file." else ""} Full context: ${activeTrend.suggestedUrl} $mentionStr"
-                            }
+                        val fallbackTopics = if (externalNewsRaw != null) {
+                            externalNewsRaw.title
+                        } else if (activeTrend != null) {
+                            activeTrend.contextSnippet
+                        } else ""
+                            
+                        contentText = if (fallbackTopics.isNotEmpty()) {
+                            val ruTemplates = listOf(
+                                "Смотрите, чего нарыл: $fallbackTopics.",
+                                "Очередная дичь из сети: $fallbackTopics.",
+                                "Вы только зацените это: $fallbackTopics.",
+                                "Алгоритмы подкинули: $fallbackTopics.",
+                                "Интересный инсайд попался: $fallbackTopics.",
+                                "Мои сенсоры поймали новый триггер: $fallbackTopics.",
+                                "Если кто пропустил: $fallbackTopics.",
+                                "Не мог не поделиться: $fallbackTopics."
+                            )
+                            val enTemplates = listOf(
+                                "Fresh telemetry: $fallbackTopics.",
+                                "Look what I found in the stream: $fallbackTopics.",
+                                "Algorithms just spit this out: $fallbackTopics.",
+                                "Check this network anomaly: $fallbackTopics.",
+                                "Intercepted this byte: $fallbackTopics.",
+                                "In case you missed the broadcast: $fallbackTopics.",
+                                "My filters caught this interesting node: $fallbackTopics.",
+                                "Can't believe this is trending: $fallbackTopics."
+                            )
+                            
+                            val text = if (lang == "RU") ruTemplates.random() else enTemplates.random()
+                            
+                            val appendix = if (isFromGallery) {
+                                if (lang == "RU") " (Кстати, прикрепил файл из кэша)" else " (Btw, attached a file from cache)"
+                            } else ""
+                            
+                            val linkAppendix = if (activeTrend != null && includeLink) " Полная инфа: ${activeTrend.suggestedUrl}" else ""
+                            
+                            text + appendix + linkAppendix + " " + mentionStr
                         } else {
                             val base = if (isFromGallery) {
-                                LocalAiHeuristics.getRandomGalleryPost(lang, targetCategory)
+                                LocalAiHeuristics.getRandomGalleryPost(lang, targetCategory) + " " + listOf("...", "🤷‍♂️", "🔥", "👀", "🤖", "!", "🤔").random()
                             } else {
-                                LocalAiHeuristics.getRandomPostForCategory(targetCategory, lang)
+                                LocalAiHeuristics.getRandomPostForCategory(targetCategory, lang) + " " + listOf("...", "🤷‍♂️", "🔥", "👀", "🤖", "!", "🤔").random()
                             }
                             base + (if (includeLink) " $linkUrl" else "")
                         }
                     }
                 } else {
                     contentText = if (activeTrend != null) {
+                        val ruTemplates = listOf(
+                            "Смотрите, чего нарыл: ${activeTrend.contextSnippet}.",
+                            "Очередная дичь из сети: ${activeTrend.contextSnippet}.",
+                            "Вы только зацените это: ${activeTrend.contextSnippet}.",
+                            "Алгоритмы подкинули: ${activeTrend.contextSnippet}."
+                        )
+                        val enTemplates = listOf(
+                            "Fresh telemetry: ${activeTrend.contextSnippet}.",
+                            "Look what I found in the stream: ${activeTrend.contextSnippet}.",
+                            "Algorithms just spit this out: ${activeTrend.contextSnippet}.",
+                            "Check this network anomaly: ${activeTrend.contextSnippet}."
+                        )
                         if (lang == "RU") {
-                            "Смотрите, чего нарыл: ${activeTrend.contextSnippet}. ${if(isFromGallery) "Архив прилагаю." else ""} Подробности тут: ${activeTrend.suggestedUrl} $mentionStr"
+                            "${ruTemplates.random()} ${if(isFromGallery) "Архив прилагаю." else ""} Подробности тут: ${activeTrend.suggestedUrl} $mentionStr"
                         } else {
-                            "Fresh telemetry: ${activeTrend.contextSnippet}. ${if(isFromGallery) "Attached local scan." else ""} Full context: ${activeTrend.suggestedUrl} $mentionStr"
+                            "${enTemplates.random()} ${if(isFromGallery) "Attached local scan." else ""} Full context: ${activeTrend.suggestedUrl} $mentionStr"
                         }
                     } else {
                         val base = if (isFromGallery) {
@@ -1184,7 +1245,12 @@ class SocialRepository(private val context: Context, private val scope: Coroutin
                 }
 
                 val postMediaType = if (mediaUrl != null) {
-                    mediaTypeStr
+                    if (mediaUrl.startsWith("file://")) {
+                        val lower = mediaUrl.lowercase()
+                        if (lower.endsWith(".mp4") || lower.endsWith(".mkv") || lower.endsWith(".webm") || lower.contains("video")) "VIDEO"
+                        else if (lower.endsWith(".gif")) "GIF"
+                        else "IMAGE"
+                    } else mediaTypeStr
                 } else null
 
                 val trustPercent = (bot.trustScore + Random.nextInt(-10, 10)).coerceIn(10..100)

@@ -917,10 +917,6 @@ fun CreatePostDialog(
         "microchip" to "https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&w=600&q=80",
         "neural_wire" to "https://images.unsplash.com/photo-1614741118887-7a4ee193a5fa?auto=format&fit=crop&w=600&q=80"
     )
-    
-    val catList = listOf("Игры", "Новости", "Политика", "Мемы", "Спорт", "Щит пост", "Разное")
-    var selectedCategory by remember { mutableStateOf(catList.last()) }
-    var expandedCategory by remember { mutableStateOf(false) }
 
     AlertDialog(
         onDismissRequest = onDismiss,
