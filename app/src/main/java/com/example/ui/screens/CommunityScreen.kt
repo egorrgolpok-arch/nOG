@@ -11,6 +11,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Groups
 import androidx.compose.material.icons.filled.AccountCircle
+import androidx.compose.material.icons.filled.BrokenImage
 import androidx.compose.ui.graphics.vector.rememberVectorPainter
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -120,7 +121,8 @@ fun CommunityScreen(viewModel: SocialViewModel, innerPadding: PaddingValues) {
                                         model = post.mediaUrl,
                                         contentDescription = null,
                                         modifier = Modifier.fillMaxWidth().height(180.dp).clip(RoundedCornerShape(4.dp)),
-                                        contentScale = ContentScale.Crop
+                                        contentScale = ContentScale.Crop,
+                                        error = rememberVectorPainter(Icons.Filled.BrokenImage)
                                     )
                                 }
                             }

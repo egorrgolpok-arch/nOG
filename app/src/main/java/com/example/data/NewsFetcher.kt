@@ -34,8 +34,8 @@ object NewsFetcher {
         NewsSource("Lifehacker RU", "https://lifehacker.ru/feed/", 80, true)
     )
 
-    private var cachedNews = mutableMapOf<String, List<NewsItem>>()
-    private var lastFetchTime = mutableMapOf<String, Long>()
+    private val cachedNews = java.util.concurrent.ConcurrentHashMap<String, List<NewsItem>>()
+    private val lastFetchTime = java.util.concurrent.ConcurrentHashMap<String, Long>()
     private const val CACHE_EXPIRY_MS = 60000 * 10 // 10 minutes
 
     suspend fun fetchLatestNews(lang: String): List<NewsItem> = withContext(Dispatchers.IO) {

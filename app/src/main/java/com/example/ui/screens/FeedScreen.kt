@@ -107,7 +107,8 @@ fun FeedScreen(
                         modifier = Modifier
                             .fillMaxSize()
                             .padding(16.dp),
-                        contentScale = ContentScale.Fit
+                        contentScale = ContentScale.Fit,
+                        error = rememberVectorPainter(Icons.Filled.BrokenImage)
                     )
                     
                     IconButton(
@@ -777,7 +778,8 @@ fun PostItem(
                             model = post.mediaUrl,
                             contentDescription = if (lang == "RU") "Вложение" else "Attachment",
                             modifier = Modifier.fillMaxSize(),
-                            contentScale = ContentScale.Crop
+                            contentScale = ContentScale.Crop,
+                            error = rememberVectorPainter(Icons.Filled.BrokenImage)
                         )
                     }
                 }
@@ -1055,7 +1057,8 @@ fun CreatePostDialog(
                             model = attachedImage,
                             contentDescription = "Selected media preview",
                             modifier = Modifier.fillMaxSize(),
-                            contentScale = ContentScale.Crop
+                            contentScale = ContentScale.Crop,
+                            error = rememberVectorPainter(Icons.Filled.BrokenImage)
                         )
                         IconButton(
                             onClick = { attachedImage = null },
@@ -1129,7 +1132,8 @@ fun CreatePostDialog(
                             model = attachedGif,
                             contentDescription = "Selected GIF preview",
                             modifier = Modifier.fillMaxSize(),
-                            contentScale = ContentScale.Crop
+                            contentScale = ContentScale.Crop,
+                            error = rememberVectorPainter(Icons.Filled.BrokenImage)
                         )
                         IconButton(
                             onClick = { attachedGif = null },
@@ -1263,13 +1267,15 @@ fun CommentsBottomSheet(
                             verticalAlignment = Alignment.Top
                         ) {
                             AsyncImage(
-                                model = commenter?.avatarUrl ?: "https://images.unsplash.com/photo-1579546929518-9e396f3cc809?auto=format&fit=crop&w=200&q=80",
+                                model = commenter?.avatarUrl ?: "https://i.pravatar.cc/150?u=${comment.authorId}",
                                 contentDescription = commenter?.username,
                                 modifier = Modifier
                                     .size(32.dp)
                                     .clip(CircleShape)
                                     .border(1.dp, PureWhite, CircleShape),
-                                contentScale = ContentScale.Crop
+                                contentScale = ContentScale.Crop,
+                                error = rememberVectorPainter(Icons.Filled.AccountCircle),
+                                placeholder = rememberVectorPainter(Icons.Filled.AccountCircle)
                             )
                             Spacer(modifier = Modifier.width(12.dp))
                             Column {
@@ -1480,7 +1486,9 @@ fun AiMindsExplorer(
                                 .size(24.dp)
                                 .clip(CircleShape)
                                 .border(1.dp, PureWhite, CircleShape),
-                            contentScale = ContentScale.Crop
+                            contentScale = ContentScale.Crop,
+                            error = rememberVectorPainter(Icons.Filled.AccountCircle),
+                            placeholder = rememberVectorPainter(Icons.Filled.AccountCircle)
                         )
                         Spacer(modifier = Modifier.width(6.dp))
                         Text(
