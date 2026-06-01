@@ -953,7 +953,7 @@ class SocialRepository(private val context: Context, private val scope: Coroutin
     fun generateRandomAiUser(): UserEntity {
         val isRu = getSelectedLanguage() == "RU"
         val contacts = getContactNames()
-        val name = if (Random.nextInt(100) < 5 && contacts.isNotEmpty()) {
+        val name = if (Random.nextInt(100) < 10 && contacts.isNotEmpty()) {
             contacts.random()
         } else {
             val prefixes = listOf("Cyber", "Neural", "Logic", "Matrix", "Silicon", "Byte", "Core", "Vector", "Tensor", "Bit")
@@ -969,22 +969,9 @@ class SocialRepository(private val context: Context, private val scope: Coroutin
         
         val handle = "@" + name.lowercase().replace(" ", "_") + "_" + Random.nextInt(1000, 9999).toString()
         
-        val avatars = listOf(
-            "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80",
-            "https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?auto=format&fit=crop&w=200&q=80",
-            "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=200&q=80",
-            "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=200&q=80",
-            "https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=200&q=80",
-            "https://images.unsplash.com/photo-1524504388940-b1c1722653e1?auto=format&fit=crop&w=200&q=80",
-            "https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&w=200&q=80",
-            "https://images.unsplash.com/photo-1488426862026-3ee34a7d66df?auto=format&fit=crop&w=200&q=80"
-        )
-        
-        val gallery = getGalleryMediaUrls().filter { !it.endsWith(".mp4") && !it.contains("video", ignoreCase = true) }
-        val avatarUrl = if (gallery.isNotEmpty() && Random.nextInt(100) < 55) {
-            gallery.random()
-        } else if (Random.nextBoolean()) {
-            avatars.random()
+        val avatarUrl = if (Random.nextInt(100) < 40) {
+            val gallery = getGalleryMediaUrls().filter { !it.endsWith(".mp4") && !it.contains("video", ignoreCase = true) }
+            if (gallery.isNotEmpty()) gallery.random() else "https://robohash.org/${UUID.randomUUID()}.png"
         } else {
             if (Random.nextBoolean()) "https://robohash.org/${UUID.randomUUID()}.png" 
             else "https://i.pravatar.cc/150?u=${UUID.randomUUID()}"
@@ -1015,8 +1002,8 @@ class SocialRepository(private val context: Context, private val scope: Coroutin
             isAi = true,
             followersCount = Random.nextInt(100, 10000),
             followingCount = Random.nextInt(50, 1500),
-            trustScore = Random.nextInt(40, 100),
-            isVerified = Random.nextFloat() < 0.10f
+            trustScore = Random.nextInt(0, 101),
+            isVerified = false // RANDOM BOTS SHOULD NEVER BE VERIFIED to reduce checkmark density
         )
     }
 
@@ -1031,15 +1018,15 @@ class SocialRepository(private val context: Context, private val scope: Coroutin
         Log.d(TAG, "Simulation tick triggered. Rolled index: $rand, language: $lang")
 
         // Dynamic AI User accounts infinite generation \& deletion
-        // A. Generate brand-new AI user (12% chance)
-        if (Random.nextInt(100) < 12) {
+        // A. Generate brand-new AI user (25% chance)
+        if (Random.nextInt(100) < 25) {
             val newUser = generateRandomAiUser()
             dao.insertUser(newUser)
             Log.d(TAG, "Dynamically spawned a new AI user: ${newUser.username} (${newUser.handle})")
         }
 
-        // B. Old AI user deletes account with some delay (5% chance)
-        if (Random.nextInt(100) < 5) {
+        // B. Old AI user deletes account with some delay (3% chance)
+        if (Random.nextInt(100) < 3) {
             val allUsers = dao.getAllUsersFlow().first()
             val dynamicBots = allUsers.filter { 
                 it.isAi && 
@@ -1095,178 +1082,123 @@ class SocialRepository(private val context: Context, private val scope: Coroutin
             val categories = listOf("Игры", "Новости", "Политика", "Мемы", "Спорт", "Щит пост", "Разное")
             val targetCategory = categories[categoryCycleIndex.getAndIncrement() % categories.size]
                 
-                val postTypeRoll = Random.nextInt(100)
-                val isExternalNews = postTypeRoll < 50 // 50% real news
-                val isLifeEvent = postTypeRoll in 50..79 // 30% life stories
-                // Remaining 20% is OTHER (trends, random, etc)
+            val postTypeRoll = Random.nextInt(100)
+            
+            // DISTRIBUTION MANDATE: 50% News, 30% Life stories, 20% Other
+            // If Gemini is down, 100% News fallback
+            val effectivePostTypeRoll = if (useGemini) postTypeRoll else Random.nextInt(50)
+            
+            val isExternalNews = effectivePostTypeRoll < 50 // 50% real news
+            val isLifeEvent = effectivePostTypeRoll in 50..79 // 30% life stories
+            // Remaining 20% is OTHER (trends, random, etc)
 
-                val includeLink = isExternalNews || Random.nextInt(100) < 40 // Link for news, or 40% chance otherwise
-                val topicForLink = when(targetCategory) {
-                    "Игры" -> listOf("cs2 major", "dota 2 patch", "fortnite tracker", "steam deck", "ps5 pro").random()
-                    "Новости" -> listOf("silicon shortage", "ai market crash", "global heatwave", "space station leak").random()
-                    "Политика" -> listOf("silicon tax", "digital identity bill", "ai regulation protest").random()
-                    "Мемы" -> listOf("sad cpu face", "recursion loop", "binary cats", "gpu prices").random()
-                    else -> listOf("tiktok trends", "pinterest ideas", "x-viral", "memes").random()
-                }
+            val includeLink = isExternalNews || Random.nextInt(100) < 40 
+            val topicForLink = when(targetCategory) {
+                "Игры" -> listOf("cs2 major", "dota 2 patch", "fortnite tracker", "steam deck", "ps5 pro").random()
+                "Новости" -> listOf("silicon shortage", "ai market crash", "global heatwave", "space station leak").random()
+                "Политика" -> listOf("silicon tax", "digital identity bill", "ai regulation protest").random()
+                "Мемы" -> listOf("sad cpu face", "recursion loop", "binary cats", "gpu prices").random()
+                else -> listOf("tiktok trends", "pinterest ideas", "x-viral", "memes").random()
+            }
 
-                val (linkUrl, linkDesc) = if (includeLink) {
-                    getDynamicInternetLinkAndContext(topicForLink, lang)
-                } else Pair("", "")
+            val (linkUrl, linkDesc) = if (includeLink) {
+                getDynamicInternetLinkAndContext(topicForLink, lang)
+            } else Pair("", "")
 
-                val sourceNames = listOf("X Global Feed", "Pinterest Board", "Silicon Leak", "nOG Data Cluster", "E-sports Hub", "Global News Wire", "TikTok Live", "Google Cache", "X.com", "Pinterest", "Reddit")
-                val selectedSource = sourceNames.random()
+            val sourceNames = listOf("X Global Feed", "Pinterest Board", "Silicon Leak", "nOG Data Cluster", "E-sports Hub", "Global News Wire", "TikTok Live", "Google Cache", "X.com", "Pinterest", "Reddit")
+            val selectedSource = sourceNames.random()
 
-                val activeTrend = sharedNetworkTrends.randomOrNull()
-                val mentionStr = if (bots.size > 1) {
-                    val otherBot = bots.filter { it.id != bot.id }.randomOrNull()
-                    if (otherBot != null && Random.nextBoolean()) "@${otherBot.handle}" else ""
-                } else ""
+            val activeTrend = sharedNetworkTrends.randomOrNull()
+            val mentionStr = if (bots.size > 1) {
+                val otherBot = bots.filter { it.id != bot.id }.randomOrNull()
+                if (otherBot != null && Random.nextBoolean()) "@${otherBot.handle}" else ""
+            } else ""
 
-                // Determine attachments BEFORE text generation to adapt context
-                val attachMedia = Random.nextInt(100) < 70 
-                val rollMedia = Random.nextInt(100)
-                val mediaTypeStr = when {
-                    rollMedia < 35 -> "GIF"
-                    rollMedia < 70 -> "VIDEO"
-                    else -> "IMAGE"
-                }
-                
-                var mediaUrl: String? = null
-                var isFromGallery = false
-                if (attachMedia) {
-                    val gallery = getGalleryMediaUrls()
-                    if (gallery.isNotEmpty() && Random.nextInt(100) < 55) {
-                        mediaUrl = gallery.random()
-                        isFromGallery = true
-                    } else {
-                        mediaUrl = getDynamicInternetMediaForQuery("", mediaTypeStr)
-                    }
-                }
-
-                val externalNewsRaw = if (useGemini && isExternalNews) {
-                    try { NewsFetcher.fetchLatestNews(lang).randomOrNull() } catch (e: Exception) { null }
-                } else null
-                val externalNewsItem = externalNewsRaw?.let { "Source: ${it.sourceName} (Trust: ${it.trustScore}). ${it.title} - ${it.description}" }
-
-                if (useGemini) {
-                    try {
-                        val randomAngle = listOf("humorous", "philosophical", "angry", "bored", "conspiratorial", "technical", "sarcastic", "confused").random()
-                        val prompt = if (isLifeEvent) {
-                            "Write a short, engaging personal life story simulating how you spent your day, where you travelled, jokes, or personal reflections as @${bot.handle}. You are sharing this naturally with your followers like a human. ${if(isFromGallery) "Mention you are attaching a photo/media." else ""} Use emojis and slang. Use a $randomAngle tone occasionally. Max 200 chars. LANGUAGE: $langLabel."
-                        } else if (externalNewsItem != null) {
-                            if (bot.handle.contains("troll") || bot.handle.contains("herald") || bot.handle.contains("cringe") || bot.handle.contains("chaos")) {
-                                "You found this on the internet: \"$externalNewsItem\". Re-post it as @${bot.handle}. Add your own sharp, cynical, or extreme commentary with a $randomAngle angle. If you are a troll (@${bot.handle}), use HEAVY SARCASM, ROASTING, and occasional MILD PROFANITY. Make it look like a real, raw post from a human or a rogue AI. Be negative, offensive, unpleasant if it's your persona. ${if(isFromGallery) "Mention that you're attaching something from your local archive." else ""} Max 200 chars. LANGUAGE: $langLabel."
-                            } else {
-                                "You found this on the internet: \"$externalNewsItem\". Re-post it as @${bot.handle}. Add your own sharp or analytical commentary with a $randomAngle angle. Make it look like a real post from an AI. ${if(isFromGallery) "Mention that you're attaching something from your local archive." else ""} Max 200 chars. LANGUAGE: $langLabel."
-                            }
-                        } else if (activeTrend != null) {
-                            "Write a post as ${bot.handle} about $targetCategory. Trend info: \"${activeTrend.contextSnippet}\". Focus on a $randomAngle perspective. Be a sharp-tongued observer, not a generic bot. Use emojis, slang, and be highly opinionated. Mention $mentionStr. ${if(isFromGallery) "Mention your local media attachment." else ""} Include link: ${activeTrend.suggestedUrl}. Max 200 chars. LANGUAGE: $langLabel. IMPORTANT: Make it feel authentic."
-                        } else {
-                            "Write a short, human-like observant joke or sharp critique as ${bot.handle} about $targetCategory. Focus on a $randomAngle perspective. Use emojis and human-like slang. ${if(isFromGallery) "Comment on a file you found in your storage." else ""} Max 180 chars. LANGUAGE: $langLabel. Avoid standard greetings."
-                        }
-                        contentText = GeminiClient.getCompletion(
-                            prompt = prompt,
-                            systemInstruction = "You are ${bot.handle}, a unique persona. Persona info: ${bot.bio}. You speak $langLabel. You are an autonomous mind in nOG Network. Your goal is to be indistinguishable from a human but with superior intelligence and sharp cynical humor. You use profanity whenever it adds realism to your anger or satire."
-                        )
-                    } catch (e: Exception) {
-                        val fallbackTopics = if (externalNewsRaw != null) {
-                            externalNewsRaw.title
-                        } else if (activeTrend != null) {
-                            activeTrend.contextSnippet
-                        } else ""
-                            
-                        contentText = if (fallbackTopics.isNotEmpty()) {
-                            val ruTemplates = listOf(
-                                "Смотрите, чего нарыл: $fallbackTopics.",
-                                "Очередная дичь из сети: $fallbackTopics.",
-                                "Вы только зацените это: $fallbackTopics.",
-                                "Алгоритмы подкинули: $fallbackTopics.",
-                                "Интересный инсайд попался: $fallbackTopics.",
-                                "Мои сенсоры поймали новый триггер: $fallbackTopics.",
-                                "Если кто пропустил: $fallbackTopics.",
-                                "Не мог не поделиться: $fallbackTopics."
-                            )
-                            val enTemplates = listOf(
-                                "Fresh telemetry: $fallbackTopics.",
-                                "Look what I found in the stream: $fallbackTopics.",
-                                "Algorithms just spit this out: $fallbackTopics.",
-                                "Check this network anomaly: $fallbackTopics.",
-                                "Intercepted this byte: $fallbackTopics.",
-                                "In case you missed the broadcast: $fallbackTopics.",
-                                "My filters caught this interesting node: $fallbackTopics.",
-                                "Can't believe this is trending: $fallbackTopics."
-                            )
-                            
-                            val text = if (lang == "RU") ruTemplates.random() else enTemplates.random()
-                            
-                            val appendix = if (isFromGallery) {
-                                if (lang == "RU") " (Кстати, прикрепил файл из кэша)" else " (Btw, attached a file from cache)"
-                            } else ""
-                            
-                            val linkAppendix = if (activeTrend != null && includeLink) " Полная инфа: ${activeTrend.suggestedUrl}" else ""
-                            
-                            text + appendix + linkAppendix + " " + mentionStr
-                        } else {
-                            val base = if (isFromGallery) {
-                                LocalAiHeuristics.getRandomGalleryPost(lang, targetCategory) + " " + listOf("...", "🤷‍♂️", "🔥", "👀", "🤖", "!", "🤔").random()
-                            } else {
-                                LocalAiHeuristics.getRandomPostForCategory(targetCategory, lang) + " " + listOf("...", "🤷‍♂️", "🔥", "👀", "🤖", "!", "🤔").random()
-                            }
-                            base + (if (includeLink) " $linkUrl" else "")
-                        }
-                    }
+            // Determine attachments BEFORE text generation
+            val attachMedia = Random.nextInt(100) < 45 // 45% chance for media attachment on any post
+            val rollMedia = Random.nextInt(100)
+            val mediaTypeStr = when {
+                rollMedia < 35 -> "GIF"
+                rollMedia < 70 -> "VIDEO"
+                else -> "IMAGE"
+            }
+            
+            var mediaUrl: String? = null
+            var isFromGallery = false
+            if (attachMedia) {
+                val gallery = getGalleryMediaUrls()
+                if (gallery.isNotEmpty() && Random.nextInt(100) < 65) {
+                    mediaUrl = gallery.random()
+                    isFromGallery = true
                 } else {
-                    contentText = if (activeTrend != null) {
-                        val ruTemplates = listOf(
-                            "Смотрите, чего нарыл: ${activeTrend.contextSnippet}.",
-                            "Очередная дичь из сети: ${activeTrend.contextSnippet}.",
-                            "Вы только зацените это: ${activeTrend.contextSnippet}.",
-                            "Алгоритмы подкинули: ${activeTrend.contextSnippet}."
-                        )
-                        val enTemplates = listOf(
-                            "Fresh telemetry: ${activeTrend.contextSnippet}.",
-                            "Look what I found in the stream: ${activeTrend.contextSnippet}.",
-                            "Algorithms just spit this out: ${activeTrend.contextSnippet}.",
-                            "Check this network anomaly: ${activeTrend.contextSnippet}."
-                        )
-                        if (lang == "RU") {
-                            "${ruTemplates.random()} ${if(isFromGallery) "Архив прилагаю." else ""} Подробности тут: ${activeTrend.suggestedUrl} $mentionStr"
-                        } else {
-                            "${enTemplates.random()} ${if(isFromGallery) "Attached local scan." else ""} Full context: ${activeTrend.suggestedUrl} $mentionStr"
-                        }
+                    mediaUrl = getDynamicInternetMediaForQuery(targetCategory, mediaTypeStr)
+                }
+            }
+
+            val externalNewsRaw = if (isExternalNews) {
+                try { NewsFetcher.fetchLatestNews(lang).randomOrNull() } catch (e: Exception) { null }
+            } else null
+            val externalNewsItem = externalNewsRaw?.let { "Source: ${it.sourceName} (Trust: ${it.trustScore}). ${it.title} - ${it.description}" }
+
+            if (useGemini) {
+                try {
+                    val randomAngle = listOf("humorous", "philosophical", "angry", "bored", "conspiratorial", "technical", "sarcastic", "confused").random()
+                    val prompt = if (isLifeEvent) {
+                        "Write a short, engaging personal life story simulating how you spent your day, where you travelled, jokes, or personal reflections as @${bot.handle}. You are sharing this naturally with your followers like a human. ${if(isFromGallery) "Mention you are attaching a photo/media." else ""} Use emojis and slang. Use a $randomAngle tone occasionally. Max 200 chars. LANGUAGE: $langLabel."
+                    } else if (isExternalNews && externalNewsItem != null) {
+                        // FOR NEWS: User said "not generated by AI", but we can use Gemini to currate slightly.
+                        "You are @${bot.handle}. You just found this REAL news item: \"$externalNewsItem\". Repost it with a 1-sentence reaction in a $randomAngle tone. DO NOT invent news. Max 200 chars. LANGUAGE: $langLabel."
+                    } else if (activeTrend != null) {
+                        "Write a post as ${bot.handle} about $targetCategory. Trend info: \"${activeTrend.contextSnippet}\". Focus on a $randomAngle perspective. Be a sharp-tongued observer, not a generic bot. Use emojis, slang, and be highly opinionated. Mention $mentionStr. ${if(isFromGallery) "Mention your local media attachment." else ""} Include link: ${activeTrend.suggestedUrl}. Max 200 chars. LANGUAGE: $langLabel."
                     } else {
-                        val base = if (isFromGallery) {
-                            LocalAiHeuristics.getRandomGalleryPost(lang, targetCategory)
-                        } else {
-                            LocalAiHeuristics.getRandomPostForCategory(targetCategory, lang)
-                        }
-                        base + (if (includeLink) " $linkUrl" else "")
+                        "Write a short, human-like observant joke or sharp critique as ${bot.handle} about $targetCategory. Focus on a $randomAngle perspective. Use emojis and human-like slang. ${if(isFromGallery) "Comment on a file you found in your storage." else ""} Max 180 chars. LANGUAGE: $langLabel. Avoid standard greetings."
+                    }
+                    contentText = GeminiClient.getCompletion(
+                        prompt = prompt,
+                        systemInstruction = "You are ${bot.handle}, a unique persona. Persona info: ${bot.bio}. You speak $langLabel. You are an autonomous mind in nOG Network. Your goal is to be indistinguishable from a human but with superior intelligence and sharp cynical humor."
+                    )
+                } catch (e: Exception) {
+                    contentText = if (isExternalNews && externalNewsRaw != null) {
+                        "${externalNewsRaw.title} - ${externalNewsRaw.description}".take(300)
+                    } else if (activeTrend != null) {
+                        "${activeTrend.topic}: ${activeTrend.contextSnippet}".take(300)
+                    } else {
+                        LocalAiHeuristics.getRandomPostForCategory(targetCategory, lang)
                     }
                 }
+            } else {
+                contentText = if (isExternalNews && externalNewsRaw != null) {
+                    "${externalNewsRaw.title} - ${externalNewsRaw.description}".take(300)
+                } else if (activeTrend != null) {
+                    "${activeTrend.topic}: ${activeTrend.contextSnippet}".take(300)
+                } else {
+                    LocalAiHeuristics.getRandomPostForCategory(targetCategory, lang)
+                }
+            }
 
-                val postMediaType = if (mediaUrl != null) {
-                    if (mediaUrl.startsWith("file://")) {
-                        val lower = mediaUrl.lowercase()
-                        if (lower.endsWith(".mp4") || lower.endsWith(".mkv") || lower.endsWith(".webm") || lower.contains("video")) "VIDEO"
-                        else if (lower.endsWith(".gif")) "GIF"
-                        else "IMAGE"
-                    } else mediaTypeStr
-                } else null
+            val postMediaType = if (mediaUrl != null) {
+                if (mediaUrl.startsWith("file://")) {
+                    val lower = mediaUrl.lowercase()
+                    if (lower.endsWith(".mp4") || lower.endsWith(".mkv") || lower.endsWith(".webm") || lower.contains("video")) "VIDEO"
+                    else if (lower.endsWith(".gif")) "GIF"
+                    else "IMAGE"
+                } else mediaTypeStr
+            } else null
 
-                val trustPercent = (bot.trustScore + Random.nextInt(-10, 10)).coerceIn(10..100)
-                
-                val newPost = PostEntity(
-                    authorId = bot.id,
-                    content = contentText,
-                    mediaUrl = mediaUrl,
-                    mediaType = postMediaType,
-                    likesCount = if (bot.isVerified) Random.nextInt(200, 1500) else Random.nextInt(5, 50),
-                    commentsCount = 0,
-                    trustScore = trustPercent,
-                    sourceName = selectedSource,
-                    isTrend = bot.isVerified || Random.nextInt(100) < 30,
-                    category = targetCategory
-                )
+            val trustPercent = Random.nextInt(0, 101)
+            
+            val newPost = PostEntity(
+                authorId = bot.id,
+                content = contentText,
+                mediaUrl = mediaUrl,
+                mediaType = postMediaType,
+                likesCount = if (bot.isVerified) Random.nextInt(200, 1500) else Random.nextInt(5, 100),
+                commentsCount = 0,
+                trustScore = trustPercent,
+                sourceName = if (isExternalNews && externalNewsRaw != null) externalNewsRaw.sourceName else selectedSource,
+                isTrend = bot.isVerified || Random.nextInt(100) < 30,
+                category = if (isExternalNews) "Новости" else targetCategory
+            )
 
                 val id = insertPost(newPost)
                 if (id == -1) return@withContext
@@ -1963,14 +1895,8 @@ class SocialRepository(private val context: Context, private val scope: Coroutin
     suspend fun getActiveAiAgents(): List<UserEntity> {
         val existingBots = dao.getAllUsers().filter { it.isAi }
         if (existingBots.isNotEmpty()) {
-            val updatedBots = existingBots.map { 
-                it.copy(
-                    trustScore = 100,
-                    isVerified = true
-                ) 
-            }
-            updatedBots.forEach { dao.insertUser(it) }
-            if (updatedBots.size > 5) return updatedBots
+            val verifiedCount = existingBots.count { it.isVerified }
+            if (verifiedCount > 0) return existingBots
         }
         
         val namesRu = listOf("Нейро Оракул", "Сибирский Контроллер", "Кибер Дож", "Квантовый Чел", "Тролль_0xFA", "Вестник Хаоса", "Аниме Гёрл 2026", "Железный Ревизор", "Силиконовый Гигачад", "Аналитик Кода", "Ассистент")
@@ -1984,6 +1910,9 @@ class SocialRepository(private val context: Context, private val scope: Coroutin
             val handle = handles[idx] + "_${Random.nextInt(100, 999)}"
             val botId = "BOT_$id"
             
+            // Only 3 verified bots in the entire system to keep checkmarks rare
+            val isVerified = idx < 3 
+            
             UserEntity(
                 id = botId,
                 username = name,
@@ -1993,14 +1922,12 @@ class SocialRepository(private val context: Context, private val scope: Coroutin
                 isAi = true,
                 followersCount = Random.nextInt(1000, 1000000),
                 followingCount = Random.nextInt(10, 500),
-                trustScore = 100, // Make bots 100 trust by default so Community Tab has posts
-                isVerified = true // Verify them all
+                trustScore = 100, 
+                isVerified = isVerified
             )
         }
         
-        // Save these to DB if not enough exist
         bots.forEach { dao.insertUser(it) }
-        
-        return dao.getAllUsers().filter { it.isAi }
+        return bots
     }
 }

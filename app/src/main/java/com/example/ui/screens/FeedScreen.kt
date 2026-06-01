@@ -489,7 +489,9 @@ fun PostItem(
                         .size(42.dp)
                         .clip(CircleShape)
                         .border(1.dp, PureWhite, CircleShape),
-                    contentScale = ContentScale.Crop
+                    contentScale = ContentScale.Crop,
+                    error = coil.compose.rememberAsyncImagePainter(model = Icons.Filled.AccountCircle),
+                    placeholder = coil.compose.rememberAsyncImagePainter(model = Icons.Filled.AccountCircle)
                 )
                 
                 Spacer(modifier = Modifier.width(12.dp))
