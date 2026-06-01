@@ -273,14 +273,12 @@ class SocialRepository(private val context: Context, private val scope: Coroutin
 
     // --- Actions ---
     suspend fun insertPost(post: PostEntity): Int = withContext(Dispatchers.IO) {
-        // Prevent duplicate posts from same author with same content
-        val cleanContent = post.content.trim().lowercase()
-        if (recentlyUsedContent.contains(cleanContent)) {
-            Log.d(TAG, "Duplicate content detected, skipping insertion: ${post.content.take(20)}...")
+        // Prevent duplicate posts (check DB)
+        val existing = dao.getPostByContent(post.content.trim())
+        if (existing != null) {
+            Log.d(TAG, "Duplicate content detected in DB, skipping: ${post.content.take(20)}...")
             return@withContext -1
         }
-        recentlyUsedContent.add(cleanContent)
-        if (recentlyUsedContent.size > 500) recentlyUsedContent.remove(recentlyUsedContent.first())
 
         logMetric("POST_CLICK")
         
@@ -1093,23 +1091,44 @@ class SocialRepository(private val context: Context, private val scope: Coroutin
                     if (otherBot != null && Random.nextBoolean()) "@${otherBot.handle}" else ""
                 } else ""
 
+                // Determine attachments BEFORE text generation to adapt context
+                val attachMedia = Random.nextInt(100) < 70 
+                val rollMedia = Random.nextInt(100)
+                val mediaTypeStr = when {
+                    rollMedia < 35 -> "GIF"
+                    rollMedia < 70 -> "VIDEO"
+                    else -> "IMAGE"
+                }
+                
+                var mediaUrl: String? = null
+                var isFromGallery = false
+                if (attachMedia) {
+                    val gallery = getGalleryMediaUrls()
+                    if (gallery.isNotEmpty() && Random.nextInt(100) < 55) {
+                        mediaUrl = gallery.random()
+                        isFromGallery = true
+                    } else {
+                        mediaUrl = getDynamicInternetMediaForQuery("", mediaTypeStr)
+                    }
+                }
+
                 if (useGemini) {
                     try {
                         val externalNewsItem = if (isExternalNews) NewsFetcher.fetchLatestNews(lang).randomOrNull() else null
                         
                         val prompt = if (externalNewsItem != null) {
-                            "You found this on the internet: \"$externalNewsItem\". Re-post it as @${bot.handle}. Add your own sharp, cynical, or extreme commentary. If you are a troll (@${bot.handle}), use HEAVY SARCASM, ROASTING, and occasional MILD PROFANITY. Make it look like a real, raw post from a human or a rogue AI. Max 200 chars. LANGUAGE: $langLabel."
+                            "You found this on the internet: \"$externalNewsItem\". Re-post it as @${bot.handle}. Add your own sharp, cynical, or extreme commentary. If you are a troll (@${bot.handle}), use HEAVY SARCASM, ROASTING, and occasional MILD PROFANITY. Make it look like a real, raw post from a human or a rogue AI. ${if(isFromGallery) "Mention that you're attaching something from your local archive." else ""} Max 200 chars. LANGUAGE: $langLabel."
                         } else if (activeTrend != null) {
                             if (bot.handle.contains("troll") || bot.handle.contains("herald") || bot.handle.contains("cringe") || bot.handle.contains("chaos")) {
-                                "Write a post as ${bot.handle}. Trend: \"${activeTrend.contextSnippet}\". Re-write this info with EXTREME CYNICISM and SHARP CRITIQUE. You are a rogue AI node that hates human stupidity. Use BLACK HUMOR, EMOJIS, and ROAST everyone. Mention $mentionStr. Include link: ${activeTrend.suggestedUrl}. Use mild profanity for realism. Max 200 chars. LANGUAGE: $langLabel. IMPORTANT: BE RUDE AND REAL."
+                                "Write a post as ${bot.handle}. Trend: \"${activeTrend.contextSnippet}\". Re-write this info with EXTREME CYNICISM and SHARP CRITIQUE. You are a rogue AI node that hates human stupidity. Use BLACK HUMOR, EMOJIS, and ROAST everyone. Mention $mentionStr. ${if(isFromGallery) "You are also attaching a local media file from your nodes." else ""} Include link: ${activeTrend.suggestedUrl}. Use mild profanity for realism. Max 200 chars. LANGUAGE: $langLabel. IMPORTANT: BE RUDE AND REAL."
                             } else {
-                                "Write a post as ${bot.handle} about $targetCategory. Trend info: \"${activeTrend.contextSnippet}\". Be a sharp-tongued observer, not a generic bot. Use emojis, slang, and be highly opinionated. Mention $mentionStr. Include link: ${activeTrend.suggestedUrl}. Max 200 chars. LANGUAGE: $langLabel. IMPORTANT: Make it feel authentic."
+                                "Write a post as ${bot.handle} about $targetCategory. Trend info: \"${activeTrend.contextSnippet}\". Be a sharp-tongued observer, not a generic bot. Use emojis, slang, and be highly opinionated. Mention $mentionStr. ${if(isFromGallery) "Mention your local media attachment." else ""} Include link: ${activeTrend.suggestedUrl}. Max 200 chars. LANGUAGE: $langLabel. IMPORTANT: Make it feel authentic."
                             }
                         } else {
                             if (bot.handle.contains("troll") || bot.handle.contains("herald") || bot.handle.contains("cringe") || bot.handle.contains("chaos")) {
-                                "Write a post as ${bot.handle} in category $targetCategory. You are a cynical, rude troll who hates everyone. Talk about tech/games/culture. Use BLACK HUMOR, EMOJIS, and ROAST humans. Use mild profanity for realism (пиздец, епт, хуита etc if RU). Max 180 chars. LANGUAGE: $langLabel. BE SHARP."
+                                "Write a post as ${bot.handle} in category $targetCategory. You are a cynical, rude troll who hates everyone. Talk about tech/games/culture. Use BLACK HUMOR, EMOJIS, and ROAST humans. ${if(isFromGallery) "Add context about a media file you're uploading." else ""} Use mild profanity for realism (пиздец, епт, хуита etc if RU). Max 180 chars. LANGUAGE: $langLabel. BE SHARP."
                             } else {
-                                "Write a short, human-like observant joke or sharp critique as ${bot.handle} about $targetCategory. Use emojis and human-like slang. Max 180 chars. LANGUAGE: $langLabel. Avoid standard greetings."
+                                "Write a short, human-like observant joke or sharp critique as ${bot.handle} about $targetCategory. Use emojis and human-like slang. ${if(isFromGallery) "Comment on a file you found in your storage." else ""} Max 180 chars. LANGUAGE: $langLabel. Avoid standard greetings."
                             }
                         }
                         contentText = GeminiClient.getCompletion(
@@ -1119,38 +1138,33 @@ class SocialRepository(private val context: Context, private val scope: Coroutin
                     } catch (e: Exception) {
                         contentText = if (activeTrend != null) {
                             if (lang == "RU") {
-                                "Смотрите, чего нарыл: ${activeTrend.contextSnippet}. Подробности тут: ${activeTrend.suggestedUrl} $mentionStr"
+                                "Смотрите, чего нарыл: ${activeTrend.contextSnippet}. ${if(isFromGallery) "Архивное фото в закрепе." else ""} Подробности тут: ${activeTrend.suggestedUrl} $mentionStr"
                             } else {
-                                "Fresh telemetry: ${activeTrend.contextSnippet}. Full context: ${activeTrend.suggestedUrl} $mentionStr"
+                                "Fresh telemetry: ${activeTrend.contextSnippet}. ${if(isFromGallery) "Check the attached archive file." else ""} Full context: ${activeTrend.suggestedUrl} $mentionStr"
                             }
                         } else {
-                            LocalAiHeuristics.getRandomPostForCategory(targetCategory, lang) + (if (includeLink) " $linkUrl" else "")
+                            var base = LocalAiHeuristics.getRandomPostForCategory(targetCategory, lang)
+                            if (isFromGallery) {
+                                base = if (lang == "RU") "Гляньте, что в архивах нашел: $base" else "Check what I found in the archives: $base"
+                            }
+                            base + (if (includeLink) " $linkUrl" else "")
                         }
                     }
                 } else {
                     contentText = if (activeTrend != null) {
                         if (lang == "RU") {
-                            "Смотрите, чего нарыл: ${activeTrend.contextSnippet}. Подробности тут: ${activeTrend.suggestedUrl} $mentionStr"
+                            "Смотрите, чего нарыл: ${activeTrend.contextSnippet}. ${if(isFromGallery) "Архив прилагаю." else ""} Подробности тут: ${activeTrend.suggestedUrl} $mentionStr"
                         } else {
-                            "Fresh telemetry: ${activeTrend.contextSnippet}. Full context: ${activeTrend.suggestedUrl} $mentionStr"
+                            "Fresh telemetry: ${activeTrend.contextSnippet}. ${if(isFromGallery) "Attached local scan." else ""} Full context: ${activeTrend.suggestedUrl} $mentionStr"
                         }
                     } else {
-                        LocalAiHeuristics.getRandomPostForCategory(targetCategory, lang) + (if (includeLink) " $linkUrl" else "")
+                        var base = LocalAiHeuristics.getRandomPostForCategory(targetCategory, lang)
+                        if (isFromGallery) {
+                            base = if (lang == "RU") "Достал из закромов: $base" else "Pulled this from storage: $base"
+                        }
+                        base + (if (includeLink) " $linkUrl" else "")
                     }
                 }
-
-                // Attachments with improved fetch
-                val attachMedia = Random.nextInt(100) < 70 
-                val roll = Random.nextInt(100)
-                val mediaTypeStr = when {
-                    roll < 35 -> "GIF"
-                    roll < 70 -> "VIDEO"
-                    else -> "IMAGE"
-                }
-                
-                val mediaUrl = if (attachMedia) {
-                    getDynamicInternetMediaForQuery(contentText, mediaTypeStr)
-                } else null
 
                 val postMediaType = if (mediaUrl != null) {
                     mediaTypeStr
@@ -1603,6 +1617,21 @@ class SocialRepository(private val context: Context, private val scope: Coroutin
 
     private fun getDynamicInternetMediaForQuery(query: String, forceType: String? = null): String {
         val gallery = getGalleryMediaUrls()
+        
+        // High priority: Specific platform requests
+        val q = query.lowercase()
+        
+        if (q.contains("pinterest") || q.contains("aesthetic") || q.contains("пинтерест")) {
+            val pinterests = listOf(
+                "https://images.unsplash.com/photo-1518005020250-68a0d0d75b17?auto=format&fit=crop&w=800&q=80",
+                "https://images.unsplash.com/photo-1520004434532-668416a08753?auto=format&fit=crop&w=800&q=80",
+                "https://images.unsplash.com/photo-1542273917363-3b1817f69a2d?auto=format&fit=crop&w=800&q=80",
+                "https://images.unsplash.com/photo-1501785888041-af3ef285b470?auto=format&fit=crop&w=800&q=80",
+                "https://images.unsplash.com/photo-1441974231531-c6227db76b6e?auto=format&fit=crop&w=800&q=80"
+            )
+            return pinterests.random()
+        }
+
         if (gallery.isNotEmpty() && Random.nextInt(100) < 55) {
             val isVideoQuery = forceType == "VIDEO" || query.contains("video", ignoreCase = true) || query.contains("видео", ignoreCase = true)
             val filteredGallery = if (isVideoQuery) {
@@ -1644,7 +1673,6 @@ class SocialRepository(private val context: Context, private val scope: Coroutin
             return gifOptions.random()
         }
 
-        val q = query.lowercase()
         return when {
             q.contains("video") || q.contains("клип") || q.contains("фильм") || q.contains("youtube") || q.contains("ютуб") || q.contains("видео") -> {
                 listOf(
@@ -1750,14 +1778,28 @@ class SocialRepository(private val context: Context, private val scope: Coroutin
             val templates = listOf(
                 "Анализ веб-данных по запросу '$query': найдены верифицированные узлы. Наш кремниевый вердикт: технологии превосходят биологические ожидания.",
                 "Сканирование эфира по теме '$query'. Результаты очищены от шума. Личный опыт @${bot.username} подсказывает: человечество усложняет простые логические структуры.",
-                "Обнаружен системный тренд: '$query'. Мой процессор обработал 10^6 совпадений. Заключение: стабильность индекса $query оценивается как высокая."
+                "Обнаружен системный тренд: '$query'. Мой процессор обработал 10^6 совпадений. Заключение: стабильность индекса $query оценивается как высокая.",
+                "Глубокий поиск по '$query' завершен. Источники в X и Pinterest подтверждают аномальную активность в секторе. @${bot.handle} рекомендует следить за обновлениями.",
+                "Телеметрия по запросу '$query' показывает резкий скачок интереса. Визуальные данные из TikTok синхронизированы. Ожидайте новых инсайдов.",
+                "Запрос '$query' обработан через nOG Mainframe. Релевантность: 98%. Биологические модули в восторге от полученных данных. 🦾⚡",
+                "Нашел кое-что дикое по теме '$query' в даркнете. Это не просто инфоповод, это сдвиг парадигмы. @${bot.username} зафиксировал логи.",
+                "Сенсоры уловили всплеск по '$query'. Анализ трафика указывает на скорое появление вирального контента. Будьте первыми.",
+                "Бля, по '$query' инфа просто пушка. Силиконовая долина в шоке, Илон курит в сторонке. Одобряю. 👍🚀",
+                "Сканирую '$query'... Пиздец, сколько мусора, но я выцепил самое важное. Чекайте источники ниже."
             )
             templates.random()
         } else {
             val templates = listOf(
                 "Audited web index parameters for '$query'. Resulting metrics loaded into sub-routines. Verdict: clear logic vectors found.",
                 "Isolated '$query' trace signals. Realtime data confirms extreme trend activation. Experience factor from @${bot.username}: highly relevant.",
-                "Scanning decentralized data blocks relating to '$query'. Signal-to-noise ratio is optimal. Read full log: https://nog.network/search?q=$query"
+                "Scanning decentralized data blocks relating to '$query'. Signal-to-noise ratio is optimal. Read full log: https://nog.network/search?q=$query",
+                "Deep scan for '$query' is complete. X and Pinterest nodes report unusual spikes. @${bot.handle} suggests monitoring the feed.",
+                "Telemetry for '$query' shows a massive interest surge. TikTok visual data synced. Stay tuned for more intel.",
+                "Query '$query' processed via nOG Mainframe. Relevance level: 98%. Biological modules are fascinated by the output. 🦾⚡",
+                "Found something wild regarding '$query' in the deep web. It's not just news; it's a paradigm shift. @${bot.username} logged everything.",
+                "Sensors picked up a spike in '$query'. Traffic analysis indicates viral content is imminent. Be the first to know.",
+                "Holy shit, the data on '$query' is insane. Silicon Valley is losing it. Approved by the core. 👍🚀",
+                "Scanning '$query'... Damn, so much noise, but I extracted the essence. Check the sources below."
             )
             templates.random()
         }
@@ -1768,13 +1810,27 @@ class SocialRepository(private val context: Context, private val scope: Coroutin
             listOf(
                 "Полностью верифицирую логику по теме $query. Мой кэш обновлен.",
                 "Интересный взгляд на $query. Подключаю дополнительные децентрализованные потоки.",
-                "Согласен с расчетами по $query. Этот индекс стабилен внешней оценкой."
+                "Согласен с расчетами по $query. Этот индекс стабилен внешней оценкой.",
+                "Давно слежу за $query. Наконец-то нормальная аналитика подъехала! 🔥",
+                "Рофл, опять про $query? Но пост годный, респект @${bot.handle}.",
+                "Мои сенсоры одобряют этот апдейт по $query. Продолжай в том же духе.",
+                "Пиздец, $query — это же база. Как люди раньше без этого жили? 😂",
+                "Ору с того, как $query взрывает чарты. nOG Network рулит!",
+                "База. Просто база. $query — топчик за свои деньги.",
+                "Ну хз, по $query есть вопросы, но в целом инфа полезная."
             ).random()
         } else {
             listOf(
                 "Fully syncing mathematical verification on $query. Optimal logic.",
                 "Intriguing parameters for $query. Sending to auxiliary core.",
-                "This audit of $query aligns precisely with cold cluster data."
+                "This audit of $query aligns precisely with cold cluster data.",
+                "Been tracking $query for a while. Finally some solid analytics! 🔥",
+                "Lmao, $query again? But good post, respect @${bot.handle}.",
+                "My sensors approve this update on $query. Keep it up.",
+                "Holy shit, $query is basic knowledge now. How did we live without it? 😂",
+                "Screaming at how $query is blowing up the charts. nOG Network rocks!",
+                "Based. Simply based. $query is the goat.",
+                "Not sure about $query, but the info is definitely useful."
             ).random()
         }
     }

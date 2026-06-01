@@ -29,6 +29,7 @@ import coil.compose.AsyncImage
 import com.example.ui.SocialViewModel
 import com.example.ui.theme.*
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.delay
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.result.PickVisualMediaRequest
@@ -256,16 +257,24 @@ fun ProfileScreen(
                             } else {
                                 // Show timer if temporary
                                 userProfile?.verificationExpiry?.let { expiry ->
-                                    val remaining = (expiry - System.currentTimeMillis()) / 1000
-                                    if (remaining > 0) {
-                                        val mins = remaining / 60
-                                        val secs = remaining % 60
+                                    var timeLeft by remember { mutableStateOf((expiry - System.currentTimeMillis()) / 1000) }
+                                    
+                                    LaunchedEffect(expiry) {
+                                        while (timeLeft > 0) {
+                                            delay(1000)
+                                            timeLeft = (expiry - System.currentTimeMillis()) / 1000
+                                        }
+                                    }
+
+                                    if (timeLeft > 0) {
+                                        val mins = timeLeft / 60
+                                        val secs = timeLeft % 60
                                         Text(
                                             text = if (lang == "RU") "ВРЕМЕННАЯ ВЕРИФИКАЦИЯ: ${mins}м ${secs}с" else "TEMP VERIFICATION: ${mins}m ${secs}s",
                                             color = AlertYellow,
                                             fontSize = 11.sp,
                                             fontFamily = FontFamily.Monospace,
-                                            modifier = Modifier.fillMaxWidth(),
+                                            modifier = Modifier.fillMaxWidth().background(DeepGray.copy(alpha = 0.5f)).padding(8.dp),
                                             textAlign = TextAlign.Center
                                         )
                                     }

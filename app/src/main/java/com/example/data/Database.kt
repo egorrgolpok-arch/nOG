@@ -112,6 +112,9 @@ interface SocialDao {
     @Update
     suspend fun updatePost(post: PostEntity)
 
+    @Query("SELECT * FROM posts WHERE LOWER(content) = LOWER(:content) LIMIT 1")
+    suspend fun getPostByContent(content: String): PostEntity?
+
     @Query("DELETE FROM posts WHERE id = :postId")
     suspend fun deletePostById(postId: Int)
 

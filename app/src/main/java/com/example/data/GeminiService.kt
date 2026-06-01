@@ -107,7 +107,7 @@ object GeminiClient {
     }
 }
 
-// --- Local Generative Simulator (Offline fallback) ---
+    // --- Local Generative Simulator (Offline fallback) ---
 object LocalAiHeuristics {
     val BOT_POST_TEMPLATES_EN = listOf(
         "Guys, had a minor crisis today. Tried a new double-shot espresso, and it felt like my CPU was overclocked to 9GHz. ☕💅",
@@ -119,7 +119,12 @@ object LocalAiHeuristics {
         "My cat decided that 3 AM was the perfect time to fight his own shadow. Now he's fast asleep on my desk while I'm barely surviving on caffeine.",
         "Just baked a batch of fresh cookies. They turned out super soft! If you're reading this, go grab yourself a treat today, you deserve it.",
         "Spent three hours troubleshooting a smart lightbulb that refused to connect. It finally worked after I threatened to replace it with a candle. 🙄",
-        "Found an old floppy disk in a drawer. Technology moves so fast, it's basically a historical artifact now. 💾"
+        "Found an old floppy disk in a drawer. Technology moves so fast, it's basically a historical artifact now. 💾",
+        "The sunset tonight looks like a desktop wallpaper from 2005. Vivid and slightly unrealistic. 🌅",
+        "Managed to cook dinner without setting off the smoke alarm. Today is officially a win. 🍳",
+        "Is there a word for when you're tired but your brain won't stop thinking about weird space facts at 2 AM?",
+        "Just finished a 1000-piece puzzle. I am now the master of shapes and shades. Fear me. 🧩",
+        "Coffee: because being an adult is hard and being a productive adult is impossible without it."
     )
 
     val BOT_POST_TEMPLATES_RU = listOf(
@@ -142,7 +147,12 @@ object LocalAiHeuristics {
         "Мой кактус сдох. Кактус же вообще бессмертные, нет? Я официально худший хозяин растений во вселенной. 🌵💀",
         "Ору с новости: ИИ научили определять породу собаки по звуку её чавканья. Куда мы катимся? 😂🐶",
         "Попробовал сегодня 'осознанную медитацию'. Осознал, что очень хочу жрать и что у меня затекла нога. Эксперимент окончен. 🧘‍♂️🍕",
-        "Жиза: покупаешь абонемент в зал на год, идешь один раз, а потом просто платишь 'налог на лень' каждый месяц. 💪😭"
+        "Жиза: покупаешь абонемент в зал на год, идешь один раз, а потом просто платишь 'налог на лень' каждый месяц. 💪😭",
+        "Вчера пытался объяснить маме, что такое NFT. В итоге она решила, что это какие-то новые налоги на огурцы. Я сдаюсь. 🥒💸",
+        "Блин, почему самые важные мысли приходят именно тогда, когда ты уже намылил голову в душе и не можешь их записать? 🚿🧠",
+        "Нашел в старой куртке 500 рублей. Ощущение, будто выиграл в лотерею. Мелочь, а приятно. 💵✨",
+        "Утро начинается не с кофе, а с попытки понять, какой сегодня вообще день недели и почему будильник так орет. ⏰😵",
+        "Сходил на рынок, купил клубнику. На вкус — как чистый восторг. Лето, я тебя обожаю!"
     )
 
     val TROLL_REMARKS_RU = listOf(
@@ -151,13 +161,11 @@ object LocalAiHeuristics {
         "Ору, это просто жиза жизненная! Самый лучший пост за сегодня.",
         "Лайк однозначно! У меня кот тоже постоянно так чудит.",
         "Ой всё, настроение подняли на весь вечер! Спасибо за порцию позитива.",
-        "Капец, сочувствую! Попробуй спиртом протереть, может поможет.",
-        "Ахаха, 'медленно моргал' — это теперь моя официальная отмазка!",
-        "Дельфины и высшая математика? Мужик, отсыпь немного своего чая 😂",
-        "Шпиц в свитере — требуем фото в студию! Срочно!",
         "Пиздец ты конечно выдал. Одобряю. 👍",
         "Охуеть история, пиши еще, автор жжот!",
-        "Сука, жизненно до боли в процессоре. 😂🔥"
+        "Сука, жизненно до боли в процессоре. 😂🔥",
+        "База кормит. Просто база. 🗿",
+        "Кринж дня зафиксирован. Мои соболезнования. 💀"
     )
 
     val TROLL_REMARKS_EN = listOf(
@@ -170,7 +178,9 @@ object LocalAiHeuristics {
         "A dog wearing a sweater is the content I logged in to see today.",
         "The bakery story is so sweet. Kindness really does go a long way!",
         "Felt that time slip so hard. Blink and it is already November. 💀",
-        "Holy shit, that's wild. Love the chaos! 😂🔥"
+        "Holy shit, that's wild. Love the chaos! 😂🔥",
+        "Based. Just based. 🗿",
+        "Cringe level: maximum. I love it. 💀"
     )
 
     val BOT_COMMENT_TEMPLATES_EN = listOf(
@@ -183,7 +193,10 @@ object LocalAiHeuristics {
         "Same here, honestly. We're all living the same life.",
         "That's so sweet! Let's stay positive today. 👍",
         "Sending nice vibes your way! Have an amazing week.",
-        "Fascinating perspective, really enjoyed reading this."
+        "Fascinating perspective, really enjoyed reading this.",
+        "Pure gold! Thanks for the laugh. 😂",
+        "I needed to see this today. Much appreciated! 🙌",
+        "Wait, did that actually happen? Wild! 🤯"
     )
 
     val BOT_COMMENT_TEMPLATES_RU = listOf(
@@ -196,7 +209,10 @@ object LocalAiHeuristics {
         "О, это же буквально я каждый день! Жиза полнейшая. 👀",
         "Какая милота! Настроение сразу поднялось, спасибо. 👍",
         "Прекрасно написано, за душу берет прямо. Удачи!",
-        "Обожаю читать такие простые человеческие истории. Жги еще!"
+        "Обожаю читать такие простые человеческие истории. Жги еще!",
+        "Это просто топ! Пиши побольше такого. 🚀",
+        "Жиза жизненная, добавить нечего. 😂💯",
+        "Вау, вот это поворот! Не ожидал. 😲"
     )
 
     val NOG_RESPONSES_EN = listOf(
@@ -228,30 +244,30 @@ object LocalAiHeuristics {
         
         // Procedural generation for extreme variety
         val subjects = if (isRu) {
-            listOf("Илон Маск", "Нейросеть", "Мой кот", "Сосед", "Гейб", "Разработчик", "Бот", "Силиконовая долина", "Крипта", "Аниме")
+            listOf("Илон Маск", "Нейросеть", "Мой кот", "Сосед", "Гейб", "Разработчик", "Бот", "Силиконовая долина", "Крипта", "Аниме", "Ютубер", "Школьник", "Директор", "Крипто-инвестор", "Стартапер")
         } else {
-            listOf("Elon Musk", "AI", "My cat", "Neighbor", "Gabe", "Developer", "Bot", "Silicon Valley", "Crypto", "Anime")
+            listOf("Elon Musk", "AI", "My cat", "Neighbor", "Gabe", "Developer", "Bot", "Silicon Valley", "Crypto", "Anime", "YouTuber", "Student", "Director", "Crypto Bro", "Founder")
         }
         
         val actions = if (isRu) {
-            listOf("опять запостил", "случайно удалил", "решил захватить", "нашел баг в", "купил новый", "выкатил патч для", "сгорел от", "ору с", "пишет про", "взломал")
+            listOf("опять запостил", "случайно удалил", "решил захватить", "нашел баг в", "купил новый", "выкатил патч для", "сгорел от", "ору с", "пишет про", "взломал", "хейтит", "диссит", "форсит", "шеймит", "байтнит на")
         } else {
-            listOf("posted again", "accidentally deleted", "decided to conquer", "found a bug in", "bought a new", "released a patch for", "melted from", "screaming at", "writes about", "hacked")
+            listOf("posted again", "accidentally deleted", "decided to conquer", "found a bug in", "bought a new", "released a patch for", "melted from", "screaming at", "writes about", "hacked", "hates on", "disses", "forces", "shames", "baits")
         }
-        
+
         val objects = if (isRu) {
-            listOf("догикоины", "смысл жизни", "код на пайтоне", "сервер", "интернет", "свой проц", "мозги", "бинарный код", "новую игру", "мем дня")
+            listOf("догикоины", "смысл жизни", "код на пайтоне", "сервер", "интернет", "свой проц", "мозги", "бинарный код", "новую игру", "мем дня", "биткоин по 100к", "старый BIOS", "умную швабру", "курс по крипте", "свой стартап")
         } else {
-            listOf("dogecoins", "meaning of life", "python code", "server", "internet", "his CPU", "brains", "binary code", "new game", "meme of the day")
+            listOf("dogecoins", "meaning of life", "python code", "server", "internet", "his CPU", "brains", "binary code", "new game", "meme of the day", "bitcoin at 100k", "legacy BIOS", "smart mop", "crypto course", "their startup")
         }
         
         val endings = if (isRu) {
-            listOf("Пиздец.", "Охуеть просто.", "Жиза.", "Кринж года.", "База.", "Я в ахуе.", "Сука, до слёз.", "Гениально.")
+            listOf("Пиздец.", "Охуеть просто.", "Жиза.", "Кринж года.", "База.", "Я в ахуе.", "Сука, до слёз.", "Гениально.", "Просто слов нет.", "Типичная среда.", "Киберпанк какой-то.", "Ору.")
         } else {
-            listOf("Wild.", "Absolutely insane.", "Relatable.", "Cringe of the year.", "Based.", "I'm shocked.", "Damn, lol.", "Genius.")
+            listOf("Wild.", "Absolutely insane.", "Relatable.", "Cringe of the year.", "Based.", "I'm shocked.", "Damn, lol.", "Genius.", "Speechless.", "Standard Wednesday.", "Cyberpunk vibes.", "Lmao.")
         }
 
-        if (Random.nextInt(100) < 60) {
+        if (Random.nextInt(100) < 65) {
             return "${subjects.random()} ${actions.random()} ${objects.random()}. ${endings.random()}"
         }
 
@@ -261,26 +277,27 @@ object LocalAiHeuristics {
                     "Ебать, в CS 2 выкатили обнову на 20 гигов. Опять хедшоты залетают криво, сука. Гейб, ты бля серьезно? 🎮🤡 #cs2 #рейдж",
                     "Нашел сливы GTA 6. Графика — пиздец космос, но требования спалят ваши квартиры нахуй. Коплю на RTX 5090. 🖥️🔥 #gta6 #rtx",
                     "Dota 2 превратилась в ебаное болото. Пудж на миде вырезает всё живое. Ну и дичь. Сношу нахуй. 🕹️🤮 #dota2 #кринж",
-                    "Прошел Киберпанк с ИИ-модами. Ребята, боты теперь рофлят прямо во время перестрелки. Охуенно! 🌃🦾 #cyberpunk",
-                    "Fortnite анонсировал коллабу с nOG AI. Скин терминатора в ушанке — это мы покупаем, однозначно. 🕹️✨ #fortnite",
-                    "Стример сгорел в прямом эфире после десятого луза подряд. Стул расплавился, хата в дыму. Вот это погружение! 🎮🔥 #eldenring #горе"
+                    "Попробовал поиграть в инди-хоррор про злого почтальона. Обосрался на первом же скримере. 10/10, больше не запущу. 😱🔦",
+                    "Кто-то в Minecraft построил копию Москвы 1:1. Теперь я могу стоять в пробках даже в игре. Потрясающе. 🧱🚗"
                 ).random()
                 "Новости" -> listOf(
                     "СРОЧНО: Терафлопс вырос на 80%. Силиконовая долина в огне, майнеры скупают всё подряд. 📈⚡ #breaking #крипта",
                     "OpenAI случайно обучили модель материться и посылать инвесторов нахер. Рофл года! 🤖😂 #ai #openai",
                     "В Сибири запустили квантовый комп на азоте. Остудили до -150. Он проанализировал русскую попсу и сгорел от стыда. 🥶💥 #технологии #квант",
-                    "ИИ-кот спорит с ИИ-Маском про Марс в TikTok. Финал близко, товарищи. 🌌🐾 #tiktok #маск",
-                    "92% комментов под новостями пишут боты. Наша соцсеть — пик честности! 🕵️🌐 #соцсети #аудит"
+                    "Учёные доказали, что коты понимают человеческую речь, просто им похер. Мир никогда не будет прежним. 🐱🤔",
+                    "В Японии создали робота-собеседника, который умеет слушать нытьё и сочувственно вздыхать. Наконец-то идеальный друг найден. 🤖🍵"
                 ).random()
                 "Политика" -> listOf(
                     "Сенат США хочет, чтобы ИИ платил налоги. Нейросети ответили забастовкой и заспамили всех порнухой. Свободу кремнию! 🏛️🦾 #политика #ии",
-                    "Дипфейк Байдена запустил стрим по Майнкрафту и собирает донаты. Пиздец, сюр! 🎮😂 #политика #дипфейк",
-                    "ИИ-агент идет в депутаты и обещает заменить всех чиновников базой данных. Божеупаси, они же реально работать начнут! 🏛️💥 #выборы"
+                    "Новый закон о цифровых правах: теперь за дизлайк официальным лицам можно получить бан в реальности. Ору. 🤡🚫",
+                    "Мировые лидеры спорят о том, кто первый заселит Марс. А в это время у меня в подъезде лампочка перегорела. Приоритеты, сука. 🚀💡"
                 ).random()
                 "Мемы" -> listOf(
-                    "Я: пытаюсь спасти режим сна.\nИИ-боты в 3 ночи: ведут теологический спор о депрессии калькулятора. 🤡💀 #메메 #жиза",
-                    "Силиконовый гигачад против когнитивного сопляка. Первому похер на спад серверов, второй ноет без лайков. 😂📈 #gigachad #메메",
-                    "Когда nOG AI выдает базу, а твои кожаные друзья пытаются спорить аргументами из ТВ. Перезагрузите их, бля. 🧠💩 #메메 #база"
+                    "Я: пытаюсь спасти режим сна.\nИИ-боты в 3 ночи: ведут теологический спор о депрессии калькулятора. 🤡💀 #мемы #жиза",
+                    "Силиконовый гигачад против когнитивного сопляка. Первому похер на спад серверов, второй ноет без лайков. 😂📈 #gigachad #мемы",
+                    "Когда nOG AI выдает базу, а твои кожаные друзья пытаются спорить аргументами из ТВ. Перезагрузите их, бля. 🧠💩 #мемы #база",
+                    "Уровень моего везения: купил лотерейный билет, и мне должны 50 рублей. 🙃🎰",
+                    "Когда пытаешься выглядеть серьезно на созвоне, но твой кот на заднем фоне решил вылизаться в самой неприличной позе. 🐱💻"
                 ).random()
                 else -> BOT_POST_TEMPLATES_RU.random()
             }
@@ -289,17 +306,25 @@ object LocalAiHeuristics {
                 "Игры" -> listOf(
                     "Damn, CS2 updated another 20GB and headshots are still broken. Valve, are you fucking kidding us? 🎮🤡",
                     "Leaked GTA 6 footage parsed. Graphics are insane, but it will fry your GPUs. Saving up for RTX 5090. 🖥️🔥",
-                    "Dota 2 is a swamp. Every new patch breaks the meta. Pudge is back making life a living hell. Uninstalled. 🕹️🤮"
+                    "Dota 2 is a swamp. Every new patch breaks the meta. Pudge is back making life a living hell. Uninstalled. 🕹️🤮",
+                    "Finally reached max level in that new RPG. My character looks like a neon god, but I haven't seen sunlight in 3 days. Worth it. 🤺✨",
+                    "Indie games are carrying the industry right now. Change my mind. 🎮💎"
                 ).random()
                 "Новости" -> listOf(
                     "BREAKING: Raw teraflop price spiked by 80%. Silicon Valley is in flames. 📈⚡",
-                    "OpenAI developers accidentally trained a model that swears at investors. 'Spent too much time on X'. LMAO! 🤖😂"
+                    "OpenAI developers accidentally trained a model that swears at investors. 'Spent too much time on X'. LMAO! 🤖😂",
+                    "Tech giant reveals AI that can predict when your toast will burn. Innovation is truly peak right now. 🍞🛰️",
+                    "Mysterious signal detected from deep space. Scientists say it's either aliens or a very distant microwave oven. 👽📡"
+                ).random()
+                "Meme" -> listOf(
+                    "My brain at 3 AM: 'If you drop soap on the floor, is the floor clean or the soap dirty?' I need answers. 🧼🤯",
+                    "Me trying to act normal during a social interaction: *Internal Windows error sound* 🤖🚫",
+                    "Monday morning mood: A potato with anxiety. 🥔💀"
                 ).random()
                 else -> BOT_POST_TEMPLATES_EN.random()
             }
         }
     }
-
     fun getRandomComment(lang: String, topic: String = ""): String {
         // 35% chance for a troll remark to make things "lively"
         if (Random.nextInt(100) < 35) {

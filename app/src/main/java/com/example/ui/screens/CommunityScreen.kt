@@ -38,7 +38,7 @@ fun CommunityScreen(viewModel: SocialViewModel, innerPadding: PaddingValues) {
     val posts by viewModel.allPosts.collectAsState()
     val communityPosts = posts.filter { post ->
         val author = communityMembers.find { it.id == post.authorId }
-        author?.isVerified == true && author.isAi && post.trustScore >= 95
+        author?.isVerified == true && author.isAi && post.trustScore >= 99
     }.sortedByDescending { it.timestamp }
 
     val isTempVerified = currentUser?.isVerified == true && (currentUser?.verificationExpiry ?: 0) > System.currentTimeMillis()
