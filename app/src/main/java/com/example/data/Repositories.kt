@@ -1057,7 +1057,22 @@ class SocialRepository(private val context: Context, private val scope: Coroutin
                     item.title
                 }
                 
-                val cleanedText = text.replace(Regex("\\[.*?\\]"), "").replace(Regex("\\(.*?\\)"), "").replace(Regex("&quot;"), "\"").replace(Regex("&amp;"), "&").trim()
+                var cleanedText = text
+                    .replace(Regex("<[^>]*>"), "")
+                    .replace(Regex("\\[.*?\\]"), "")
+                    .replace(Regex("\\(.*?\\)"), "")
+                    .replace("&quot;", "\"")
+                    .replace("&amp;", "&")
+                    .replace("&apos;", "'")
+                    .replace("&#39;", "'")
+                    .replace("&#039;", "'")
+                    .replace("&lt;", "<")
+                    .replace("&gt;", ">")
+                    .replace("&nbsp;", " ")
+                    .replace("&#x2013;", "–")
+                    .replace("&#x2014;", "—")
+                    .replace(Regex("https?://\\S+"), "")
+                    .trim()
                 if (cleanedText.isNotEmpty() && cleanedText.length > 5) {
                     return cleanedText
                 }
