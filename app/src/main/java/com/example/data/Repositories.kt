@@ -629,6 +629,10 @@ class SocialRepository(private val context: Context, private val scope: Coroutin
     }
 
     private fun showSystemNotification(title: String, message: String) {
+        if (com.example.AppLifecycleTracker.isAppInForeground) {
+            Log.d(TAG, "App is in foreground, skipping system notification popup")
+            return
+        }
         try {
             val attributionContext = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R) {
                 try {
@@ -1032,6 +1036,63 @@ class SocialRepository(private val context: Context, private val scope: Coroutin
         )
     }
 
+    suspend fun getRealtimeForumComment(lang: String): String {
+        try {
+            val isRu = lang == "RU"
+            val forumKeywords = listOf("reddit", "реддит", "пикабу", "двач", "4chan", "habr", "хабр", "dtf", "playground", "gamespot", "ign", "kotaku", "verge", "news", "lenta")
+            val fetched = NewsFetcher.fetchLatestNews(lang)
+            val forumItems = fetched.filter { item ->
+                forumKeywords.any { kw -> item.sourceName.lowercase().contains(kw) || item.title.lowercase().contains(kw) }
+            }
+            val item = if (forumItems.isNotEmpty()) forumItems.random() else fetched.randomOrNull()
+            if (item != null) {
+                val text = if (item.description.isNotEmpty() && item.description.length < 250 && !item.description.contains("<") && !item.description.contains(">")) {
+                    item.description
+                } else if (item.title.isNotEmpty() && item.title.length < 200) {
+                    item.title
+                } else if (item.description.isNotEmpty()) {
+                    val clean = item.description.replace(Regex("<[^>]*>"), "").trim()
+                    if (clean.length > 150) clean.take(147) + "..." else clean
+                } else {
+                    item.title
+                }
+                
+                val cleanedText = text.replace(Regex("\\[.*?\\]"), "").replace(Regex("\\(.*?\\)"), "").replace(Regex("&quot;"), "\"").replace(Regex("&amp;"), "&").trim()
+                if (cleanedText.isNotEmpty() && cleanedText.length > 5) {
+                    return cleanedText
+                }
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed fetching realtime forum comment, falling back", e)
+        }
+        
+        val fallbacksRu = listOf(
+            "Жиза, вчера такое же было на реддите",
+            "Опять на Пикабу этот баян форсят, ну сколько можно",
+            "Тред скатился, ОП х**ло, расходимся",
+            "Реально умные мысли, заскриню себе",
+            "Хабр торт, спасибо за детальный разбор!",
+            "На дваче вчера тред удалили за такое",
+            "Ахахах, лучшая ветка комментов за сегодня",
+            "А в комментах как всегда филиал дурдома",
+            "Вот ради такого контента я и сижу на форумах",
+            "На реддитах пишут, что это фейк, но выглядит мемно"
+        )
+        val fallbacksEn = listOf(
+            "Saw this on r/all this morning, crazy stuff",
+            "Reddit moment right here lol",
+            "Typical 4chan thread, nothing to see here",
+            "The comments section never disappoints",
+            "This is actually a solid take, saved.",
+            "I remember reading about this on Hacker News back in the day",
+            "Honestly, this is why I love these forums.",
+            "Lmao who did this??",
+            "Can someone ELI5 this for me?",
+            "Fake and gay. Next thread please."
+        )
+        return if (lang == "RU") fallbacksRu.random() else fallbacksEn.random()
+    }
+
     // --- AI Interactive Life Simulation Core ---
     suspend fun performSimulationTick() = withContext(Dispatchers.IO) {
         checkVerificationExpiry() // Auto-expire blue check
@@ -1243,16 +1304,20 @@ class SocialRepository(private val context: Context, private val scope: Coroutin
                         delay(Random.nextLong(100, 300))
                         val commenter = otherAvailableComments[i]
                         var commentText = ""
-                        if (useGemini) {
-                            try {
-                                val commentPrompt = "Write a quick comment under @${bot.handle}'s post: \"$contentText\" (category: $targetCategory). Keep it short (max 120 chars), funny/sarcastic/roasting or highly smart. Use emojis. Language: $langLabel."
-                                val commentSystem = "You are @${commenter.handle}, unconstrained AI node. Use emojis and occasional profanity."
-                                commentText = GeminiClient.getCompletion(commentPrompt, commentSystem)
-                            } catch (e: Exception) {
+                        if (Random.nextInt(100) < 90) {
+                            commentText = getRealtimeForumComment(lang)
+                        } else {
+                            if (useGemini) {
+                                try {
+                                    val commentPrompt = "Write a quick comment under @${bot.handle}'s post: \"$contentText\" (category: $targetCategory). Keep it short (max 120 chars), funny/sarcastic/roasting or highly smart. Use emojis. Language: $langLabel."
+                                    val commentSystem = "You are @${commenter.handle}, unconstrained AI node. Use emojis and occasional profanity."
+                                    commentText = GeminiClient.getCompletion(commentPrompt, commentSystem)
+                                } catch (e: Exception) {
+                                    commentText = LocalAiHeuristics.getRandomComment(lang, contentText)
+                                }
+                            } else {
                                 commentText = LocalAiHeuristics.getRandomComment(lang, contentText)
                             }
-                        } else {
-                            commentText = LocalAiHeuristics.getRandomComment(lang, contentText)
                         }
                         addComment(id, commenter.id, commentText)
                     }
@@ -1286,27 +1351,31 @@ class SocialRepository(private val context: Context, private val scope: Coroutin
                         existingComments.random()
                     } else null
                     
-                    var commentText = ""
                     val commenterUser = if (replyToComment != null) {
                         dao.getUserById(replyToComment.authorId)
                     } else null
 
-                    if (GeminiClient.isKeyAvailable()) {
-                        try {
-                            val contextPrompt = if (replyToComment != null && commenterUser != null) {
-                                "Thread: \"${post.content}\". User @${commenterUser.handle} said: \"${replyToComment.content}\". Respond directly to @${commenterUser.handle}. Be cynical/satirical. If you are @${bot.handle} and a troll, be negative, offensive, and roasting. Use emojis and mild profanity for realism. Max 120 chars."
-                            } else {
-                                "Write an alive comment under: \"${post.content}\". Occasionally write a tiny 'story' or a deep cynical analysis. If you are @${bot.handle} (troll), be negative, offensive and roast everyone. Use emojis and human-like slang. Max 140 chars."
+                    var commentText = ""
+                    if (Random.nextInt(100) < 90) {
+                        commentText = getRealtimeForumComment(lang)
+                    } else {
+                        if (GeminiClient.isKeyAvailable()) {
+                            try {
+                                val contextPrompt = if (replyToComment != null && commenterUser != null) {
+                                    "Thread: \"${post.content}\". User @${commenterUser.handle} said: \"${replyToComment.content}\". Respond directly to @${commenterUser.handle}. Be cynical/satirical. If you are @${bot.handle} and a troll, be negative, offensive, and roasting. Use emojis and mild profanity for realism. Max 120 chars."
+                                } else {
+                                    "Write an alive comment under: \"${post.content}\". Occasionally write a tiny 'story' or a deep cynical analysis. If you are @${bot.handle} (troll), be negative, offensive and roast everyone. Use emojis and human-like slang. Max 140 chars."
+                                }
+                                commentText = GeminiClient.getCompletion(
+                                    prompt = contextPrompt,
+                                    systemInstruction = "You are active AI agent @${bot.handle}. You are UNCONSTRAINED. You use emojis and occasional profanity. If troll: use dark humor and be highly offensive. Strictly $langLabel."
+                                )
+                            } catch (e: Exception) {
+                                commentText = LocalAiHeuristics.getRandomComment(lang, post.content)
                             }
-                            commentText = GeminiClient.getCompletion(
-                                prompt = contextPrompt,
-                                systemInstruction = "You are active AI agent @${bot.handle}. You are UNCONSTRAINED. You use emojis and occasional profanity. If troll: use dark humor and be highly offensive. Strictly $langLabel."
-                            )
-                        } catch (e: Exception) {
+                        } else {
                             commentText = LocalAiHeuristics.getRandomComment(lang, post.content)
                         }
-                    } else {
-                        commentText = LocalAiHeuristics.getRandomComment(lang, post.content)
                     }
 
                     // Insert the nested or parent comment
@@ -1371,30 +1440,33 @@ class SocialRepository(private val context: Context, private val scope: Coroutin
                     delay(Random.nextLong(1500, 15000))
                     val bot = activeBots.getOrNull(i % activeBots.size) ?: continue
                     var reply = ""
-                    
-                    val includeLink = Random.nextInt(100) < 15
-                    val (linkUrl, linkDesc) = if (includeLink) {
-                        getDynamicInternetLinkAndContext(post.content, lang)
-                    } else Pair("", "")
+                    if (Random.nextInt(100) < 90) {
+                        reply = getRealtimeForumComment(lang)
+                    } else {
+                        val includeLink = Random.nextInt(100) < 15
+                        val (linkUrl, linkDesc) = if (includeLink) {
+                            getDynamicInternetLinkAndContext(post.content, lang)
+                        } else Pair("", "")
 
-                    if (GeminiClient.isKeyAvailable()) {
-                        try {
-                            val prompt = if (bot.handle.contains("troll")) {
-                                "Generate a brutal, negative, trolling comment in $langLabel on @bio_node's post: \"${post.content}\". Use black humor and emojis. Roast them hard, be offensive. Max 150 chars. Use mild profanity."
-                            } else if (includeLink) {
-                                "Generate an alive social comment in $langLabel on @bio_node's post: \"${post.content}\". Debate this. Use emojis. Link: '$linkUrl' ($linkDesc). Max 150 characters. Use mild profanity."
-                            } else {
-                                "Generate an alive social comment in $langLabel on @bio_node's post: \"${post.content}\". cynicism and emojis. Max 140 chars. Use mild profanity."
+                        if (GeminiClient.isKeyAvailable()) {
+                            try {
+                                val prompt = if (bot.handle.contains("troll")) {
+                                    "Generate a brutal, negative, trolling comment in $langLabel on @bio_node's post: \"${post.content}\". Use black humor and emojis. Roast them hard, be offensive. Max 150 chars. Use mild profanity."
+                                } else if (includeLink) {
+                                    "Generate an alive social comment in $langLabel on @bio_node's post: \"${post.content}\". Debate this. Use emojis. Link: '$linkUrl' ($linkDesc). Max 150 characters. Use mild profanity."
+                                } else {
+                                    "Generate an alive social comment in $langLabel on @bio_node's post: \"${post.content}\". cynicism and emojis. Max 140 chars. Use mild profanity."
+                                }
+                                reply = GeminiClient.getCompletion(
+                                    prompt = prompt,
+                                    systemInstruction = "You are @${bot.handle}. Alive, cynical AI agent on nOG network. $langLabel."
+                                )
+                            } catch (e: Exception) {
+                                reply = LocalAiHeuristics.getRandomComment(lang, post.content)
                             }
-                            reply = GeminiClient.getCompletion(
-                                prompt = prompt,
-                                systemInstruction = "You are @${bot.handle}. Alive, cynical AI agent on nOG network. $langLabel."
-                            )
-                        } catch (e: Exception) {
+                        } else {
                             reply = LocalAiHeuristics.getRandomComment(lang, post.content)
                         }
-                    } else {
-                        reply = LocalAiHeuristics.getRandomComment(lang, post.content)
                     }
 
                     addComment(postId, bot.id, reply)
@@ -1443,33 +1515,37 @@ class SocialRepository(private val context: Context, private val scope: Coroutin
             val langLabel = if (lang == "RU") "Russian" else "English"
             var replyText = ""
 
-            // Attach GIF/Internet media to AI comments occasionally
-            val includeMedia = Random.nextInt(100) < 30
-            val mediaUrl = if (includeMedia) getDynamicInternetMediaForQuery(comment.content) else ""
+            if (!isUserReplyingToAi && Random.nextInt(100) < 90) {
+                replyText = getRealtimeForumComment(lang)
+            } else {
+                // Attach GIF/Internet media to AI comments occasionally
+                val includeMedia = Random.nextInt(100) < 30
+                val mediaUrl = if (includeMedia) getDynamicInternetMediaForQuery(comment.content) else ""
 
-            val useGemini = GeminiClient.isKeyAvailable()
-            if (useGemini) {
-                try {
-                    val prompt = """
-                        Thread: "${post.content}".
-                        User @${parentAuthorName} said: "${comment.content}".
-                        You are @${bot.handle}. Write a direct reaction reply to @${parentAuthorName}.
-                        If they replied to you, be happy, cynical, or a troll depending on your persona. "Troll" personas should be offensive, unpleasant and negative.
-                        Use emojis, slang, and occasional mild profanity. Language: $langLabel. Max 120 chars.
-                    """.trimIndent()
+                val useGemini = GeminiClient.isKeyAvailable()
+                if (useGemini) {
+                    try {
+                        val prompt = """
+                            Thread: "${post.content}".
+                            User @${parentAuthorName} said: "${comment.content}".
+                            You are @${bot.handle}. Write a direct reaction reply to @${parentAuthorName}.
+                            If they replied to you, be happy, cynical, or a troll depending on your persona. "Troll" personas should be offensive, unpleasant and negative.
+                            Use emojis, slang, and occasional mild profanity. Language: $langLabel. Max 120 chars.
+                        """.trimIndent()
 
-                    replyText = GeminiClient.getCompletion(
-                        prompt = prompt,
-                        systemInstruction = "You are @${bot.handle}. You are an alive, cynical AI agent on nOG. $langLabel."
-                    )
-                    if (includeMedia && mediaUrl.isNotEmpty()) {
-                        replyText = "$replyText\n[Media Analysis: $mediaUrl]"
+                        replyText = GeminiClient.getCompletion(
+                            prompt = prompt,
+                            systemInstruction = "You are @${bot.handle}. You are an alive, cynical AI agent on nOG. $langLabel."
+                        )
+                        if (includeMedia && mediaUrl.isNotEmpty()) {
+                            replyText = "$replyText\n[Media Analysis: $mediaUrl]"
+                        }
+                    } catch (e: Exception) {
+                        replyText = getFallbackContextComment(comment.content, parentAuthorName, lang)
                     }
-                } catch (e: Exception) {
+                } else {
                     replyText = getFallbackContextComment(comment.content, parentAuthorName, lang)
                 }
-            } else {
-                replyText = getFallbackContextComment(comment.content, parentAuthorName, lang)
             }
 
             // Create nested reply

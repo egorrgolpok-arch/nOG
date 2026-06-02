@@ -48,6 +48,16 @@ import com.example.ui.theme.*
 class MainActivity : ComponentActivity() {
     private val viewModel: SocialViewModel by viewModels()
 
+    override fun onStart() {
+        super.onStart()
+        AppLifecycleTracker.isAppInForeground = true
+    }
+
+    override fun onStop() {
+        super.onStop()
+        AppLifecycleTracker.isAppInForeground = false
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         
@@ -348,4 +358,8 @@ fun NoInternetScreen() {
             )
         }
     }
+}
+
+object AppLifecycleTracker {
+    var isAppInForeground: Boolean = false
 }

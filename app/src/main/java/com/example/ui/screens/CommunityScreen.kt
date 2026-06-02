@@ -578,7 +578,7 @@ fun BlackjackDialog(onDismiss: () -> Unit, lang: String, viewModel: SocialViewMo
                             )
                             Text(
                                 text = if (lang == "RU") "БЛЭКДЖЕК 21" else "BLACKJACK 21",
-                                color = AlertYellow,
+                                color = PureWhite,
                                 fontFamily = FontFamily.Monospace,
                                 fontWeight = FontWeight.Bold,
                                 fontSize = 20.sp
@@ -617,11 +617,11 @@ fun BlackjackDialog(onDismiss: () -> Unit, lang: String, viewModel: SocialViewMo
                     ) {
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
                             Text(if (lang == "RU") "БАЛАНС НОДЫ" else "NODE BALANCE", color = TextGray, fontSize = 9.sp, fontFamily = FontFamily.Monospace)
-                            Text("$$wallet", color = AlertGreen, fontSize = 18.sp, fontWeight = FontWeight.Bold, fontFamily = FontFamily.Monospace)
+                            Text("$$wallet", color = PureWhite, fontSize = 18.sp, fontWeight = FontWeight.Bold, fontFamily = FontFamily.Monospace)
                         }
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
                             Text(if (lang == "RU") "ТЕКУЩИЙ ПАКЕТ" else "ACTIVE BET", color = TextGray, fontSize = 9.sp, fontFamily = FontFamily.Monospace)
-                            Text("$$currentBet", color = AlertYellow, fontSize = 18.sp, fontWeight = FontWeight.Bold, fontFamily = FontFamily.Monospace)
+                            Text("$$currentBet", color = PureWhite, fontSize = 18.sp, fontWeight = FontWeight.Bold, fontFamily = FontFamily.Monospace)
                         }
                     }
 
@@ -655,16 +655,16 @@ fun BlackjackDialog(onDismiss: () -> Unit, lang: String, viewModel: SocialViewMo
                                         .padding(5.dp)
                                         .width(62.dp)
                                         .height(90.dp)
-                                        .border(2.dp, if (isHidden) AlertYellow else BorderGray, RoundedCornerShape(6.dp)),
+                                        .border(2.dp, if (isHidden) PureWhite.copy(alpha = 0.5f) else BorderGray, RoundedCornerShape(6.dp)),
                                     colors = CardDefaults.cardColors(containerColor = if (isHidden) PureBlack else DeepGray)
                                 ) {
                                     if (isHidden) {
                                         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                                            Text("CRYPT", color = AlertYellow, fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold, fontSize = 10.sp)
+                                            Text("CRYPT", color = TextGray, fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold, fontSize = 10.sp)
                                         }
                                     } else {
                                         val isRedSuit = card.suit == "♥" || card.suit == "♦"
-                                        val paintColor = if (isRedSuit) AlertRed else PureWhite
+                                        val paintColor = if (isRedSuit) TextGray else PureWhite
                                         Column(
                                             modifier = Modifier.fillMaxSize().padding(6.dp),
                                             verticalArrangement = Arrangement.SpaceBetween
@@ -723,7 +723,7 @@ fun BlackjackDialog(onDismiss: () -> Unit, lang: String, viewModel: SocialViewMo
                                     colors = CardDefaults.cardColors(containerColor = DeepGray)
                                 ) {
                                     val isRedSuit = card.suit == "♥" || card.suit == "♦"
-                                    val paintColor = if (isRedSuit) AlertRed else PureWhite
+                                    val paintColor = if (isRedSuit) TextGray else PureWhite
                                     Column(
                                         modifier = Modifier.fillMaxSize().padding(6.dp),
                                         verticalArrangement = Arrangement.SpaceBetween
@@ -756,13 +756,13 @@ fun BlackjackDialog(onDismiss: () -> Unit, lang: String, viewModel: SocialViewMo
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .background(DeepGray)
-                                .border(1.dp, AlertYellow, RoundedCornerShape(4.dp))
+                                .border(1.dp, PureWhite, RoundedCornerShape(4.dp))
                                 .padding(12.dp),
                             contentAlignment = Alignment.Center
                         ) {
                             Text(
                                 text = gameOutcomeText,
-                                color = AlertYellow,
+                                color = PureWhite,
                                 fontFamily = FontFamily.Monospace,
                                 fontWeight = FontWeight.Bold,
                                 fontSize = 14.sp,
@@ -772,11 +772,12 @@ fun BlackjackDialog(onDismiss: () -> Unit, lang: String, viewModel: SocialViewMo
                     }
                 }
 
-                // Controls Block at Bottom
+                // Controls Block at Bottom (Raised up for screens/system bars ergonomics)
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(bottom = 12.dp)
+                        .navigationBarsPadding()
+                        .padding(bottom = 36.dp)
                 ) {
                     when (gamePhase) {
                         "BETTING" -> {
@@ -824,10 +825,10 @@ fun BlackjackDialog(onDismiss: () -> Unit, lang: String, viewModel: SocialViewMo
                                     modifier = Modifier
                                         .weight(1f)
                                         .padding(start = 4.dp)
-                                        .border(1.dp, AlertYellow.copy(alpha = 0.5f), RoundedCornerShape(4.dp))
+                                        .border(1.dp, PureWhite.copy(alpha = 0.5f), RoundedCornerShape(4.dp))
                                         .height(38.dp)
                                 ) {
-                                    Text("ALL-IN", fontFamily = FontFamily.Monospace, fontSize = 12.sp, color = AlertYellow, fontWeight = FontWeight.Bold)
+                                    Text("ALL-IN", fontFamily = FontFamily.Monospace, fontSize = 12.sp, color = PureWhite, fontWeight = FontWeight.Bold)
                                 }
                             }
 
@@ -840,7 +841,7 @@ fun BlackjackDialog(onDismiss: () -> Unit, lang: String, viewModel: SocialViewMo
                                         wallet = 1000
                                         currentBet = 100
                                     },
-                                    colors = ButtonDefaults.buttonColors(containerColor = AlertGreen, contentColor = PureBlack),
+                                    colors = ButtonDefaults.buttonColors(containerColor = PureWhite, contentColor = PureBlack),
                                     shape = RoundedCornerShape(4.dp),
                                     modifier = Modifier
                                         .fillMaxWidth()
@@ -885,7 +886,7 @@ fun BlackjackDialog(onDismiss: () -> Unit, lang: String, viewModel: SocialViewMo
                                             gamePhase = "PLAYER_TURN"
                                         }
                                     },
-                                    colors = ButtonDefaults.buttonColors(containerColor = AlertYellow, contentColor = PureBlack),
+                                    colors = ButtonDefaults.buttonColors(containerColor = PureWhite, contentColor = PureBlack),
                                     shape = RoundedCornerShape(4.dp),
                                     modifier = Modifier
                                         .fillMaxWidth()
@@ -953,7 +954,7 @@ fun BlackjackDialog(onDismiss: () -> Unit, lang: String, viewModel: SocialViewMo
                                         }
                                     },
                                     enabled = canDouble,
-                                    colors = ButtonDefaults.buttonColors(containerColor = AlertYellow, contentColor = PureBlack),
+                                    colors = ButtonDefaults.buttonColors(containerColor = PureWhite, contentColor = PureBlack),
                                     shape = RoundedCornerShape(4.dp),
                                     modifier = Modifier
                                         .weight(1.2f)
@@ -968,7 +969,7 @@ fun BlackjackDialog(onDismiss: () -> Unit, lang: String, viewModel: SocialViewMo
                                         viewModel.vibrate(35)
                                         processDealerTurn(deck, playerHand, currentBet)
                                     },
-                                    colors = ButtonDefaults.buttonColors(containerColor = AlertGreen, contentColor = PureBlack),
+                                    colors = ButtonDefaults.buttonColors(containerColor = PureWhite, contentColor = PureBlack),
                                     shape = RoundedCornerShape(4.dp),
                                     modifier = Modifier
                                         .weight(1f)
@@ -991,7 +992,7 @@ fun BlackjackDialog(onDismiss: () -> Unit, lang: String, viewModel: SocialViewMo
                                     }
                                     gamePhase = "BETTING"
                                 },
-                                colors = ButtonDefaults.buttonColors(containerColor = AlertGreen, contentColor = PureBlack),
+                                colors = ButtonDefaults.buttonColors(containerColor = PureWhite, contentColor = PureBlack),
                                 shape = RoundedCornerShape(4.dp),
                                 modifier = Modifier
                                     .fillMaxWidth()
@@ -1624,6 +1625,8 @@ fun ChessDialog(onDismiss: () -> Unit, lang: String, viewModel: SocialViewModel)
                         shape = RoundedCornerShape(4.dp),
                         modifier = Modifier
                             .fillMaxWidth()
+                            .navigationBarsPadding()
+                            .padding(bottom = 36.dp)
                             .height(48.dp)
                     ) {
                         Text(
