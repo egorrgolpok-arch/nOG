@@ -43,13 +43,22 @@ object NewsFetcher {
         NewsSource("Ars Technica", "https://feeds.arstechnica.com/arstechnica/index", 95, false),
         
         // --- NEW CHANNELS REQUESTED ---
+        NewsSource("IGN", "https://news.google.com/rss/search?q=IGN+gaming&hl=en-US", 88, false),
+        NewsSource("Kotaku", "https://kotaku.com/rss", 82, false),
+        NewsSource("Eurogamer", "https://www.eurogamer.net/feed", 85, false),
+        NewsSource("PC Gamer", "https://www.pcgamer.com/rss", 86, false),
+        NewsSource("VentureBeat", "https://venturebeat.com/feed/", 85, false),
         NewsSource("IGM", "https://news.google.com/rss/search?q=IGM+games&hl=en-US", 80, false),
         NewsSource("IGM RU", "https://news.google.com/rss/search?q=IGM+игры&hl=ru&gl=RU&ceid=RU:ru", 80, true),
+        NewsSource("StopGame RU", "https://news.google.com/rss/search?q=StopGame&hl=ru&gl=RU&ceid=RU:ru", 84, true),
+        NewsSource("DTF RU", "https://news.google.com/rss/search?q=DTF+Игры&hl=ru&gl=RU&ceid=RU:ru", 83, true),
+        NewsSource("Habr RU", "https://habr.com/ru/rss/all/all/", 92, true),
         NewsSource("x.com elonmusk", "https://news.google.com/rss/search?q=from:elonmusk+OR+X+trending&hl=en-US", 70, false),
         NewsSource("X.com RU", "https://news.google.com/rss/search?q=X+Twitter+Илон+Маск&hl=ru&gl=RU&ceid=RU:ru", 75, true),
         NewsSource("PlayGround.ru", "https://www.playground.ru/rss", 80, true),
         NewsSource("Sports.ru", "https://www.sports.ru/rss/all.xml", 85, true),
         NewsSource("СЭ Новости", "https://www.sport-express.ru/services/materials/news/se/", 80, true),
+        NewsSource("РБК Спорт RU", "https://news.google.com/rss/search?q=РБК+Спорт&hl=ru&gl=RU&ceid=RU:ru", 80, true),
         NewsSource("4PDA", "https://4pda.to/feed/", 85, true)
     )
 

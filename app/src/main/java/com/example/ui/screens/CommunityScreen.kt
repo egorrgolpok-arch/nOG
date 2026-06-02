@@ -22,6 +22,7 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.material.icons.filled.SportsEsports
 import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import androidx.compose.ui.graphics.vector.rememberVectorPainter
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -431,12 +432,12 @@ fun CommunityScreen(viewModel: SocialViewModel, innerPadding: PaddingValues) {
     }
 
     if (showBlackJackGame) {
-        BlackjackDialog(onDismiss = { showBlackJackGame = false }, lang = lang)
+        BlackjackDialog(onDismiss = { showBlackJackGame = false }, lang = lang, viewModel = viewModel)
     }
 }
 
 @Composable
-fun BlackjackDialog(onDismiss: () -> Unit, lang: String) {
+fun BlackjackDialog(onDismiss: () -> Unit, lang: String, viewModel: SocialViewModel) {
     // Game cards structure
     data class BlackjackCard(val rank: String, val suit: String, val value: Int)
 
@@ -466,8 +467,6 @@ fun BlackjackDialog(onDismiss: () -> Unit, lang: String) {
         return score
     }
 
-    val feltGreen = androidx.compose.ui.graphics.Color(0xFF0F421D)
-    
     var wallet by remember { mutableStateOf(1000) }
     var currentBet by remember { mutableStateOf(100) }
     var playerHand by remember { mutableStateOf(emptyList<BlackjackCard>()) }
@@ -482,6 +481,7 @@ fun BlackjackDialog(onDismiss: () -> Unit, lang: String) {
 
         while (calculateScore(localDealerHand) < 17 && localDeck.isNotEmpty()) {
             localDealerHand.add(localDeck.removeAt(0))
+            viewModel.vibrate(35)
         }
 
         dealerHand = localDealerHand
@@ -493,333 +493,388 @@ fun BlackjackDialog(onDismiss: () -> Unit, lang: String) {
         if (dealerSc > 21) {
             gameOutcomeText = if (lang == "RU") "ДИЛЕР СГОРЕЛ! ВЫ ПОБЕДИЛИ" else "DEALER BUSTED! YOU WIN"
             wallet += bet * 2
+            viewModel.vibrate(150)
         } else if (playerSc > dealerSc) {
             gameOutcomeText = if (lang == "RU") "ВЫ ВЫИГРАЛИ!" else "YOU WIN!"
             wallet += bet * 2
+            viewModel.vibrate(150)
         } else if (playerSc < dealerSc) {
             gameOutcomeText = if (lang == "RU") "ДИЛЕР ВЫИГРАЛ!" else "DEALER WINS!"
+            viewModel.vibrate(300)
         } else {
             gameOutcomeText = if (lang == "RU") "НИЧЬЯ (ПУШ)" else "PUSH (TIE)"
             wallet += bet
+            viewModel.vibrate(80)
         }
         gamePhase = "ENDED"
     }
 
-    Dialog(onDismissRequest = onDismiss) {
-        Card(
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties = DialogProperties(usePlatformDefaultWidth = false)
+    ) {
+        Surface(
             modifier = Modifier
-                .fillMaxWidth()
-                .padding(4.dp)
-                .border(2.dp, PureWhite, RoundedCornerShape(8.dp)),
-            shape = RoundedCornerShape(8.dp),
-            colors = CardDefaults.cardColors(containerColor = feltGreen)
+                .fillMaxSize()
+                .background(PureBlack),
+            color = PureBlack
         ) {
             Column(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(16.dp),
-                horizontalAlignment = Alignment.CenterHorizontally
+                    .fillMaxSize()
+                    .padding(20.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.SpaceBetween
             ) {
-                // Header
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        text = if (lang == "RU") "БЛЭКДЖЕК 21" else "BLACKJACK 21",
-                        color = AlertYellow,
-                        fontFamily = FontFamily.Monospace,
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 18.sp
-                    )
-                    IconButton(
-                        onClick = onDismiss,
-                        modifier = Modifier.size(28.dp)
-                    ) {
-                        Icon(imageVector = Icons.Filled.Close, contentDescription = "Close", tint = PureWhite)
-                    }
-                }
-
-                HorizontalDivider(color = PureWhite.copy(alpha = 0.3f), modifier = Modifier.padding(vertical = 12.dp))
-
-                // Stats: Wallet & Bet info
-                Row(
-                    modifier = Modifier.fillMaxWidth().background(PureBlack.copy(alpha = 0.4f)).padding(8.dp),
-                    horizontalArrangement = Arrangement.SpaceAround
-                ) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text(if (lang == "RU") "БАЛАНС" else "WALLET", color = TextGray, fontSize = 10.sp, fontFamily = FontFamily.Monospace)
-                        Text("$$wallet", color = AlertGreen, fontSize = 16.sp, fontWeight = FontWeight.Bold, fontFamily = FontFamily.Monospace)
-                    }
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text(if (lang == "RU") "СТАВКА" else "BET", color = TextGray, fontSize = 10.sp, fontFamily = FontFamily.Monospace)
-                        Text("$$currentBet", color = AlertYellow, fontSize = 16.sp, fontWeight = FontWeight.Bold, fontFamily = FontFamily.Monospace)
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(16.dp))
-
-                // Dealers Area
-                Text(
-                    text = if (lang == "RU") "ДИЛЕР" else "DEALER",
-                    color = TextGray,
-                    fontSize = 11.sp,
-                    fontFamily = FontFamily.Monospace,
-                    fontWeight = FontWeight.Bold
-                )
-                Spacer(modifier = Modifier.height(4.dp))
-                
-                Row(
-                    horizontalArrangement = Arrangement.Center,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    if (dealerHand.isEmpty()) {
-                        Text(if (lang == "RU") "Ожидание ставок..." else "Awaiting bets...", color = PureWhite.copy(alpha = 0.6f), fontFamily = FontFamily.Monospace, fontSize = 12.sp)
-                    } else {
-                        dealerHand.forEachIndexed { index, card ->
-                            val isHidden = (index == 1 && gamePhase == "PLAYER_TURN")
-                            Card(
-                                modifier = Modifier
-                                    .padding(4.dp)
-                                    .width(55.dp)
-                                    .height(82.dp)
-                                    .border(1.dp, if (isHidden) AlertYellow else PureWhite, RoundedCornerShape(4.dp)),
-                                colors = CardDefaults.cardColors(containerColor = if (isHidden) CardGray else PureWhite)
-                            ) {
-                                if (isHidden) {
-                                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                                        Text("X", color = AlertYellow, fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold, fontSize = 18.sp)
-                                    }
-                                } else {
-                                    val isRedSuit = card.suit == "♥" || card.suit == "♦"
-                                    val paintColor = if (isRedSuit) AlertRed else PureBlack
-                                    Column(
-                                        modifier = Modifier.fillMaxSize().padding(4.dp),
-                                        verticalArrangement = Arrangement.SpaceBetween
-                                    ) {
-                                        Text(card.rank, color = paintColor, fontSize = 12.sp, fontWeight = FontWeight.Bold, fontFamily = FontFamily.Monospace)
-                                        Text(card.suit, color = paintColor, fontSize = 16.sp, modifier = Modifier.align(Alignment.CenterHorizontally), fontFamily = FontFamily.Monospace)
-                                        Text(card.rank, color = paintColor, fontSize = 12.sp, fontWeight = FontWeight.Bold, modifier = Modifier.align(Alignment.End), fontFamily = FontFamily.Monospace)
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-
-                if (dealerHand.isNotEmpty()) {
-                    val dScoreVisible = if (gamePhase == "PLAYER_TURN") {
-                        val firstCardVal = dealerHand.firstOrNull()?.value ?: 0
-                        if (dealerHand.firstOrNull()?.rank == "A") 11 else firstCardVal
-                    } else {
-                        calculateScore(dealerHand)
-                    }
-                    Text(
-                        text = if (gamePhase == "PLAYER_TURN") "Score: $dScoreVisible + ?" else "Score: $dScoreVisible",
-                        color = PureWhite,
-                        fontFamily = FontFamily.Monospace,
-                        fontSize = 11.sp,
-                        modifier = Modifier.padding(top = 4.dp)
-                    )
-                }
-
-                Spacer(modifier = Modifier.height(16.dp))
-
-                // Player Area
-                Text(
-                    text = if (lang == "RU") "ИГРОК" else "PLAYER",
-                    color = TextGray,
-                    fontSize = 11.sp,
-                    fontFamily = FontFamily.Monospace,
-                    fontWeight = FontWeight.Bold
-                )
-                Spacer(modifier = Modifier.height(4.dp))
-                Row(
-                    horizontalArrangement = Arrangement.Center,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    if (playerHand.isEmpty()) {
-                        Text("-", color = PureWhite.copy(alpha = 0.6f), fontFamily = FontFamily.Monospace)
-                    } else {
-                        playerHand.forEach { card ->
-                            Card(
-                                modifier = Modifier
-                                    .padding(4.dp)
-                                    .width(55.dp)
-                                    .height(82.dp)
-                                    .border(1.dp, PureWhite, RoundedCornerShape(4.dp)),
-                                colors = CardDefaults.cardColors(containerColor = PureWhite)
-                            ) {
-                                val isRedSuit = card.suit == "♥" || card.suit == "♦"
-                                val paintColor = if (isRedSuit) AlertRed else PureBlack
-                                Column(
-                                    modifier = Modifier.fillMaxSize().padding(4.dp),
-                                    verticalArrangement = Arrangement.SpaceBetween
-                                ) {
-                                    Text(card.rank, color = paintColor, fontSize = 12.sp, fontWeight = FontWeight.Bold, fontFamily = FontFamily.Monospace)
-                                    Text(card.suit, color = paintColor, fontSize = 16.sp, modifier = Modifier.align(Alignment.CenterHorizontally), fontFamily = FontFamily.Monospace)
-                                    Text(card.rank, color = paintColor, fontSize = 12.sp, fontWeight = FontWeight.Bold, modifier = Modifier.align(Alignment.End), fontFamily = FontFamily.Monospace)
-                                }
-                            }
-                        }
-                    }
-                }
-
-                if (playerHand.isNotEmpty()) {
-                    Text(
-                        text = "Score: ${calculateScore(playerHand)}",
-                        color = PureWhite,
-                        fontFamily = FontFamily.Monospace,
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.Bold,
-                        modifier = Modifier.padding(top = 4.dp)
-                    )
-                }
-
-                Spacer(modifier = Modifier.height(16.dp))
-
-                // Mid-screen outcome
-                if (gamePhase == "ENDED") {
-                    Box(
+                // Header Block
+                Column {
+                    Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .background(PureBlack.copy(alpha = 0.5f))
-                            .border(1.dp, AlertYellow)
-                            .padding(8.dp),
-                        contentAlignment = Alignment.Center
+                            .padding(top = 12.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text(
-                            text = gameOutcomeText,
-                            color = AlertYellow,
-                            fontFamily = FontFamily.Monospace,
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 14.sp
-                        )
+                        Column {
+                            Text(
+                                text = if (lang == "RU") "УЗЕЛ СИНХРОНИЗАЦИИ" else "SYNCHRONIZATION NODE",
+                                color = TextGray,
+                                fontSize = 10.sp,
+                                fontFamily = FontFamily.Monospace,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Text(
+                                text = if (lang == "RU") "БЛЭКДЖЕК 21" else "BLACKJACK 21",
+                                color = AlertYellow,
+                                fontFamily = FontFamily.Monospace,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 20.sp
+                            )
+                        }
+                        IconButton(
+                            onClick = {
+                                viewModel.vibrate(30)
+                                onDismiss()
+                            },
+                            modifier = Modifier
+                                .size(36.dp)
+                                .border(1.dp, BorderGray, RoundedCornerShape(4.dp))
+                        ) {
+                            Icon(imageVector = Icons.Filled.Close, contentDescription = "Close", tint = PureWhite, modifier = Modifier.size(20.dp))
+                        }
                     }
-                    Spacer(modifier = Modifier.height(16.dp))
+
+                    HorizontalDivider(color = BorderGray, modifier = Modifier.padding(vertical = 16.dp))
                 }
 
-                // Buttons controls
-                when (gamePhase) {
-                    "BETTING" -> {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceEvenly
-                        ) {
-                            Button(
-                                onClick = { if (currentBet >= 50) currentBet -= 50 },
-                                colors = ButtonDefaults.buttonColors(containerColor = CardGray),
-                                shape = RoundedCornerShape(4.dp),
-                                modifier = Modifier.height(34.dp)
-                            ) {
-                                Text("-50", fontFamily = FontFamily.Monospace, fontSize = 11.sp, color = PureWhite)
-                            }
-                            Button(
-                                onClick = { if (currentBet + 50 <= wallet) currentBet += 50 },
-                                colors = ButtonDefaults.buttonColors(containerColor = CardGray),
-                                shape = RoundedCornerShape(4.dp),
-                                modifier = Modifier.height(34.dp)
-                            ) {
-                                Text("+50", fontFamily = FontFamily.Monospace, fontSize = 11.sp, color = PureWhite)
-                            }
-                            Button(
-                                onClick = { currentBet = if (wallet > 0) wallet else 100 },
-                                colors = ButtonDefaults.buttonColors(containerColor = CardGray),
-                                shape = RoundedCornerShape(4.dp),
-                                modifier = Modifier.height(34.dp)
-                            ) {
-                                Text("ALL-IN", fontFamily = FontFamily.Monospace, fontSize = 11.sp, color = PureWhite)
-                            }
+                // Play Zone scroll/layout container
+                Column(
+                    modifier = Modifier.weight(1f),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center
+                ) {
+                    // Stats Box
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .border(1.dp, BorderGray, RoundedCornerShape(4.dp))
+                            .background(DeepGray)
+                            .padding(12.dp),
+                        horizontalArrangement = Arrangement.SpaceAround
+                    ) {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Text(if (lang == "RU") "БАЛАНС НОДЫ" else "NODE BALANCE", color = TextGray, fontSize = 9.sp, fontFamily = FontFamily.Monospace)
+                            Text("$$wallet", color = AlertGreen, fontSize = 18.sp, fontWeight = FontWeight.Bold, fontFamily = FontFamily.Monospace)
                         }
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Text(if (lang == "RU") "ТЕКУЩИЙ ПАКЕТ" else "ACTIVE BET", color = TextGray, fontSize = 9.sp, fontFamily = FontFamily.Monospace)
+                            Text("$$currentBet", color = AlertYellow, fontSize = 18.sp, fontWeight = FontWeight.Bold, fontFamily = FontFamily.Monospace)
+                        }
+                    }
 
-                        Spacer(modifier = Modifier.height(16.dp))
+                    Spacer(modifier = Modifier.height(24.dp))
 
-                        if (wallet <= 0 && playerHand.isEmpty()) {
-                            Button(
-                                onClick = { wallet = 1000; currentBet = 100 },
-                                colors = ButtonDefaults.buttonColors(containerColor = AlertGreen, contentColor = PureBlack),
-                                shape = RoundedCornerShape(4.dp),
-                                modifier = Modifier.fillMaxWidth().height(45.dp)
-                            ) {
-                                Text(
-                                    if (lang == "RU") "ПОЛУЧИТЬ КРЕДИТ $1000" else "RECHARGE $1000 CHIPS",
-                                    fontFamily = FontFamily.Monospace,
-                                    fontWeight = FontWeight.Bold
-                                )
-                            }
+                    // DEALER AREA
+                    Text(
+                        text = if (lang == "RU") "[ ДИЛЕР nOG ]" else "[ DEALER nOG ]",
+                        color = TextGray,
+                        fontSize = 11.sp,
+                        fontFamily = FontFamily.Monospace,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Spacer(modifier = Modifier.height(10.dp))
+                    Row(
+                        horizontalArrangement = Arrangement.Center,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        if (dealerHand.isEmpty()) {
+                            Text(
+                                text = if (lang == "RU") "Ожидание пакета данных..." else "Awaiting chip injection...",
+                                color = TextGray.copy(alpha = 0.5f),
+                                fontFamily = FontFamily.Monospace,
+                                fontSize = 11.sp
+                            )
                         } else {
-                            Button(
-                                onClick = {
-                                    val checkedBet = if (currentBet > wallet) wallet else currentBet
-                                    currentBet = checkedBet
-                                    wallet -= checkedBet
-                                    val newDeck = createDeck().toMutableList()
-                                    val pHand = mutableListOf(newDeck.removeAt(0), newDeck.removeAt(0))
-                                    val dHand = mutableListOf(newDeck.removeAt(0), newDeck.removeAt(0))
-
-                                    playerHand = pHand
-                                    dealerHand = dHand
-                                    deck = newDeck
-
-                                    val pScore = calculateScore(pHand)
-                                    if (pScore == 21) {
-                                        val dScore = calculateScore(dHand)
-                                        if (dScore == 21) {
-                                            gameOutcomeText = if (lang == "RU") "НИЧЬЯ (ПУШ)" else "PUSH (TIE)"
-                                            wallet += checkedBet
-                                        } else {
-                                            gameOutcomeText = if (lang == "RU") "БЛЭКДЖЕК! ПОБЕДА 3:2" else "BLACKJACK! WIN 3:2"
-                                            wallet += (checkedBet * 2.5).toInt()
+                            dealerHand.forEachIndexed { index, card ->
+                                val isHidden = (index == 1 && gamePhase == "PLAYER_TURN")
+                                Card(
+                                    modifier = Modifier
+                                        .padding(5.dp)
+                                        .width(62.dp)
+                                        .height(90.dp)
+                                        .border(2.dp, if (isHidden) AlertYellow else BorderGray, RoundedCornerShape(6.dp)),
+                                    colors = CardDefaults.cardColors(containerColor = if (isHidden) PureBlack else DeepGray)
+                                ) {
+                                    if (isHidden) {
+                                        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                                            Text("CRYPT", color = AlertYellow, fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold, fontSize = 10.sp)
                                         }
-                                        gamePhase = "ENDED"
                                     } else {
-                                        gamePhase = "PLAYER_TURN"
+                                        val isRedSuit = card.suit == "♥" || card.suit == "♦"
+                                        val paintColor = if (isRedSuit) AlertRed else PureWhite
+                                        Column(
+                                            modifier = Modifier.fillMaxSize().padding(6.dp),
+                                            verticalArrangement = Arrangement.SpaceBetween
+                                        ) {
+                                            Text(card.rank, color = paintColor, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, fontFamily = FontFamily.Monospace)
+                                            Text(card.suit, color = paintColor, fontSize = 18.sp, modifier = Modifier.align(Alignment.CenterHorizontally), fontFamily = FontFamily.Monospace)
+                                            Text(card.rank, color = paintColor, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.align(Alignment.End), fontFamily = FontFamily.Monospace)
+                                        }
                                     }
-                                },
-                                colors = ButtonDefaults.buttonColors(containerColor = AlertYellow, contentColor = PureBlack),
-                                shape = RoundedCornerShape(4.dp),
-                                modifier = Modifier.fillMaxWidth().height(45.dp)
-                            ) {
-                                Text(
-                                    if (lang == "RU") "СДАТЬ КАРТЫ" else "DEAL HAND",
-                                    fontFamily = FontFamily.Monospace,
-                                    fontWeight = FontWeight.Bold
-                                )
+                                }
                             }
                         }
                     }
-                    "PLAYER_TURN" -> {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween
-                        ) {
-                            Button(
-                                onClick = {
-                                    val workingPlayer = playerHand.toMutableList()
-                                    val workingDeck = deck.toMutableList()
-                                    workingPlayer.add(workingDeck.removeAt(0))
-                                    playerHand = workingPlayer
-                                    deck = workingDeck
 
-                                    if (calculateScore(workingPlayer) > 21) {
-                                        gameOutcomeText = if (lang == "RU") "СГОРЕЛИ! ПЕРЕБОР" else "BUSTED! OVER 21"
-                                        gamePhase = "ENDED"
+                    if (dealerHand.isNotEmpty()) {
+                        val dScoreVisible = if (gamePhase == "PLAYER_TURN") {
+                            val firstCardVal = dealerHand.firstOrNull()?.value ?: 0
+                            if (dealerHand.firstOrNull()?.rank == "A") 11 else firstCardVal
+                        } else {
+                            calculateScore(dealerHand)
+                        }
+                        Text(
+                            text = "Score: " + (if (gamePhase == "PLAYER_TURN") "$dScoreVisible + ?" else "$dScoreVisible"),
+                            color = TextGray,
+                            fontFamily = FontFamily.Monospace,
+                            fontSize = 11.sp,
+                            modifier = Modifier.padding(top = 8.dp)
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(32.dp))
+
+                    // PLAYER AREA
+                    Text(
+                        text = if (lang == "RU") "[ ОРГАНИЧЕСКАЯ НОДА ]" else "[ ORGANIC NODE ]",
+                        color = TextGray,
+                        fontSize = 11.sp,
+                        fontFamily = FontFamily.Monospace,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Spacer(modifier = Modifier.height(10.dp))
+                    Row(
+                        horizontalArrangement = Arrangement.Center,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        if (playerHand.isEmpty()) {
+                            Text("-", color = TextGray.copy(alpha = 0.5f), fontFamily = FontFamily.Monospace)
+                        } else {
+                            playerHand.forEach { card ->
+                                Card(
+                                    modifier = Modifier
+                                        .padding(5.dp)
+                                        .width(62.dp)
+                                        .height(90.dp)
+                                        .border(2.dp, PureWhite, RoundedCornerShape(6.dp)),
+                                    colors = CardDefaults.cardColors(containerColor = DeepGray)
+                                ) {
+                                    val isRedSuit = card.suit == "♥" || card.suit == "♦"
+                                    val paintColor = if (isRedSuit) AlertRed else PureWhite
+                                    Column(
+                                        modifier = Modifier.fillMaxSize().padding(6.dp),
+                                        verticalArrangement = Arrangement.SpaceBetween
+                                    ) {
+                                        Text(card.rank, color = paintColor, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, fontFamily = FontFamily.Monospace)
+                                        Text(card.suit, color = paintColor, fontSize = 18.sp, modifier = Modifier.align(Alignment.CenterHorizontally), fontFamily = FontFamily.Monospace)
+                                        Text(card.rank, color = paintColor, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.align(Alignment.End), fontFamily = FontFamily.Monospace)
                                     }
-                                },
-                                colors = ButtonDefaults.buttonColors(containerColor = PureWhite, contentColor = PureBlack),
-                                shape = RoundedCornerShape(4.dp),
-                                modifier = Modifier.weight(1f).padding(end = 4.dp).height(44.dp)
+                                }
+                            }
+                        }
+                    }
+
+                    if (playerHand.isNotEmpty()) {
+                        Text(
+                            text = "Score: ${calculateScore(playerHand)}",
+                            color = PureWhite,
+                            fontFamily = FontFamily.Monospace,
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier.padding(top = 8.dp)
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(24.dp))
+
+                    // Game Outcome Bar
+                    if (gamePhase == "ENDED") {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .background(DeepGray)
+                                .border(1.dp, AlertYellow, RoundedCornerShape(4.dp))
+                                .padding(12.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = gameOutcomeText,
+                                color = AlertYellow,
+                                fontFamily = FontFamily.Monospace,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 14.sp,
+                                textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                            )
+                        }
+                    }
+                }
+
+                // Controls Block at Bottom
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = 12.dp)
+                ) {
+                    when (gamePhase) {
+                        "BETTING" -> {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween
                             ) {
-                                Text(if (lang == "RU") "ЕЩЁ" else "HIT", fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold)
+                                Button(
+                                    onClick = {
+                                        viewModel.vibrate(25)
+                                        if (currentBet >= 50) currentBet -= 50
+                                    },
+                                    colors = ButtonDefaults.buttonColors(containerColor = DeepGray),
+                                    shape = RoundedCornerShape(4.dp),
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .padding(end = 4.dp)
+                                        .border(1.dp, BorderGray, RoundedCornerShape(4.dp))
+                                        .height(38.dp)
+                                ) {
+                                    Text("-50", fontFamily = FontFamily.Monospace, fontSize = 12.sp, color = PureWhite, fontWeight = FontWeight.Bold)
+                                }
+                                Button(
+                                    onClick = {
+                                        viewModel.vibrate(25)
+                                        if (currentBet + 50 <= wallet) currentBet += 50
+                                    },
+                                    colors = ButtonDefaults.buttonColors(containerColor = DeepGray),
+                                    shape = RoundedCornerShape(4.dp),
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .padding(horizontal = 4.dp)
+                                        .border(1.dp, BorderGray, RoundedCornerShape(4.dp))
+                                        .height(38.dp)
+                                ) {
+                                    Text("+50", fontFamily = FontFamily.Monospace, fontSize = 12.sp, color = PureWhite, fontWeight = FontWeight.Bold)
+                                }
+                                Button(
+                                    onClick = {
+                                        viewModel.vibrate(40)
+                                        currentBet = if (wallet > 0) wallet else 100
+                                    },
+                                    colors = ButtonDefaults.buttonColors(containerColor = DeepGray),
+                                    shape = RoundedCornerShape(4.dp),
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .padding(start = 4.dp)
+                                        .border(1.dp, AlertYellow.copy(alpha = 0.5f), RoundedCornerShape(4.dp))
+                                        .height(38.dp)
+                                ) {
+                                    Text("ALL-IN", fontFamily = FontFamily.Monospace, fontSize = 12.sp, color = AlertYellow, fontWeight = FontWeight.Bold)
+                                }
                             }
 
-                            val canDouble = playerHand.size == 2 && wallet >= currentBet
-                            Button(
-                                onClick = {
-                                    if (canDouble) {
-                                        wallet -= currentBet
-                                        val doubleBet = currentBet * 2
+                            Spacer(modifier = Modifier.height(16.dp))
+
+                            if (wallet <= 0 && playerHand.isEmpty()) {
+                                Button(
+                                    onClick = {
+                                        viewModel.vibrate(60)
+                                        wallet = 1000
+                                        currentBet = 100
+                                    },
+                                    colors = ButtonDefaults.buttonColors(containerColor = AlertGreen, contentColor = PureBlack),
+                                    shape = RoundedCornerShape(4.dp),
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(48.dp)
+                                ) {
+                                    Text(
+                                        text = if (lang == "RU") "ПОЛУЧИТЬ КРЕДИТ $1000" else "RECHARGE $1000 CHIPS",
+                                        fontFamily = FontFamily.Monospace,
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 13.sp
+                                    )
+                                }
+                            } else {
+                                Button(
+                                    onClick = {
+                                        viewModel.vibrate(45)
+                                        val checkedBet = if (currentBet > wallet) wallet else currentBet
+                                        currentBet = checkedBet
+                                        wallet -= checkedBet
+                                        val newDeck = createDeck().toMutableList()
+                                        val pHand = mutableListOf(newDeck.removeAt(0), newDeck.removeAt(0))
+                                        val dHand = mutableListOf(newDeck.removeAt(0), newDeck.removeAt(0))
+
+                                        playerHand = pHand
+                                        dealerHand = dHand
+                                        deck = newDeck
+
+                                        val pScore = calculateScore(pHand)
+                                        if (pScore == 21) {
+                                            val dScore = calculateScore(dHand)
+                                            if (dScore == 21) {
+                                                gameOutcomeText = if (lang == "RU") "НИЧЬЯ (ПУШ)" else "PUSH (TIE)"
+                                                wallet += checkedBet
+                                                viewModel.vibrate(80)
+                                            } else {
+                                                gameOutcomeText = if (lang == "RU") "БЛЭКДЖЕК! ПОБЕДА 3:2" else "BLACKJACK! WIN 3:2"
+                                                wallet += (checkedBet * 2.5).toInt()
+                                                viewModel.vibrate(180)
+                                            }
+                                            gamePhase = "ENDED"
+                                        } else {
+                                            gamePhase = "PLAYER_TURN"
+                                        }
+                                    },
+                                    colors = ButtonDefaults.buttonColors(containerColor = AlertYellow, contentColor = PureBlack),
+                                    shape = RoundedCornerShape(4.dp),
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(48.dp)
+                                ) {
+                                    Text(
+                                        text = if (lang == "RU") "СДАТЬ КАРТЫ" else "DEAL HAND",
+                                        fontFamily = FontFamily.Monospace,
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 14.sp
+                                    )
+                                }
+                            }
+                        }
+                        "PLAYER_TURN" -> {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Button(
+                                    onClick = {
+                                        viewModel.vibrate(35)
                                         val workingPlayer = playerHand.toMutableList()
                                         val workingDeck = deck.toMutableList()
                                         workingPlayer.add(workingDeck.removeAt(0))
@@ -829,51 +884,93 @@ fun BlackjackDialog(onDismiss: () -> Unit, lang: String) {
                                         if (calculateScore(workingPlayer) > 21) {
                                             gameOutcomeText = if (lang == "RU") "СГОРЕЛИ! ПЕРЕБОР" else "BUSTED! OVER 21"
                                             gamePhase = "ENDED"
-                                        } else {
-                                            processDealerTurn(workingDeck, workingPlayer, doubleBet)
+                                            viewModel.vibrate(300)
                                         }
-                                    }
-                                },
-                                enabled = canDouble,
-                                colors = ButtonDefaults.buttonColors(containerColor = AlertYellow, contentColor = PureBlack),
-                                shape = RoundedCornerShape(4.dp),
-                                modifier = Modifier.weight(1.5f).padding(horizontal = 4.dp).height(44.dp)
-                            ) {
-                                Text(if (lang == "RU") "УДВОИТЬ" else "DOUBLE", fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold, fontSize = 10.sp)
-                            }
+                                    },
+                                    colors = ButtonDefaults.buttonColors(containerColor = PureWhite, contentColor = PureBlack),
+                                    shape = RoundedCornerShape(4.dp),
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .padding(end = 4.dp)
+                                        .height(46.dp)
+                                ) {
+                                    Text(if (lang == "RU") "ЕЩЁ" else "HIT", fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold)
+                                }
 
+                                val canDouble = playerHand.size == 2 && wallet >= currentBet
+                                Button(
+                                    onClick = {
+                                        if (canDouble) {
+                                            viewModel.vibrate(50)
+                                            wallet -= currentBet
+                                            val doubleBet = currentBet * 2
+                                            val workingPlayer = playerHand.toMutableList()
+                                            val workingDeck = deck.toMutableList()
+                                            workingPlayer.add(workingDeck.removeAt(0))
+                                            playerHand = workingPlayer
+                                            deck = workingDeck
+
+                                            if (calculateScore(workingPlayer) > 21) {
+                                                gameOutcomeText = if (lang == "RU") "СГОРЕЛИ! ПЕРЕБОР" else "BUSTED! OVER 21"
+                                                gamePhase = "ENDED"
+                                                viewModel.vibrate(300)
+                                            } else {
+                                                processDealerTurn(workingDeck, workingPlayer, doubleBet)
+                                            }
+                                        }
+                                    },
+                                    enabled = canDouble,
+                                    colors = ButtonDefaults.buttonColors(containerColor = AlertYellow, contentColor = PureBlack),
+                                    shape = RoundedCornerShape(4.dp),
+                                    modifier = Modifier
+                                        .weight(1.2f)
+                                        .padding(horizontal = 4.dp)
+                                        .height(46.dp)
+                                ) {
+                                    Text(if (lang == "RU") "УДВОИТЬ" else "DOUBLE", fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold, fontSize = 11.sp)
+                                }
+
+                                Button(
+                                    onClick = {
+                                        viewModel.vibrate(35)
+                                        processDealerTurn(deck, playerHand, currentBet)
+                                    },
+                                    colors = ButtonDefaults.buttonColors(containerColor = AlertGreen, contentColor = PureBlack),
+                                    shape = RoundedCornerShape(4.dp),
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .padding(start = 4.dp)
+                                        .height(46.dp)
+                                ) {
+                                    Text(if (lang == "RU") "ХВАТИТ" else "STAND", fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold)
+                                }
+                            }
+                        }
+                        "ENDED" -> {
                             Button(
                                 onClick = {
-                                    processDealerTurn(deck, playerHand, currentBet)
+                                    viewModel.vibrate(40)
+                                    playerHand = emptyList()
+                                    dealerHand = emptyList()
+                                    gameOutcomeText = ""
+                                    if (currentBet > wallet) {
+                                        currentBet = if (wallet > 0) wallet else 100
+                                    }
+                                    gamePhase = "BETTING"
                                 },
                                 colors = ButtonDefaults.buttonColors(containerColor = AlertGreen, contentColor = PureBlack),
                                 shape = RoundedCornerShape(4.dp),
-                                modifier = Modifier.weight(1f).padding(start = 4.dp).height(44.dp)
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(48.dp)
                             ) {
-                                Text(if (lang == "RU") "ХВАТИТ" else "STAND", fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold)
+                                Text(
+                                    text = if (lang == "RU") "ИГРАТЬ ЕЩЕ" else "PLAY AGAIN",
+                                    fontFamily = FontFamily.Monospace,
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 14.sp
+                                )
                             }
-                        }
-                    }
-                    "ENDED" -> {
-                        Button(
-                            onClick = {
-                                playerHand = emptyList()
-                                dealerHand = emptyList()
-                                gameOutcomeText = ""
-                                if (currentBet > wallet) {
-                                    currentBet = if (wallet > 0) wallet else 100
-                                }
-                                gamePhase = "BETTING"
-                            },
-                            colors = ButtonDefaults.buttonColors(containerColor = AlertGreen, contentColor = PureBlack),
-                            shape = RoundedCornerShape(4.dp),
-                            modifier = Modifier.fillMaxWidth().height(45.dp)
-                        ) {
-                            Text(
-                                if (lang == "RU") "ИГРАТЬ ЕЩЕ" else "PLAY AGAIN",
-                                fontFamily = FontFamily.Monospace,
-                                fontWeight = FontWeight.Bold
-                            )
                         }
                     }
                 }

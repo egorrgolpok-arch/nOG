@@ -2,6 +2,10 @@ package com.example.ui
 
 import android.app.Application
 import android.content.Context
+import android.os.Build
+import android.os.VibrationEffect
+import android.os.Vibrator
+import android.os.VibratorManager
 import android.util.Log
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
@@ -31,6 +35,28 @@ data class ChatMessage(
 class SocialViewModel(application: Application) : AndroidViewModel(application) {
     private val TAG = "SocialViewModel"
     private val repository = SocialRepository(application, viewModelScope)
+
+    fun vibrate(milliseconds: Long = 50, amplitude: Int = VibrationEffect.DEFAULT_AMPLITUDE) {
+        try {
+            val context = getApplication<Application>()
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                val vibratorManager = context.getSystemService(Context.VIBRATOR_MANAGER_SERVICE) as? VibratorManager
+                val vibrator = vibratorManager?.defaultVibrator
+                vibrator?.vibrate(VibrationEffect.createOneShot(milliseconds, amplitude))
+            } else {
+                @Suppress("DEPRECATION")
+                val vibrator = context.getSystemService(Context.VIBRATOR_SERVICE) as? Vibrator
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                    vibrator?.vibrate(VibrationEffect.createOneShot(milliseconds, amplitude))
+                } else {
+                    @Suppress("DEPRECATION")
+                    vibrator?.vibrate(milliseconds)
+                }
+            }
+        } catch (e: Exception) {
+            // Safe fallback if vibration permission or hardware device is missing/disabled
+        }
+    }
 
     // --- Navigation UI State ---
     private val _currentScreen = MutableStateFlow<Screen>(Screen.Feed)
@@ -216,6 +242,18 @@ class SocialViewModel(application: Application) : AndroidViewModel(application) 
             repository.initDatabaseIfNeeded()
         }
 
+        // Automatic vibration on receiving new notifications
+        var lastCount = -1
+        viewModelScope.launch {
+            repository.notificationsFlow.collect { list ->
+                val unreadCount = list.count { !it.isRead }
+                if (lastCount != -1 && unreadCount > lastCount) {
+                    vibrate(150, VibrationEffect.DEFAULT_AMPLITUDE) // Medium vibration for notification alert
+                }
+                lastCount = unreadCount
+            }
+        }
+
         // Start autonomous Life Simulator loop ticking at a sustainable pace
         viewModelScope.launch {
             while (true) {
@@ -299,6 +337,7 @@ class SocialViewModel(application: Application) : AndroidViewModel(application) 
         viewModelScope.launch {
             repository.toggleLike(postId)
             repository.logMetric("LIKE_CLICK")
+            vibrate(40, VibrationEffect.DEFAULT_AMPLITUDE) // short crisp haptic tick for like
             
             // Re-sync VM liked posts set flow
             val prefs = getApplication<Application>().getSharedPreferences("nog_prefs", Context.MODE_PRIVATE)
