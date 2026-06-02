@@ -371,6 +371,21 @@ class SocialViewModel(application: Application) : AndroidViewModel(application) 
         }
     }
 
+    private val _verificationClicks = MutableStateFlow(0)
+    val verificationClicks: StateFlow<Int> = _verificationClicks.asStateFlow()
+
+    fun incrementVerificationClicks() {
+        val nextVal = _verificationClicks.value + 1
+        _verificationClicks.value = nextVal
+        if (nextVal >= 10) {
+            verifyTemporarily()
+        }
+    }
+
+    fun resetVerificationClicks() {
+        _verificationClicks.value = 0
+    }
+
     fun verifyTemporarily() {
         viewModelScope.launch {
             val current = currentUser.value ?: return@launch
@@ -380,6 +395,7 @@ class SocialViewModel(application: Application) : AndroidViewModel(application) 
             )
             repository.insertUser(updated)
             repository.userProfileUpdated() // Update flows
+            _verificationClicks.value = 0 // Reset after success
         }
     }
 

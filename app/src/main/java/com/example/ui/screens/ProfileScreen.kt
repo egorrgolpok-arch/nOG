@@ -49,6 +49,7 @@ fun ProfileScreen(
     val archivedPosts by viewModel.archivedPosts.collectAsState()
     val users by viewModel.allUsers.collectAsState()
     val lang by viewModel.selectedLanguage.collectAsState()
+    val verificationClicks by viewModel.verificationClicks.collectAsState()
 
     var isEditing by remember { mutableStateOf(false) }
     // Add Edit State
@@ -679,7 +680,10 @@ fun ProfileScreen(
         
         if (showTempVerificationDialog) {
             AlertDialog(
-                onDismissRequest = { showTempVerificationDialog = false },
+                onDismissRequest = { 
+                    showTempVerificationDialog = false 
+                    viewModel.resetVerificationClicks()
+                },
                 title = {
                     Text(
                         text = if (lang == "RU") "Требование верификации" else "Verification Requirement",
@@ -690,18 +694,30 @@ fun ProfileScreen(
                     )
                 },
                 text = {
-                    Text(
-                        text = "перейдите на сайт https://nog1.tilda.ws/nogshop 10 раз",
-                        color = AlertYellow,
-                        fontFamily = FontFamily.Monospace,
-                        fontSize = 14.sp
-                    )
+                    Column {
+                        Text(
+                            text = "перейдите на сайт https://nog1.tilda.ws/nogshop 10 раз",
+                            color = AlertYellow,
+                            fontFamily = FontFamily.Monospace,
+                            fontSize = 14.sp
+                        )
+                        Spacer(modifier = Modifier.height(12.dp))
+                        Text(
+                            text = if (lang == "RU") "Прогресс переходов: $verificationClicks / 10" else "Visit progress: $verificationClicks / 10",
+                            color = PureWhite,
+                            fontFamily = FontFamily.Monospace,
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
                 },
                 confirmButton = {
                     Button(
                         onClick = {
-                            showTempVerificationDialog = false
-                            viewModel.verifyTemporarily()
+                            viewModel.incrementVerificationClicks()
+                            if (verificationClicks >= 9) {
+                                showTempVerificationDialog = false
+                            }
                             try {
                                 val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://nog1.tilda.ws/nogshop"))
                                 context.startActivity(intent)
@@ -712,12 +728,19 @@ fun ProfileScreen(
                         colors = ButtonDefaults.buttonColors(containerColor = PureWhite, contentColor = PureBlack),
                         shape = RoundedCornerShape(0.dp)
                     ) {
-                        Text("OK", fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold)
+                        Text(
+                            text = if (lang == "RU") "ПЕРЕЙТИ (${verificationClicks}/10)" else "VISIT (${verificationClicks}/10)",
+                            fontFamily = FontFamily.Monospace,
+                            fontWeight = FontWeight.Bold
+                        )
                     }
                 },
                 dismissButton = {
                     TextButton(
-                        onClick = { showTempVerificationDialog = false }
+                        onClick = { 
+                            showTempVerificationDialog = false 
+                            viewModel.resetVerificationClicks()
+                        }
                     ) {
                         Text(
                             text = if (lang == "RU") "ОТМЕНА" else "CANCEL",

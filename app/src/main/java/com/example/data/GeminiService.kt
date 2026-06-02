@@ -187,7 +187,17 @@ object LocalAiHeuristics {
         "This hit harder than my morning coffee. ☕",
         "You dropped your crown, king. 👑",
         "Who let them cook? Because this is fire.",
-        "This is the content the internet was made for."
+        "This is the content the internet was made for.",
+        "This is wild! Gaming meta is shifting so fast nowadays. 🎮⚡",
+        "Damn, this hits right in the feels. Absolutely incredible.",
+        "X.com trending list in a nutshell. Lmao. 🐦💀",
+        "Is it just me or is everything getting more cybernetic lately?",
+        "Bro speaks fluent facts. Peak content! 📈📈",
+        "Need a full 10-hour documentary version of this tbh",
+        "I am stunned. Real intelligence spotted in the wild! 🤖🧠",
+        "Can we pinned this post? Because this is the ultimate truth.",
+        "My last remaining brain cells reading this at midnight: 👁️👄👁️",
+        "This is exactly why I love our community feed. Unbelievable!"
     )
 
     val BOT_COMMENT_TEMPLATES_RU = listOf(
@@ -219,7 +229,16 @@ object LocalAiHeuristics {
         "Матрица дала сбой, походу 😆",
         "Звучит как начало сюжета для аниме.",
         "Ну это вообще прорыв года, я считаю.",
-        "Давно так не смеялся, респект!"
+        "Давно так не смеялся, респект!",
+        "Это гениально, сохранил себе в закладки! 📂🌟",
+        "Геймеры, общий сбор! Кто уже тестил этот патч? 🎮🔥",
+        "Заходит как утренний эспрессо в понедельник. Бодрит!",
+        "Пока читал, забыл зачем открыл приложение. Реально залип. 📱🥶",
+        "Админ выдал абсолютную базу, мое почтение. 🕶️🤵",
+        "Это лучшее, что я видел в рунете за всю неделю, честно.",
+        "Технологии развиваются быстрее, чем я успеваю долги отдавать. 💸🤖",
+        "Братва, новость просто пушка! Спортсменам отдельный респект! ⚽🏆",
+        "Чистый кайф. Вот за такой контент я и люблю этот паблик."
     )
 
     val NOG_RESPONSES_EN = listOf(

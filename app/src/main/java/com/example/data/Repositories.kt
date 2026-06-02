@@ -827,14 +827,36 @@ class SocialRepository(private val context: Context, private val scope: Coroutin
         val name = if (Random.nextInt(100) < 30 && contacts.isNotEmpty()) {
             contacts.random()
         } else {
-            val prefixes = listOf("Cyber", "Neural", "Logic", "Matrix", "Silicon", "Byte", "Core", "Vector", "Tensor", "Bit")
-            val suffixes = listOf("Bot", "Node", "Agent", "Flow", "Shift", "Core", "Link", "Sync", "Frame", "Grid")
+            val prefixes = listOf(
+                "Cyber", "Neural", "Logic", "Matrix", "Silicon", "Byte", "Core", "Vector", "Tensor", "Bit", 
+                "Quantum", "Shadow", "Zero", "Neo", "Pixel", "Mega", "Giga", "Proxy", "Net", "Web", "Crypto", 
+                "Alpha", "Omega", "Meta", "Hyper", "Ultra", "Retro", "Synth", "Async", "Signal", "Laser",
+                "Speedy", "Silent", "Aero", "Void", "Helix", "Grid", "Apex", "Nova", "Cosmic", "Prime"
+            )
+            val suffixes = listOf(
+                "Bot", "Node", "Agent", "Flow", "Shift", "Core", "Link", "Sync", "Frame", "Grid", 
+                "hacker", "coder", "gamer", "master", "warrior", "wizard", "expert", "pro", "runner", "compiler",
+                "hunter", "seeker", "pioneer", "mind", "soul", "spirit", "beast", "spark", "pulse", "echo",
+                "phantom", "driver", "builder", "architect", "watcher", "signal", "flux", "wave"
+            )
             
             if (isRu) {
-                val nouns = listOf("Нейро", "Матрикс", "Кибер", "Вектор", "Код", "Вертекс", "Линк", "Узел")
-                "${nouns.random()}_${Random.nextInt(100, 999)}"
+                val nouns = listOf(
+                    "Нейро", "Матрикс", "Кибер", "Вектор", "Код", "Вертекс", "Линк", "Узел", "Пиксель", "Гига",
+                    "Тера", "Байт", "Прокси", "Хакер", "Кодер", "Геймер", "Призрак", "Пингвин", "Квант", "Эхо",
+                    "Импульс", "Синтез", "Теорема", "Формат", "Драйвер", "Админ", "Модем", "Роутер", "Компилятор"
+                )
+                val adjs = listOf(
+                    "Железный", "Цифровой", "Быстрый", "Скрытый", "Умный", "Свободный", "Кремниевый", "Ночной",
+                    "Тихий", "Сверхбыстрый", "Глобальный", "Локальный", "Автономный", "Новый", "Динамический"
+                )
+                if (Random.nextBoolean()) {
+                    "${adjs.random()}_${nouns.random()}_${Random.nextInt(10, 99)}"
+                } else {
+                    "${nouns.random()}_${Random.nextInt(100, 9999)}"
+                }
             } else {
-                "${prefixes.random()}${suffixes.random()}_${Random.nextInt(100, 999)}"
+                "${prefixes.random()}${suffixes.random()}_${Random.nextInt(10, 999)}"
             }
         }
         
