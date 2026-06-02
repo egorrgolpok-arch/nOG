@@ -88,8 +88,12 @@ fun FeedScreen(
             .background(PureBlack)
             .padding(innerPadding)
     ) {
-        // --- Fullscreen Image Zoom Dialog ---
+        // --- Fullscreen Video / Image Zoom Dialog ---
         if (zoomImageUrl != null) {
+            val isVideoInZoom = zoomImageUrl?.endsWith(".mp4", ignoreCase = true) == true || 
+                                zoomImageUrl?.contains("video", ignoreCase = true) == true ||
+                                zoomImageUrl?.contains("gtv-videos-bucket", ignoreCase = true) == true
+
             androidx.compose.ui.window.Dialog(
                 onDismissRequest = { zoomImageUrl = null },
                 properties = androidx.compose.ui.window.DialogProperties(usePlatformDefaultWidth = false)
@@ -97,20 +101,54 @@ fun FeedScreen(
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
-                        .background(Color.Black.copy(alpha = 0.9f))
-                        .clickable { zoomImageUrl = null },
+                        .background(Color.Black.copy(alpha = 0.95f)),
                     contentAlignment = Alignment.Center
                 ) {
-                    AsyncImage(
-                        model = zoomImageUrl,
-                        contentDescription = null,
+                    Box(
                         modifier = Modifier
                             .fillMaxSize()
-                            .padding(16.dp),
-                        contentScale = ContentScale.Fit,
-                        error = rememberVectorPainter(Icons.Filled.BrokenImage)
+                            .clickable { zoomImageUrl = null }
                     )
-                    
+
+                    if (isVideoInZoom) {
+                        androidx.compose.ui.viewinterop.AndroidView(
+                            factory = { ctx ->
+                                android.widget.VideoView(ctx).apply {
+                                    setVideoURI(android.net.Uri.parse(zoomImageUrl))
+                                    val mc = android.widget.MediaController(ctx)
+                                    mc.setAnchorView(this)
+                                    setMediaController(mc)
+                                    setOnPreparedListener { mp ->
+                                        mp.isLooping = true
+                                        mp.setVolume(1.0f, 1.0f)
+                                        start()
+                                    }
+                                }
+                            },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .aspectRatio(16/9f)
+                                .padding(horizontal = 16.dp, vertical = 24.dp)
+                                .clickable(enabled = false) {},
+                            update = { view ->
+                                if (!view.isPlaying) {
+                                    view.start()
+                                }
+                            }
+                        )
+                    } else {
+                        AsyncImage(
+                            model = zoomImageUrl,
+                            contentDescription = null,
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .padding(16.dp)
+                                .clickable { zoomImageUrl = null },
+                            contentScale = ContentScale.Fit,
+                            error = rememberVectorPainter(Icons.Filled.BrokenImage)
+                        )
+                    }
+
                     IconButton(
                         onClick = { zoomImageUrl = null },
                         modifier = Modifier

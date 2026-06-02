@@ -66,7 +66,11 @@ object NewsFetcher {
         NewsSource("3DNews RU", "https://news.google.com/rss/search?q=3DNews&hl=ru&gl=RU&ceid=RU:ru", 90, true),
         NewsSource("Анекдоты RU", "https://news.google.com/rss/search?q=Анекдоты+шутки&hl=ru&gl=RU&ceid=RU:ru", 70, true),
         NewsSource("Meme Chronicle", "https://news.google.com/rss/search?q=gaming+internet+memes&hl=en-US", 75, false),
-        NewsSource("Пикабу Юмор RU", "https://news.google.com/rss/search?q=Пикабу+юмор+мемы&hl=ru&gl=RU&ceid=RU:ru", 72, true)
+        NewsSource("Пикабу Юмор RU", "https://news.google.com/rss/search?q=Пикабу+юмор+мемы&hl=ru&gl=RU&ceid=RU:ru", 72, true),
+        NewsSource("Двач RU", "https://news.google.com/rss/search?q=Двач+тред&hl=ru&gl=RU&ceid=RU:ru", 70, true),
+        NewsSource("Пикабу Тренды RU", "https://news.google.com/rss/search?q=Пикабу&hl=ru&gl=RU&ceid=RU:ru", 72, true),
+        NewsSource("Reddit World", "https://news.google.com/rss/search?q=reddit+trending&hl=en-US", 70, false),
+        NewsSource("Reddit RU", "https://news.google.com/rss/search?q=Реддит&hl=ru&gl=RU&ceid=RU:ru", 70, true)
     )
 
     private val cachedNews = java.util.concurrent.ConcurrentHashMap<String, List<NewsItem>>()
@@ -121,6 +125,8 @@ object NewsFetcher {
             var currentUrl = ""
             var insideItem = false
 
+            val isGoogleNews = source.url.contains("news.google.com")
+
             while (eventType != XmlPullParser.END_DOCUMENT) {
                 val name = parser.name
                 when (eventType) {
@@ -145,10 +151,12 @@ object NewsFetcher {
                     XmlPullParser.END_TAG -> {
                         if (name.equals("item", ignoreCase = true) || name.equals("entry", ignoreCase = true)) {
                             insideItem = false
-                            // Clean HTML from description
-                            val cleanDesc = currentDesc.replace(Regex("<.*?>"), "").trim()
-                            if (currentTitle.isNotEmpty()) {
-                                items.add(NewsItem(source.name, currentTitle, cleanDesc, currentUrl, source.trustScore))
+                            
+                            val cleanedTitle = cleanNewsTitle(currentTitle, source.name)
+                            val cleanedDesc = cleanNewsDesc(cleanedTitle, currentDesc, isGoogleNews)
+                            
+                            if (cleanedTitle.isNotEmpty()) {
+                                items.add(NewsItem(source.name, cleanedTitle, cleanedDesc, currentUrl, source.trustScore))
                             }
                         }
                     }
@@ -159,6 +167,77 @@ object NewsFetcher {
             Log.e(TAG, "Error parsing RSS", e)
         }
         return items
+    }
+
+    fun decodeHtmlEntities(input: String): String {
+        var text = input
+        text = text.replace("&nbsp;", " ")
+                   .replace("&amp;", "&")
+                   .replace("&quot;", "\"")
+                   .replace("&apos;", "'")
+                   .replace("&#39;", "'")
+                   .replace("&lt;", "<")
+                   .replace("&gt;", ">")
+                   .replace("&ndash;", "–")
+                   .replace("&mdash;", "—")
+                   .replace("&ldquo;", "\"")
+                   .replace("&rdquo;", "\"")
+                   .replace("&lsquo;", "'")
+                   .replace("&rsquo;", "'")
+        text = text.replace(Regex("<.*?>"), "")
+        text = text.replace(Regex("\\s+"), " ")
+        return text.trim()
+    }
+
+    fun cleanNewsTitle(title: String, sourceName: String): String {
+        var clean = decodeHtmlEntities(title)
+        
+        val suffixes = listOf(
+            " - $sourceName",
+            " — $sourceName",
+            " - ${sourceName.lowercase()}",
+            " — ${sourceName.lowercase()}"
+        )
+        for (suffix in suffixes) {
+            if (clean.endsWith(suffix, ignoreCase = true)) {
+                clean = clean.substring(0, clean.length - suffix.length).trim()
+            }
+        }
+        
+        val lastDashIndex = clean.lastIndexOf(" - ")
+        if (lastDashIndex != -1 && lastDashIndex > clean.length - 45) {
+            val after = clean.substring(lastDashIndex + 3).trim()
+            if (!after.contains(" ") && (after.contains(".") || after.length < 15)) {
+                clean = clean.substring(0, lastDashIndex).trim()
+            }
+        }
+        val lastMdDashIndex = clean.lastIndexOf(" — ")
+        if (lastMdDashIndex != -1 && lastMdDashIndex > clean.length - 45) {
+            val after = clean.substring(lastMdDashIndex + 3).trim()
+            if (!after.contains(" ") && (after.contains(".") || after.length < 15)) {
+                clean = clean.substring(0, lastMdDashIndex).trim()
+            }
+        }
+        
+        return clean
+    }
+
+    fun cleanNewsDesc(title: String, desc: String, isGoogleNews: Boolean): String {
+        val cleanTitle = title
+        val cleanDesc = decodeHtmlEntities(desc)
+        
+        if (isGoogleNews) {
+            return ""
+        }
+        
+        val normTitle = cleanTitle.lowercase().replace(Regex("[^a-zа-я0-9]"), "")
+        val normDesc = cleanDesc.lowercase().replace(Regex("[^a-zа-я0-9]"), "")
+        
+        if (normDesc.isEmpty() || normDesc == normTitle || normDesc.startsWith(normTitle) || normTitle.startsWith(normDesc)) {
+            return ""
+        }
+        
+        return cleanDesc
     }
 
     private fun getFallbackNews(isRu: Boolean): List<NewsItem> {

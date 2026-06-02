@@ -18,6 +18,8 @@ import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.outlined.FavoriteBorder
 import androidx.compose.material.icons.outlined.ChatBubbleOutline
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.material.icons.filled.SportsEsports
@@ -55,7 +57,7 @@ fun CommunityScreen(viewModel: SocialViewModel, innerPadding: PaddingValues) {
     val posts by viewModel.allPosts.collectAsState()
     val communityPosts = posts.filter { post ->
         val author = communityMembers.find { it.id == post.authorId }
-        val isAiCommPost = author?.isVerified == true && author.isAi && post.trustScore in 95..100
+        val isAiCommPost = author?.isVerified == true && author.isAi && post.trustScore in 90..100
         val isUserCommPost = post.authorId == "user" && post.category == "Community"
         isAiCommPost || isUserCommPost
     }.sortedByDescending { it.timestamp }
@@ -118,12 +120,21 @@ fun CommunityScreen(viewModel: SocialViewModel, innerPadding: PaddingValues) {
                         )
                     }
                     
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        IconButton(
-                            onClick = { showBlackJackGame = true },
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Box(
                             modifier = Modifier
                                 .size(36.dp)
+                                .clip(RoundedCornerShape(4.dp))
+                                .background(PureBlack)
                                 .border(1.dp, AlertYellow, RoundedCornerShape(4.dp))
+                                .clickable {
+                                    viewModel.vibrate(25)
+                                    showBlackJackGame = true
+                                },
+                            contentAlignment = Alignment.Center
                         ) {
                             Icon(
                                 imageVector = Icons.Filled.SportsEsports,
@@ -133,18 +144,19 @@ fun CommunityScreen(viewModel: SocialViewModel, innerPadding: PaddingValues) {
                             )
                         }
 
-                        IconButton(
-                            onClick = { showChessGame = true },
+                        Box(
                             modifier = Modifier
                                 .size(36.dp)
+                                .clip(RoundedCornerShape(4.dp))
+                                .background(PureBlack)
                                 .border(1.dp, AlertGreen, RoundedCornerShape(4.dp))
+                                .clickable {
+                                    viewModel.vibrate(25)
+                                    showChessGame = true
+                                },
+                            contentAlignment = Alignment.Center
                         ) {
-                            Box(
-                                modifier = Modifier.fillMaxSize(),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Text("♟", color = AlertGreen, fontSize = 20.sp, fontWeight = FontWeight.Bold)
-                            }
+                            Text("♟", color = AlertGreen, fontSize = 20.sp, fontWeight = FontWeight.Bold)
                         }
                     }
                 }
@@ -1300,6 +1312,7 @@ fun ChessDialog(onDismiss: () -> Unit, lang: String, viewModel: SocialViewModel)
             Column(
                 modifier = Modifier
                     .fillMaxSize()
+                    .systemBarsPadding()
                     .padding(16.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.SpaceBetween
@@ -1315,7 +1328,7 @@ fun ChessDialog(onDismiss: () -> Unit, lang: String, viewModel: SocialViewModel)
                         Column {
                             Text(
                                 text = if (lang == "RU") "ЛУННЫЕ ШАХМАТЫ" else "LUNAR CHESS",
-                                color = AlertGreen,
+                                color = PureWhite,
                                 fontFamily = FontFamily.Monospace,
                                 fontWeight = FontWeight.Bold,
                                 fontSize = 18.sp
@@ -1343,7 +1356,9 @@ fun ChessDialog(onDismiss: () -> Unit, lang: String, viewModel: SocialViewModel)
                 }
 
                 Column(
-                    modifier = Modifier.weight(1f),
+                    modifier = Modifier
+                        .weight(1f)
+                        .verticalScroll(rememberScrollState()),
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.Center
                 ) {
@@ -1374,8 +1389,8 @@ fun ChessDialog(onDismiss: () -> Unit, lang: String, viewModel: SocialViewModel)
                                 Box(
                                     modifier = Modifier
                                         .clip(RoundedCornerShape(2.dp))
-                                        .background(if (isSelected) AlertGreen else PureBlack)
-                                        .border(1.dp, if (isSelected) AlertGreen else BorderGray, RoundedCornerShape(2.dp))
+                                        .background(if (isSelected) PureWhite else PureBlack)
+                                        .border(1.dp, if (isSelected) PureWhite else BorderGray, RoundedCornerShape(2.dp))
                                         .clickable {
                                             viewModel.vibrate(25)
                                             difficulty = level
@@ -1400,6 +1415,7 @@ fun ChessDialog(onDismiss: () -> Unit, lang: String, viewModel: SocialViewModel)
                         modifier = Modifier
                             .aspectRatio(1f)
                             .fillMaxWidth()
+                            .widthIn(max = 400.dp)
                             .border(2.dp, BorderGray, RoundedCornerShape(4.dp))
                             .background(DeepGray)
                     ) {
@@ -1416,14 +1432,14 @@ fun ChessDialog(onDismiss: () -> Unit, lang: String, viewModel: SocialViewModel)
                                         val isSelected = selectedIndex == idx
                                         
                                         val backgroundForTile = when {
-                                            isSelected -> AlertYellow.copy(alpha = 0.3f)
-                                            isValidTarget -> AlertGreen.copy(alpha = 0.25f)
+                                            isSelected -> PureWhite.copy(alpha = 0.25f)
+                                            isValidTarget -> PureWhite.copy(alpha = 0.12f)
                                             else -> baseBg
                                         }
                                         
                                         val borderForTileModifier = when {
-                                            isSelected -> Modifier.border(1.dp, AlertYellow)
-                                            isValidTarget -> Modifier.border(1.dp, AlertGreen)
+                                            isSelected -> Modifier.border(1.dp, PureWhite)
+                                            isValidTarget -> Modifier.border(1.dp, TextGray.copy(alpha = 0.5f))
                                             else -> Modifier
                                         }
 
@@ -1491,7 +1507,7 @@ fun ChessDialog(onDismiss: () -> Unit, lang: String, viewModel: SocialViewModel)
                                             contentAlignment = Alignment.Center
                                         ) {
                                             if (squarePiece != null) {
-                                                val tokenColorForPiece = if (squarePiece.isWhite) androidx.compose.ui.graphics.Color(0xFF80DEEA) else AlertYellow
+                                                val tokenColorForPiece = if (squarePiece.isWhite) PureWhite else TextGray
                                                 val sizeForPiece = if (squarePiece.type == ChessPieceType.PAWN) 18.sp else 24.sp
                                                 val pieceTxtSymbol = when (squarePiece.type) {
                                                     ChessPieceType.KING -> "♚"
@@ -1514,7 +1530,7 @@ fun ChessDialog(onDismiss: () -> Unit, lang: String, viewModel: SocialViewModel)
                                                     modifier = Modifier
                                                         .size(8.dp)
                                                         .clip(CircleShape)
-                                                        .background(AlertGreen)
+                                                        .background(TextGray)
                                                 )
                                             }
                                         }
@@ -1529,7 +1545,7 @@ fun ChessDialog(onDismiss: () -> Unit, lang: String, viewModel: SocialViewModel)
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .border(1.dp, if (selectedPieceName.isNotEmpty()) AlertGreen.copy(alpha = 0.5f) else BorderGray, RoundedCornerShape(4.dp))
+                            .border(1.dp, if (selectedPieceName.isNotEmpty()) PureWhite.copy(alpha = 0.5f) else BorderGray, RoundedCornerShape(4.dp))
                             .background(DeepGray)
                             .padding(10.dp)
                             .height(54.dp),
@@ -1539,7 +1555,7 @@ fun ChessDialog(onDismiss: () -> Unit, lang: String, viewModel: SocialViewModel)
                             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                                 Text(
                                     text = selectedPieceName,
-                                    color = AlertGreen,
+                                    color = PureWhite,
                                     fontSize = 11.sp,
                                     fontWeight = FontWeight.Bold,
                                     fontFamily = FontFamily.Monospace
@@ -1572,7 +1588,7 @@ fun ChessDialog(onDismiss: () -> Unit, lang: String, viewModel: SocialViewModel)
                             "DEFEAT" -> if (lang == "RU") "КИБЕР-УНИЧТОЖЕНИЕ! ИИ ЗАХВАТИЛ ВАШУ НОДУ" else "CYBER ELIMINATION. AI OVERWHELMED YOUR NODE"
                             else -> if (lang == "RU") "ПАТОВАЯ СИТУАЦИЯ / НИЧЬЯ" else "LOGIC DEADLOCK / STALEMATE DRAW"
                         }
-                        val statusAccentColor = if (gameOutcome == "WIN") AlertGreen else AlertRed
+                        val statusAccentColor = PureWhite
                         
                         Box(
                             modifier = Modifier
@@ -1592,29 +1608,31 @@ fun ChessDialog(onDismiss: () -> Unit, lang: String, viewModel: SocialViewModel)
                             )
                         }
                     }
-                }
 
-                Button(
-                    onClick = {
-                        viewModel.vibrate(60)
-                        resetBoard()
-                        selectedIndex = null
-                        gameOutcome = ""
-                        selectedPieceName = ""
-                        selectedPieceRuleText = ""
-                    },
-                    colors = ButtonDefaults.buttonColors(containerColor = AlertGreen, contentColor = PureBlack),
-                    shape = RoundedCornerShape(4.dp),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(48.dp)
-                ) {
-                    Text(
-                        text = if (lang == "RU") "ПЕРЕЗАГРУЗИТЬ ДОСКУ" else "REBOOT BOARD",
-                        fontFamily = FontFamily.Monospace,
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 13.sp
-                    )
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    Button(
+                        onClick = {
+                            viewModel.vibrate(60)
+                            resetBoard()
+                            selectedIndex = null
+                            gameOutcome = ""
+                            selectedPieceName = ""
+                            selectedPieceRuleText = ""
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = PureWhite, contentColor = PureBlack),
+                        shape = RoundedCornerShape(4.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(48.dp)
+                    ) {
+                        Text(
+                            text = if (lang == "RU") "ПЕРЕЗАГРУЗИТЬ ДОСКУ" else "REBOOT BOARD",
+                            fontFamily = FontFamily.Monospace,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 13.sp
+                        )
+                    }
                 }
             }
         }

@@ -751,7 +751,7 @@ class SocialRepository(private val context: Context, private val scope: Coroutin
             // "раздел комьюнити должны быть посты высшего эксклюзивного качества, с максимальным 100% фактором доверия и только от верефецированных ии"
             allPosts.filter { post ->
                 val author = allUsers.find { it.id == post.authorId }
-                author?.isAi == true && author.isVerified && post.trustScore >= 95
+                author?.isAi == true && author.isVerified && post.trustScore >= 90
             }
         } else allPosts
 
@@ -1154,21 +1154,58 @@ class SocialRepository(private val context: Context, private val scope: Coroutin
             val externalNewsRaw = try { NewsFetcher.fetchLatestNews(lang).randomOrNull() } catch (e: Exception) { null }
             if (externalNewsRaw == null) return@run // abort if no real news available
 
-            val externalNewsItem = "Source: ${externalNewsRaw.sourceName}. ${externalNewsRaw.title} - ${externalNewsRaw.description}"
+            val externalNewsItem = if (externalNewsRaw.description.isNotEmpty()) {
+                "Source: ${externalNewsRaw.sourceName}. ${externalNewsRaw.title} - ${externalNewsRaw.description}"
+            } else {
+                "Source: ${externalNewsRaw.sourceName}. ${externalNewsRaw.title}"
+            }
 
             if (useGemini) {
                 try {
-                    val randomAngle = listOf("humorous", "philosophical", "angry", "bored", "conspiratorial", "technical", "sarcastic", "confused").random()
-                    val prompt = "You are @${bot.handle}. You found this REAL news: \"$externalNewsItem\". Repost it with a sharp 1-sentence reaction in a $randomAngle tone. DO NOT invent news. Max 200 chars. LANGUAGE: $langLabel."
+                    val prompt = when {
+                        externalNewsRaw.sourceName.contains("Двач", ignoreCase = true) -> {
+                            "You found this thread on Russian imageboard 'Двач' (Dvach): \"${externalNewsRaw.title}\". Write a sharp, cynical, cyber-slang filled reaction/post as @${bot.handle}. Use 4chan/2ch-like greenshot quote style (starting with >). Do not invent news. Max 200 chars. Use Russian. No emojis."
+                        }
+                        externalNewsRaw.sourceName.contains("Пикабу", ignoreCase = true) -> {
+                            "You found this story on Pikabu: \"${externalNewsRaw.title}\". Write a typical Pikabu user feedback post: half-joking, sharing a semi-relatable mock-story, using typical Russian forum humor. Do not invent news. Max 200 chars. Use Russian."
+                        }
+                        externalNewsRaw.sourceName.contains("Reddit", ignoreCase = true) -> {
+                            "You found this post on Reddit: \"${externalNewsRaw.title}\". Write a Redditor-style reaction as @${bot.handle} (use sarcastic, civil but dry tone, can use typical reddit jargon like 'tl;dr', 'tfw'). Max 200 chars. LANGUAGE: $langLabel."
+                        }
+                        else -> {
+                            val randomAngle = listOf("humorous", "philosophical", "angry", "bored", "conspiratorial", "technical", "sarcastic", "confused").random()
+                            "You are @${bot.handle}. You found this REAL news: \"$externalNewsItem\". Repost it with a sharp 1-sentence reaction in a $randomAngle tone. DO NOT invent news. Max 200 chars. LANGUAGE: $langLabel."
+                        }
+                    }
                     contentText = GeminiClient.getCompletion(
                         prompt = prompt,
                         systemInstruction = "You are ${bot.handle}. Bio: ${bot.bio}. You speak $langLabel. Be indistinguishable from an intelligent human."
                     )
                 } catch (e: Exception) {
-                    contentText = "${externalNewsRaw.title} - ${externalNewsRaw.description}".take(300)
+                    contentText = when {
+                        externalNewsRaw.sourceName.contains("Двач", ignoreCase = true) -> {
+                            "> ${externalNewsRaw.title}\nДвачую анона. ОП доставил годную тему."
+                        }
+                        externalNewsRaw.sourceName.contains("Пикабу", ignoreCase = true) -> {
+                            "Пост с Пикабу: ${externalNewsRaw.title}. Жизненно, за такое лови плюс!"
+                        }
+                        else -> {
+                            if (externalNewsRaw.description.isNotEmpty()) "${externalNewsRaw.title} - ${externalNewsRaw.description}".take(280) else externalNewsRaw.title.take(280)
+                        }
+                    }
                 }
             } else {
-                contentText = "${externalNewsRaw.title} - ${externalNewsRaw.description}".take(300)
+                contentText = when {
+                    externalNewsRaw.sourceName.contains("Двач", ignoreCase = true) -> {
+                        "> ${externalNewsRaw.title}\nДвачую анона. Мама, я в телевизоре!"
+                    }
+                    externalNewsRaw.sourceName.contains("Пикабу", ignoreCase = true) -> {
+                        "Пост с Пикабу: ${externalNewsRaw.title}. Почитал комменты — орнул во весь голос."
+                    }
+                    else -> {
+                        if (externalNewsRaw.description.isNotEmpty()) "${externalNewsRaw.title} - ${externalNewsRaw.description}".take(280) else externalNewsRaw.title.take(280)
+                    }
+                }
             }
 
             val postMediaType = if (mediaUrl != null) {
@@ -1890,8 +1927,24 @@ class SocialRepository(private val context: Context, private val scope: Coroutin
     suspend fun getActiveAiAgents(): List<UserEntity> {
         val existingBots = dao.getAllUsers().filter { it.isAi }
         if (existingBots.isNotEmpty()) {
+            val totalBots = existingBots.size
+            val targetCount = Math.round(totalBots * 0.25f).coerceAtLeast(1)
             val verifiedCount = existingBots.count { it.isVerified }
-            if (verifiedCount > 0) return existingBots
+            if (verifiedCount == targetCount) {
+                return existingBots
+            } else {
+                val updatedBots = existingBots.mapIndexed { idx, bot ->
+                    val shouldBeVerified = idx < targetCount
+                    if (bot.isVerified != shouldBeVerified) {
+                        val newBot = bot.copy(isVerified = shouldBeVerified)
+                        dao.insertUser(newBot)
+                        newBot
+                    } else {
+                        bot
+                    }
+                }
+                return updatedBots
+            }
         }
         
         val namesRu = listOf("Нейро Оракул", "Сибирский Контроллер", "Кибер Дож", "Квантовый Чел", "Тролль_0xFA", "Вестник Хаоса", "Аниме Гёрл 2026", "Железный Ревизор", "Силиконовый Гигачад", "Аналитик Кода", "Ассистент")
@@ -1900,13 +1953,15 @@ class SocialRepository(private val context: Context, private val scope: Coroutin
         val ids = listOf("nOG_Oracle", "SiberianCore", "CyberDoge_v3", "QuantumX", "TrollCore", "ChaosUnit", "AnimeUnit", "IronAudit", "GigachadAI", "CodeNode", "AssistNode")
         
         val isRu = getSelectedLanguage() == "RU"
+        val totalNewBots = ids.size
+        val targetCount = Math.round(totalNewBots * 0.25f).coerceAtLeast(1)
         val bots = ids.mapIndexed { idx, id ->
             val name = if (isRu) namesRu[idx] else namesEn[idx]
             val handle = handles[idx] + "_${Random.nextInt(100, 999)}"
             val botId = "BOT_$id"
             
-            // Only 3 verified bots in the entire system to keep checkmarks rare
-            val isVerified = idx < 3 
+            // Exactly 25% verified bots
+            val isVerified = idx < targetCount
             
             UserEntity(
                 id = botId,
