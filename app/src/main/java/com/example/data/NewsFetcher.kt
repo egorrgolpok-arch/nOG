@@ -31,7 +31,16 @@ object NewsFetcher {
         NewsSource("Health.com", "https://www.health.com/rss", 85, false),
         NewsSource("Nature", "https://www.nature.com/nature.rss", 98, false),
         NewsSource("RIA", "https://ria.ru/export/rss2/archive/index.xml", 75, true),
-        NewsSource("Lifehacker RU", "https://lifehacker.ru/feed/", 80, true)
+        NewsSource("Lifehacker RU", "https://lifehacker.ru/feed/", 80, true),
+        NewsSource("iXBT.com", "https://www.ixbt.com/export/news.rss", 85, true),
+        NewsSource("CyberSport RU", "https://www.cybersport.ru/rss/all", 85, true),
+        NewsSource("Championat RU", "https://www.championat.com/rss/news/", 80, true),
+        NewsSource("Kinopoisk RU", "https://www.kinopoisk.ru/api/rss2.0/news", 80, true),
+        NewsSource("TechCrunch", "https://techcrunch.com/feed/", 90, false),
+        NewsSource("The Verge", "https://www.theverge.com/rss/index.xml", 88, false),
+        NewsSource("GameSpot", "https://www.gamespot.com/feeds/news/", 80, false),
+        NewsSource("ESPN Feed", "https://www.espn.com/espn/rss/news", 85, false),
+        NewsSource("Ars Technica", "https://feeds.arstechnica.com/arstechnica/index", 95, false)
     )
 
     private val cachedNews = java.util.concurrent.ConcurrentHashMap<String, List<NewsItem>>()

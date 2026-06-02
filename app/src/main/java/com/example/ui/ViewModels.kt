@@ -376,7 +376,7 @@ class SocialViewModel(application: Application) : AndroidViewModel(application) 
             val current = currentUser.value ?: return@launch
             val updated = current.copy(
                 isVerified = true,
-                verificationExpiry = System.currentTimeMillis() + 2 * 60 * 60 * 1000
+                verificationExpiry = System.currentTimeMillis() + 1 * 60 * 60 * 1000
             )
             repository.insertUser(updated)
             repository.userProfileUpdated() // Update flows

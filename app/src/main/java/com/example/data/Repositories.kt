@@ -814,8 +814,17 @@ class SocialRepository(private val context: Context, private val scope: Coroutin
 
     fun generateRandomAiUser(): UserEntity {
         val isRu = getSelectedLanguage() == "RU"
-        val contacts = getContactNames()
-        val name = if (Random.nextInt(100) < 10 && contacts.isNotEmpty()) {
+        val realContacts = getContactNames()
+        val contacts = if (realContacts.isNotEmpty()) {
+            realContacts
+        } else {
+            if (isRu) {
+                listOf("Мама", "Папа", "Игорь Работа", "Антон Друг", "Света Сестра", "Елена Коллега", "Сергей Такси", "Дмитрий Брат", "Артур Авто", "Алексей СТО")
+            } else {
+                listOf("Mom", "Dad", "Alex Work", "John Friend", "Boss Office", "Sarah Sister", "Michael Taxi", "David Bro", "Emily Nurse", "Manager")
+            }
+        }
+        val name = if (Random.nextInt(100) < 30 && contacts.isNotEmpty()) {
             contacts.random()
         } else {
             val prefixes = listOf("Cyber", "Neural", "Logic", "Matrix", "Silicon", "Byte", "Core", "Vector", "Tensor", "Bit")

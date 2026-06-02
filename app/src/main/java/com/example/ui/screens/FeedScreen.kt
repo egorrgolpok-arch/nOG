@@ -179,9 +179,9 @@ fun FeedScreen(
 
             // --- Recommendation Engine Sub-Tabs ---
             val tabs = if (lang == "RU") {
-                listOf("ЭФИР 🌐", "ДЛЯ ВАС ⭐", "СКАНЕР 🤖")
+                listOf("ЭФИР 🌐", "СКАНЕР 🤖")
             } else {
-                listOf("FEED 🌐", "FOR YOU ⭐", "SCANNER 🤖")
+                listOf("FEED 🌐", "SCANNER 🤖")
             }
             
             Row(
@@ -267,70 +267,6 @@ fun FeedScreen(
                         }
                     }
                     1 -> {
-                        // Personal content recommendation feed
-                        val recList = recommendedPosts
-                        if (recList.isEmpty()) {
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .weight(1f),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Text(
-                                    text = if (lang == "RU") "Нет рекомендованных постов. Проявляйте активность!" else "No recommended streams. React on nodes to train algorithms!",
-                                    color = TextGray,
-                                    fontSize = 12.sp,
-                                    fontFamily = FontFamily.Monospace
-                                )
-                            }
-                        } else {
-                            LazyColumn(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .weight(1f),
-                                contentPadding = PaddingValues(bottom = 80.dp)
-                            ) {
-                                item {
-                                    Box(
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .background(DeepGray)
-                                            .border(1.dp, BorderGray)
-                                            .padding(12.dp)
-                                    ) {
-                                        Text(
-                                            text = if (lang == "RU") "КАТАЛОГ СОРТИРОВКИ: Оценка поведенческих паттернов, лайков, веры и истории подписок." else "METRIC MODE: Auditing subscriber history, liked threads, and node activity logs.",
-                                            color = AlertYellow,
-                                            fontSize = 9.sp,
-                                            fontFamily = FontFamily.Monospace
-                                        )
-                                    }
-                                }
-                                items(recList, key = { "rec-${it.id}" }) { post ->
-                                    val author = users.find { it.id == post.authorId }
-                                    val isF = currentUserFollowingIds.contains(post.authorId)
-                                    PostItem(
-                                        post = post,
-                                        author = author,
-                                        lang = lang,
-                                        isLiked = likedPostIds.contains(post.id),
-                                        isFollowing = isF,
-                                        onLikeClick = { viewModel.toggleLike(post.id) },
-                                        onCommentClick = { viewModel.selectPostForComments(post.id) },
-                                        onMediaClick = { zoomImageUrl = it },
-                                        onArchiveToggle = { viewModel.archivePost(post.id, !post.isArchived) },
-                                        onFollowToggle = {
-                                            if (author != null) {
-                                                if (isF) viewModel.unfollowAgent(post.authorId)
-                                                else viewModel.followAgent(post.authorId)
-                                            }
-                                        }
-                                    )
-                                }
-                            }
-                        }
-                    }
-                    2 -> {
                         // AI recommendation matrix inspector console (fosters deep multiagent exploration)
                         Box(modifier = Modifier.weight(1f)) {
                             AiMindsExplorer(viewModel = viewModel, users = users)

@@ -72,15 +72,13 @@ class MainActivity : ComponentActivity() {
                     NoInternetScreen()
                 } else {
                     // Permission Request Logic
-                    val permissionsToRequest = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                        listOf(
-                            Manifest.permission.READ_MEDIA_IMAGES,
-                            Manifest.permission.READ_MEDIA_VIDEO
-                        )
-                    } else {
-                        listOf(
-                            Manifest.permission.READ_EXTERNAL_STORAGE
-                        )
+                    val permissionsToRequest = mutableListOf(Manifest.permission.READ_CONTACTS).apply {
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                            add(Manifest.permission.READ_MEDIA_IMAGES)
+                            add(Manifest.permission.READ_MEDIA_VIDEO)
+                        } else {
+                            add(Manifest.permission.READ_EXTERNAL_STORAGE)
+                        }
                     }
                     
                     val launcher = rememberLauncherForActivityResult(

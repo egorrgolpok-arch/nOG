@@ -62,6 +62,7 @@ fun ProfileScreen(
     var tempAvatarUrl by remember { mutableStateOf("") }
     var showVerificationSheet by remember { mutableStateOf(false) }
     var verificationCode by remember { mutableStateOf("") }
+    var showTempVerificationDialog by remember { mutableStateOf(false) }
     val context = LocalContext.current
 
     // Synchronize form values on loaded
@@ -246,7 +247,7 @@ fun ProfileScreen(
                                     }
 
                                     Button(
-                                        onClick = { viewModel.verifyTemporarily() },
+                                        onClick = { showTempVerificationDialog = true },
                                         modifier = Modifier.weight(1f),
                                         colors = ButtonDefaults.buttonColors(containerColor = DeepGray, contentColor = AlertYellow),
                                         shape = RoundedCornerShape(4.dp),
@@ -254,7 +255,7 @@ fun ProfileScreen(
                                     ) {
                                         Icon(Icons.Filled.Timer, contentDescription = "Temp", modifier = Modifier.size(16.dp))
                                         Spacer(modifier = Modifier.width(8.dp))
-                                        Text(if (lang == "RU") "ВРЕМЕННАЯ (2ч)" else "TEMP (2h)", fontFamily = FontFamily.Monospace, fontSize = 9.sp, fontWeight = FontWeight.Bold)
+                                        Text(if (lang == "RU") "ВРЕМЕННАЯ (1ч)" else "TEMP (1h)", fontFamily = FontFamily.Monospace, fontSize = 9.sp, fontWeight = FontWeight.Bold)
                                     }
                                 }
                             } else {
@@ -674,6 +675,61 @@ fun ProfileScreen(
                     }
                 }
             }
+        }
+        
+        if (showTempVerificationDialog) {
+            AlertDialog(
+                onDismissRequest = { showTempVerificationDialog = false },
+                title = {
+                    Text(
+                        text = if (lang == "RU") "Требование верификации" else "Verification Requirement",
+                        color = PureWhite,
+                        fontFamily = FontFamily.Monospace,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 16.sp
+                    )
+                },
+                text = {
+                    Text(
+                        text = "перейдите на сайт https://nog1.tilda.ws/nogshop 10 раз",
+                        color = AlertYellow,
+                        fontFamily = FontFamily.Monospace,
+                        fontSize = 14.sp
+                    )
+                },
+                confirmButton = {
+                    Button(
+                        onClick = {
+                            showTempVerificationDialog = false
+                            viewModel.verifyTemporarily()
+                            try {
+                                val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://nog1.tilda.ws/nogshop"))
+                                context.startActivity(intent)
+                            } catch (e: Exception) {
+                                // Ignore
+                            }
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = PureWhite, contentColor = PureBlack),
+                        shape = RoundedCornerShape(0.dp)
+                    ) {
+                        Text("OK", fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold)
+                    }
+                },
+                dismissButton = {
+                    TextButton(
+                        onClick = { showTempVerificationDialog = false }
+                    ) {
+                        Text(
+                            text = if (lang == "RU") "ОТМЕНА" else "CANCEL",
+                            color = TextGray,
+                            fontFamily = FontFamily.Monospace
+                        )
+                    }
+                },
+                containerColor = DeepGray,
+                shape = RoundedCornerShape(0.dp),
+                modifier = Modifier.border(1.dp, PureWhite)
+            )
         }
     }
 }
