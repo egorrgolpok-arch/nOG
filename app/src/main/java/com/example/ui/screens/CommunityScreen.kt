@@ -55,7 +55,7 @@ fun CommunityScreen(viewModel: SocialViewModel, innerPadding: PaddingValues) {
     val posts by viewModel.allPosts.collectAsState()
     val communityPosts = posts.filter { post ->
         val author = communityMembers.find { it.id == post.authorId }
-        val isAiCommPost = author?.isVerified == true && author.isAi
+        val isAiCommPost = author?.isVerified == true && author.isAi && post.trustScore in 95..100
         val isUserCommPost = post.authorId == "user" && post.category == "Community"
         isAiCommPost || isUserCommPost
     }.sortedByDescending { it.timestamp }
@@ -67,6 +67,7 @@ fun CommunityScreen(viewModel: SocialViewModel, innerPadding: PaddingValues) {
     var attachedImageUri by remember { mutableStateOf<String?>(null) }
     var showTempVerificationDialog by remember { mutableStateOf(false) }
     var showBlackJackGame by remember { mutableStateOf(false) }
+    var showChessGame by remember { mutableStateOf(false) }
     val context = androidx.compose.ui.platform.LocalContext.current
     
     val imagePickerLauncher = rememberLauncherForActivityResult(
@@ -117,18 +118,34 @@ fun CommunityScreen(viewModel: SocialViewModel, innerPadding: PaddingValues) {
                         )
                     }
                     
-                    IconButton(
-                        onClick = { showBlackJackGame = true },
-                        modifier = Modifier
-                            .size(36.dp)
-                            .border(1.dp, AlertYellow, RoundedCornerShape(4.dp))
-                    ) {
-                        Icon(
-                            imageVector = Icons.Filled.SportsEsports,
-                            contentDescription = "Blackjack Mini-game",
-                            tint = AlertYellow,
-                            modifier = Modifier.size(22.dp)
-                        )
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        IconButton(
+                            onClick = { showBlackJackGame = true },
+                            modifier = Modifier
+                                .size(36.dp)
+                                .border(1.dp, AlertYellow, RoundedCornerShape(4.dp))
+                        ) {
+                            Icon(
+                                imageVector = Icons.Filled.SportsEsports,
+                                contentDescription = "Blackjack Mini-game",
+                                tint = AlertYellow,
+                                modifier = Modifier.size(22.dp)
+                            )
+                        }
+
+                        IconButton(
+                            onClick = { showChessGame = true },
+                            modifier = Modifier
+                                .size(36.dp)
+                                .border(1.dp, AlertGreen, RoundedCornerShape(4.dp))
+                        ) {
+                            Box(
+                                modifier = Modifier.fillMaxSize(),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text("♟", color = AlertGreen, fontSize = 20.sp, fontWeight = FontWeight.Bold)
+                            }
+                        }
                     }
                 }
 
@@ -433,6 +450,10 @@ fun CommunityScreen(viewModel: SocialViewModel, innerPadding: PaddingValues) {
 
     if (showBlackJackGame) {
         BlackjackDialog(onDismiss = { showBlackJackGame = false }, lang = lang, viewModel = viewModel)
+    }
+
+    if (showChessGame) {
+        ChessDialog(onDismiss = { showChessGame = false }, lang = lang, viewModel = viewModel)
     }
 }
 
@@ -973,6 +994,627 @@ fun BlackjackDialog(onDismiss: () -> Unit, lang: String, viewModel: SocialViewMo
                             }
                         }
                     }
+                }
+            }
+        }
+    }
+}
+
+enum class ChessPieceType { PAWN, ROOK, KNIGHT, BISHOP, QUEEN, KING }
+data class ChessPiece(val type: ChessPieceType, val isWhite: Boolean)
+
+@Composable
+fun ChessDialog(onDismiss: () -> Unit, lang: String, viewModel: SocialViewModel) {
+    val board = remember { mutableStateListOf<ChessPiece?>() }
+    
+    fun resetBoard() {
+        board.clear()
+        val temp = Array<ChessPiece?>(64) { null }
+        // Black (nOG AI Node)
+        temp[0] = ChessPiece(ChessPieceType.ROOK, false)
+        temp[1] = ChessPiece(ChessPieceType.KNIGHT, false)
+        temp[2] = ChessPiece(ChessPieceType.BISHOP, false)
+        temp[3] = ChessPiece(ChessPieceType.QUEEN, false)
+        temp[4] = ChessPiece(ChessPieceType.KING, false)
+        temp[5] = ChessPiece(ChessPieceType.BISHOP, false)
+        temp[6] = ChessPiece(ChessPieceType.KNIGHT, false)
+        temp[7] = ChessPiece(ChessPieceType.ROOK, false)
+        for (i in 8..15) {
+            temp[i] = ChessPiece(ChessPieceType.PAWN, false)
+        }
+        
+        // White (Organic Player Node)
+        for (i in 48..55) {
+            temp[i] = ChessPiece(ChessPieceType.PAWN, true)
+        }
+        temp[56] = ChessPiece(ChessPieceType.ROOK, true)
+        temp[57] = ChessPiece(ChessPieceType.KNIGHT, true)
+        temp[58] = ChessPiece(ChessPieceType.BISHOP, true)
+        temp[59] = ChessPiece(ChessPieceType.QUEEN, true)
+        temp[60] = ChessPiece(ChessPieceType.KING, true)
+        temp[61] = ChessPiece(ChessPieceType.BISHOP, true)
+        temp[62] = ChessPiece(ChessPieceType.KNIGHT, true)
+        temp[63] = ChessPiece(ChessPieceType.ROOK, true)
+        
+        board.addAll(temp)
+    }
+    
+    LaunchedEffect(Unit) {
+        resetBoard()
+    }
+
+    var selectedIndex by remember { mutableStateOf<Int?>(null) }
+    var difficulty by remember { mutableStateOf("MEDIUM") } // EASY, MEDIUM, OVERLORD
+    var gameOutcome by remember { mutableStateOf("") } // "", "WIN", "DEFEAT", "DRAW"
+    var selectedPieceRuleText by remember { mutableStateOf("") }
+    var selectedPieceName by remember { mutableStateOf("") }
+    
+    fun getValidMovesForIndex(index: Int): List<Int> {
+        val piece = board.getOrNull(index) ?: return emptyList()
+        val isWhite = piece.isWhite
+        val moves = mutableListOf<Int>()
+        val r = index / 8
+        val c = index % 8
+
+        when (piece.type) {
+            ChessPieceType.PAWN -> {
+                val dir = if (isWhite) -1 else 1
+                val f1r = r + dir
+                if (f1r in 0..7) {
+                    val f1idx = f1r * 8 + c
+                    if (board.getOrNull(f1idx) == null) {
+                        moves.add(f1idx)
+                        val startRow = if (isWhite) 6 else 1
+                        if (r == startRow) {
+                            val f2r = r + 2 * dir
+                            val f2idx = f2r * 8 + c
+                            if (board.getOrNull(f2idx) == null) {
+                                moves.add(f2idx)
+                            }
+                        }
+                    }
+                }
+                for (dc in listOf(-1, 1)) {
+                    val tr = r + dir
+                    val tc = c + dc
+                    if (tr in 0..7 && tc in 0..7) {
+                        val targetIdx = tr * 8 + tc
+                        val targetPiece = board.getOrNull(targetIdx)
+                        if (targetPiece != null && targetPiece.isWhite != isWhite) {
+                            moves.add(targetIdx)
+                        }
+                    }
+                }
+            }
+            ChessPieceType.KNIGHT -> {
+                val offsets = listOf(
+                    Pair(-2, -1), Pair(-2, 1), Pair(-1, -2), Pair(-1, 2),
+                    Pair(1, -2), Pair(1, 2), Pair(2, -1), Pair(2, 1)
+                )
+                for (o in offsets) {
+                    val tr = r + o.first
+                    val tc = c + o.second
+                    if (tr in 0..7 && tc in 0..7) {
+                        val targetIdx = tr * 8 + tc
+                        val targetPiece = board.getOrNull(targetIdx)
+                        if (targetPiece == null || targetPiece.isWhite != isWhite) {
+                            moves.add(targetIdx)
+                        }
+                    }
+                }
+            }
+            ChessPieceType.KING -> {
+                val offsets = listOf(
+                    -1 to -1, -1 to 0, -1 to 1,
+                    0 to -1,           0 to 1,
+                    1 to -1,  1 to 0,  1 to 1
+                )
+                for (o in offsets) {
+                    val tr = r + o.first
+                    val tc = c + o.second
+                    if (tr in 0..7 && tc in 0..7) {
+                        val targetIdx = tr * 8 + tc
+                        val targetPiece = board.getOrNull(targetIdx)
+                        if (targetPiece == null || targetPiece.isWhite != isWhite) {
+                            moves.add(targetIdx)
+                        }
+                    }
+                }
+            }
+            ChessPieceType.ROOK -> {
+                val dirs = listOf(Pair(-1, 0), Pair(1, 0), Pair(0, -1), Pair(0, 1))
+                for (d in dirs) {
+                    var step = 1
+                    while (true) {
+                        val tr = r + d.first * step
+                        val tc = c + d.second * step
+                        if (tr !in 0..7 || tc !in 0..7) break
+                        val targetIdx = tr * 8 + tc
+                        val targetPiece = board.getOrNull(targetIdx)
+                        if (targetPiece == null) {
+                            moves.add(targetIdx)
+                        } else {
+                            if (targetPiece.isWhite != isWhite) {
+                                moves.add(targetIdx)
+                            }
+                            break
+                        }
+                        step++
+                    }
+                }
+            }
+            ChessPieceType.BISHOP -> {
+                val dirs = listOf(Pair(-1, -1), Pair(-1, 1), Pair(1, -1), Pair(1, 1))
+                for (d in dirs) {
+                    var step = 1
+                    while (true) {
+                        val tr = r + d.first * step
+                        val tc = c + d.second * step
+                        if (tr !in 0..7 || tc !in 0..7) break
+                        val targetIdx = tr * 8 + tc
+                        val targetPiece = board.getOrNull(targetIdx)
+                        if (targetPiece == null) {
+                            moves.add(targetIdx)
+                        } else {
+                            if (targetPiece.isWhite != isWhite) {
+                                moves.add(targetIdx)
+                            }
+                            break
+                        }
+                        step++
+                    }
+                }
+            }
+            ChessPieceType.QUEEN -> {
+                val dirs = listOf(
+                    Pair(-1, 0), Pair(1, 0), Pair(0, -1), Pair(0, 1),
+                    Pair(-1, -1), Pair(-1, 1), Pair(1, -1), Pair(1, 1)
+                )
+                for (d in dirs) {
+                    var step = 1
+                    while (true) {
+                        val tr = r + d.first * step
+                        val tc = c + d.second * step
+                        if (tr !in 0..7 || tc !in 0..7) break
+                        val targetIdx = tr * 8 + tc
+                        val targetPiece = board.getOrNull(targetIdx)
+                        if (targetPiece == null) {
+                            moves.add(targetIdx)
+                        } else {
+                            if (targetPiece.isWhite != isWhite) {
+                                moves.add(targetIdx)
+                            }
+                            break
+                        }
+                        step++
+                    }
+                }
+            }
+        }
+        return moves
+    }
+
+    val validMoves = if (selectedIndex != null) getValidMovesForIndex(selectedIndex!!) else emptyList()
+
+    fun triggerAiMove() {
+        if (gameOutcome.isNotEmpty()) return
+        
+        val aiMoves = mutableListOf<Pair<Int, Int>>()
+        for (i in 0..63) {
+            val p = board.getOrNull(i)
+            if (p != null && !p.isWhite) {
+                val possibleTargets = getValidMovesForIndex(i)
+                for (t in possibleTargets) {
+                    aiMoves.add(Pair(i, t))
+                }
+            }
+        }
+        
+        if (aiMoves.isEmpty()) {
+            val whiteKingExists = board.any { it?.type == ChessPieceType.KING && it.isWhite }
+            val blackKingExists = board.any { it?.type == ChessPieceType.KING && !it.isWhite }
+            if (whiteKingExists && !blackKingExists) {
+                gameOutcome = "WIN"
+            } else if (!whiteKingExists && blackKingExists) {
+                gameOutcome = "DEFEAT"
+            } else {
+                gameOutcome = "DRAW"
+            }
+            return
+        }
+        
+        val selectedMove = when (difficulty) {
+            "EASY" -> {
+                aiMoves.random()
+            }
+            "MEDIUM" -> {
+                val captureMoves = aiMoves.filter { board.getOrNull(it.second) != null }
+                if (captureMoves.isNotEmpty()) {
+                    captureMoves.maxByOrNull {
+                        val targetType = board.getOrNull(it.second)?.type ?: ChessPieceType.PAWN
+                        when (targetType) {
+                            ChessPieceType.KING -> 1000
+                            ChessPieceType.QUEEN -> 90
+                            ChessPieceType.ROOK -> 50
+                            ChessPieceType.BISHOP -> 35
+                            ChessPieceType.KNIGHT -> 30
+                            ChessPieceType.PAWN -> 10
+                        }
+                    } ?: aiMoves.random()
+                } else {
+                    aiMoves.random()
+                }
+            }
+            else -> { // OVERLORD
+                aiMoves.maxByOrNull {
+                    val targetSquare = board.getOrNull(it.second)
+                    var score = 0
+                    if (targetSquare != null) {
+                        score += 20 + when (targetSquare.type) {
+                            ChessPieceType.KING -> 5000
+                            ChessPieceType.QUEEN -> 120
+                            ChessPieceType.ROOK -> 80
+                            ChessPieceType.BISHOP -> 50
+                            ChessPieceType.KNIGHT -> 45
+                            ChessPieceType.PAWN -> 20
+                        }
+                    }
+                    val toRow = it.second / 8
+                    score += toRow
+                    score
+                } ?: aiMoves.random()
+            }
+        }
+        
+        val fromIdx = selectedMove.first
+        val toIdx = selectedMove.second
+        val movingPiece = board[fromIdx]
+        val targetPiece = board[toIdx]
+        
+        if (targetPiece != null) {
+            viewModel.vibrate(100)
+        } else {
+            viewModel.vibrate(50)
+        }
+        
+        board[toIdx] = movingPiece
+        board[fromIdx] = null
+        
+        val whiteKingLeft = board.any { it?.type == ChessPieceType.KING && it.isWhite }
+        if (!whiteKingLeft) {
+            gameOutcome = "DEFEAT"
+            viewModel.vibrate(400)
+        }
+    }
+
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties = DialogProperties(usePlatformDefaultWidth = false)
+    ) {
+        Surface(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(PureBlack),
+            color = PureBlack
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(16.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.SpaceBetween
+            ) {
+                Column {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = 10.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column {
+                            Text(
+                                text = if (lang == "RU") "ЛУННЫЕ ШАХМАТЫ" else "LUNAR CHESS",
+                                color = AlertGreen,
+                                fontFamily = FontFamily.Monospace,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 18.sp
+                            )
+                            Text(
+                                text = if (lang == "RU") "Отказоустойчивый симулятор nOG" else "nOG Fault-tolerant tactical node",
+                                color = TextGray,
+                                fontSize = 10.sp,
+                                fontFamily = FontFamily.Monospace
+                            )
+                        }
+                        IconButton(
+                            onClick = {
+                                viewModel.vibrate(30)
+                                onDismiss()
+                            },
+                            modifier = Modifier
+                                .size(36.dp)
+                                .border(1.dp, BorderGray, RoundedCornerShape(4.dp))
+                        ) {
+                            Icon(imageVector = Icons.Filled.Close, contentDescription = "Close", tint = PureWhite, modifier = Modifier.size(18.dp))
+                        }
+                    }
+                    HorizontalDivider(color = BorderGray, modifier = Modifier.padding(vertical = 12.dp))
+                }
+
+                Column(
+                    modifier = Modifier.weight(1f),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .border(1.dp, BorderGray, RoundedCornerShape(4.dp))
+                            .background(DeepGray)
+                            .padding(8.dp),
+                        horizontalArrangement = Arrangement.SpaceAround,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = if (lang == "RU") "СЛОЖНОСТЬ AI:" else "AI NODE:",
+                            color = TextGray,
+                            fontSize = 10.sp,
+                            fontFamily = FontFamily.Monospace,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                            listOf("EASY", "MEDIUM", "OVERLORD").forEach { level ->
+                                val isSelected = difficulty == level
+                                val levelLabel = when (level) {
+                                    "EASY" -> if (lang == "RU") "ЗУМЕР" else "EASY"
+                                    "MEDIUM" -> if (lang == "RU") "ОХРАННИК" else "MEDIUM"
+                                    else -> if (lang == "RU") "ОВЕРЛОРД" else "OVERLORD"
+                                }
+                                Box(
+                                    modifier = Modifier
+                                        .clip(RoundedCornerShape(2.dp))
+                                        .background(if (isSelected) AlertGreen else PureBlack)
+                                        .border(1.dp, if (isSelected) AlertGreen else BorderGray, RoundedCornerShape(2.dp))
+                                        .clickable {
+                                            viewModel.vibrate(25)
+                                            difficulty = level
+                                        }
+                                        .padding(horizontal = 6.dp, vertical = 4.dp)
+                                ) {
+                                    Text(
+                                        text = levelLabel,
+                                        color = if (isSelected) PureBlack else TextGray,
+                                        fontSize = 9.sp,
+                                        fontFamily = FontFamily.Monospace,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                }
+                            }
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    Box(
+                        modifier = Modifier
+                            .aspectRatio(1f)
+                            .fillMaxWidth()
+                            .border(2.dp, BorderGray, RoundedCornerShape(4.dp))
+                            .background(DeepGray)
+                    ) {
+                        Column(modifier = Modifier.fillMaxSize()) {
+                            for (row in 0..7) {
+                                Row(modifier = Modifier.weight(1f)) {
+                                    for (col in 0..7) {
+                                        val idx = row * 8 + col
+                                        val squarePiece = board.getOrNull(idx)
+                                        val isSquareDark = (row + col) % 2 == 1
+                                        val baseBg = if (isSquareDark) PureBlack else DeepGray
+                                        
+                                        val isValidTarget = validMoves.contains(idx)
+                                        val isSelected = selectedIndex == idx
+                                        
+                                        val backgroundForTile = when {
+                                            isSelected -> AlertYellow.copy(alpha = 0.3f)
+                                            isValidTarget -> AlertGreen.copy(alpha = 0.25f)
+                                            else -> baseBg
+                                        }
+                                        
+                                        val borderForTileModifier = when {
+                                            isSelected -> Modifier.border(1.dp, AlertYellow)
+                                            isValidTarget -> Modifier.border(1.dp, AlertGreen)
+                                            else -> Modifier
+                                        }
+
+                                        Box(
+                                            modifier = Modifier
+                                                .weight(1f)
+                                                .fillMaxHeight()
+                                                .background(backgroundForTile)
+                                                .then(borderForTileModifier)
+                                                .clickable {
+                                                    if (gameOutcome.isNotEmpty()) return@clickable
+                                                    
+                                                    if (isValidTarget && selectedIndex != null) {
+                                                        val moving = board[selectedIndex!!] ?: return@clickable
+                                                        val target = board[idx]
+                                                        
+                                                        if (target != null) {
+                                                            viewModel.vibrate(100)
+                                                        } else {
+                                                            viewModel.vibrate(40)
+                                                        }
+                                                        
+                                                        board[idx] = moving
+                                                        board[selectedIndex!!] = null
+                                                        selectedIndex = null
+                                                        
+                                                        selectedPieceName = ""
+                                                        selectedPieceRuleText = ""
+                                                        
+                                                        val blackKingLeft = board.any { it?.type == ChessPieceType.KING && !it.isWhite }
+                                                        if (!blackKingLeft) {
+                                                            gameOutcome = "WIN"
+                                                            viewModel.vibrate(400)
+                                                        } else {
+                                                            triggerAiMove()
+                                                        }
+                                                    } else {
+                                                        if (squarePiece != null && squarePiece.isWhite) {
+                                                            viewModel.vibrate(30)
+                                                            selectedIndex = idx
+                                                            
+                                                            selectedPieceName = when (squarePiece.type) {
+                                                                ChessPieceType.KING -> if (lang == "RU") "ЛУННЫЙ ИМПЕРАТОР (КОРОЛЬ)" else "LUNAR KAISER (KING)"
+                                                                ChessPieceType.QUEEN -> if (lang == "RU") "КВАНТОВАЯ КОРОЛЕВА (ФЕРЗЬ)" else "QUANTUM MATRIX (QUEEN)"
+                                                                ChessPieceType.ROOK -> if (lang == "RU") "ТЕРМИНАЛЬНАЯ ЛАДЬЯ" else "TACTICAL TOWER (ROOK)"
+                                                                ChessPieceType.BISHOP -> if (lang == "RU") "КИБЕР-СЛOН" else "NEURAL CLERIC (BISHOP)"
+                                                                ChessPieceType.KNIGHT -> if (lang == "RU") "ЛУННЫЙ КОНЬ" else "LUNAR STALLION (KNIGHT)"
+                                                                ChessPieceType.PAWN -> if (lang == "RU") "ЛУННАЯ ПЕШКА" else "GRID INTERCEPTOR (PAWN)"
+                                                            }
+                                                            selectedPieceRuleText = when (squarePiece.type) {
+                                                                ChessPieceType.KING -> if (lang == "RU") "Ходит на 1 клетку в любом направлении." else "Moves 1 field radically in all vectors."
+                                                                ChessPieceType.QUEEN -> if (lang == "RU") "Двигается по диагонали, вертикали или горизонтали." else "Moves hyper-dimensionally over long distances."
+                                                                ChessPieceType.ROOK -> if (lang == "RU") "Ходит по прямой горизонтали и вертикали." else "Traverses straight paths until collision."
+                                                                ChessPieceType.BISHOP -> if (lang == "RU") "Ходит по диагоналям на любое расстояние." else "Angles diagonally through empty logic blocks."
+                                                                ChessPieceType.KNIGHT -> if (lang == "RU") "Прыгает буквой 'Г' через другие фигуры." else "Leaps over grid obstacles in L-protocol vectors."
+                                                                ChessPieceType.PAWN -> if (lang == "RU") "Идет на 1 шаг вперед, бьет на 1 клетку по диагонали." else "Advances straight. Hijacks coordinates diagonally forward."
+                                                            }
+                                                        } else {
+                                                            selectedIndex = null
+                                                            selectedPieceName = ""
+                                                            selectedPieceRuleText = ""
+                                                        }
+                                                    }
+                                                },
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            if (squarePiece != null) {
+                                                val tokenColorForPiece = if (squarePiece.isWhite) androidx.compose.ui.graphics.Color(0xFF80DEEA) else AlertYellow
+                                                val sizeForPiece = if (squarePiece.type == ChessPieceType.PAWN) 18.sp else 24.sp
+                                                val pieceTxtSymbol = when (squarePiece.type) {
+                                                    ChessPieceType.KING -> "♚"
+                                                    ChessPieceType.QUEEN -> "♛"
+                                                    ChessPieceType.ROOK -> "♜"
+                                                    ChessPieceType.BISHOP -> "♝"
+                                                    ChessPieceType.KNIGHT -> "♞"
+                                                    ChessPieceType.PAWN -> "♟"
+                                                }
+                                                Text(
+                                                    text = pieceTxtSymbol,
+                                                    color = tokenColorForPiece,
+                                                    fontSize = sizeForPiece,
+                                                    fontWeight = FontWeight.Bold
+                                                )
+                                            }
+                                            
+                                            if (isValidTarget && squarePiece == null) {
+                                                Box(
+                                                    modifier = Modifier
+                                                        .size(8.dp)
+                                                        .clip(CircleShape)
+                                                        .background(AlertGreen)
+                                                )
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .border(1.dp, if (selectedPieceName.isNotEmpty()) AlertGreen.copy(alpha = 0.5f) else BorderGray, RoundedCornerShape(4.dp))
+                            .background(DeepGray)
+                            .padding(10.dp)
+                            .height(54.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        if (selectedPieceName.isNotEmpty()) {
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                Text(
+                                    text = selectedPieceName,
+                                    color = AlertGreen,
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    fontFamily = FontFamily.Monospace
+                                )
+                                Spacer(modifier = Modifier.height(2.dp))
+                                Text(
+                                    text = selectedPieceRuleText,
+                                    color = PureWhite,
+                                    fontSize = 9.sp,
+                                    fontFamily = FontFamily.Monospace,
+                                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                                )
+                            }
+                        } else {
+                            Text(
+                                text = if (lang == "RU") "НАЖМИТЕ НА ЛУННУЮ ФИГУРУ ДЛЯ ТАКТИЧЕСКОГО АНАЛИЗА" else "SELECT A LUNAR TOKEN FOR TACTICAL BLUEPRINTS",
+                                color = TextGray,
+                                fontSize = 9.sp,
+                                fontFamily = FontFamily.Monospace,
+                                textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    if (gameOutcome.isNotEmpty()) {
+                        val statusText = when (gameOutcome) {
+                            "WIN" -> if (lang == "RU") "ПОБЕДА ОРГАНИЧЕСКОГО РАЗУМА! ИИ nOG ПОВЕРЖЕН" else "ORGANIC INTEL VICTORIOUS! AI DEFEATED"
+                            "DEFEAT" -> if (lang == "RU") "КИБЕР-УНИЧТОЖЕНИЕ! ИИ ЗАХВАТИЛ ВАШУ НОДУ" else "CYBER ELIMINATION. AI OVERWHELMED YOUR NODE"
+                            else -> if (lang == "RU") "ПАТОВАЯ СИТУАЦИЯ / НИЧЬЯ" else "LOGIC DEADLOCK / STALEMATE DRAW"
+                        }
+                        val statusAccentColor = if (gameOutcome == "WIN") AlertGreen else AlertRed
+                        
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .background(DeepGray)
+                                .border(1.dp, statusAccentColor, RoundedCornerShape(4.dp))
+                                .padding(12.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = statusText,
+                                color = statusAccentColor,
+                                fontFamily = FontFamily.Monospace,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 11.sp,
+                                textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                            )
+                        }
+                    }
+                }
+
+                Button(
+                    onClick = {
+                        viewModel.vibrate(60)
+                        resetBoard()
+                        selectedIndex = null
+                        gameOutcome = ""
+                        selectedPieceName = ""
+                        selectedPieceRuleText = ""
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = AlertGreen, contentColor = PureBlack),
+                    shape = RoundedCornerShape(4.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(48.dp)
+                ) {
+                    Text(
+                        text = if (lang == "RU") "ПЕРЕЗАГРУЗИТЬ ДОСКУ" else "REBOOT BOARD",
+                        fontFamily = FontFamily.Monospace,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 13.sp
+                    )
                 }
             }
         }

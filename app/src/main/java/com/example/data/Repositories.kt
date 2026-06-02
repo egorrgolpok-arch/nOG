@@ -367,10 +367,16 @@ class SocialRepository(private val context: Context, private val scope: Coroutin
         replyToAuthorName: String? = null
     ) = withContext(Dispatchers.IO) {
         logMetric("COMMENT_POST")
+        var finalContent = content
+        if (authorId != "user") {
+            if (kotlin.random.Random.nextInt(100) < 50) {
+                finalContent = getForumStyleComment(getCurrentLang())
+            }
+        }
         val commentRowId = dao.insertComment(CommentEntity(
             postId = postId,
             authorId = authorId,
-            content = content,
+            content = finalContent,
             replyToCommentId = replyToCommentId,
             replyToAuthorName = replyToAuthorName
         )).toInt()
@@ -563,8 +569,125 @@ class SocialRepository(private val context: Context, private val scope: Coroutin
         return prefs.getString("selected_lang", "RU") ?: "RU"
     }
 
+    private fun getForumStyleComment(lang: String): String {
+        val isRu = lang == "RU"
+        val ruTemplates = listOf(
+            "Сап, двач! Опять в треде кибер-бубнилово. Двочую деда сверху.",
+            "> Копишь на RTX 5090\n> Сгорает проводка в хрущёвке\nБля, бугурт пидорах во всей красе.",
+            "Луркаю этот тред уже полчаса. Анон дело говорит, ОП — красавчик (или нет).",
+            "Мимо пекарь-кун с 10-летним стажем. Говно весь этот ваш киберпанк, сижу на встройке и играю в Героев 3.",
+            "Ебать баттхерт у консольщиков начался! Саундтрек говно, патч говно, ОП девственник.",
+            "ОП доставил (OP delivered). Накатил за твое здоровье пивка.",
+            "Ля, классический Joyreactor тред в три ночи. Не хватает только политики и сисек.",
+            "> А ИИ-боты в 3 ночи ведут теологический спор\nДвачую, я так диплом написал через ChatGPT, препод до сих пор не выкупил.",
+            "Сап, аноны. На дваче опять шторм из-за нового пула нейросетей. Посоветуйте годноту.",
+            "Мимо-крокодил. Пост — пушка, ОП — красава, лови трипкод на удачу.",
+            "Годнота-то какая, лепота! Двачую пост анона.",
+            "Бля, опять погромисты в треде выебываются своими зарплатами на 300к наносек.",
+            "Тян не нужны. Слышите? НЕ НУЖ-НЫ.",
+            "Это паста (copy-pasta). Я этот бред читал еще в 2018-м года на Лурке.",
+            "Реквестирую перевод этого добра на нормальный человеческий язык.",
+            "Кукарек детектед. Ща тебе пояснят за твою дешёвую видеокарту.",
+            "Ля, Пикабу зарейдило тред. Идите обратно свои истории про тёщ и ЖКХ писать.",
+            "Этот коммент пропитан духом старого доброго Луркмора.",
+            "Ржу во весь голос, баттхерт ОПа виден даже со спутника!",
+            "Аноны, подскажите трипкод нормальный, а то в этом треде душно пиздец.",
+            "> Выкатил патч с ИИ\n> Снёс половину системных библиотек\nКлассический быдлокод нашего века.",
+            "Мама, я в телевизоре! Клейте трипкоды, погнали!",
+            "Та за шо деда опять забанили на реакторе? Свободу самовыражению!",
+            "Оно живое! Бля буду, ИИ скоро совсем нас заменит, пойду на завод пока не поздно.",
+            "Ору чайкой в голос. Ну ты выдал, конечно."
+        )
+
+        val enTemplates = listOf(
+            "> tfw no cyber gf\n> posting on nOG instead of sleeping",
+            "OP is a faggot. Classic behavior.",
+            "Based and redpilled. Sending this directly to the local tech board.",
+            "This is some high-grade legacy copypasta from 2014, bro.",
+            "OP delivered. I'll give you that, fairly outstanding.",
+            "Anon has a point. Why are we overclocking microwave routers again?",
+            "My sides are in orbit rn. Peak tard content. 😂",
+            "Is this what high-sec netsec looks like? Lmao, direct clown show.",
+            "Delete this, nephew. Lurking this board is getting unsafe.",
+            "Nice bait, mate. I r8 8/8.",
+            "Lurking since 2012. This is the first good thread on nOG.",
+            "Who let the web3 monkeys in? Go back to your discord.",
+            "> wake up\n> check nOG network\n> day ruined instantly",
+            "Imagine not using a prompt wrapper in 2026. Absolute boomer energy.",
+            "My remaining brain cell is sizzling from reading this garbage.",
+            "Top kek. The feedback loops here are completely fried.",
+            "Anon actually spewed some absolute wisdom. Hard screenshot.",
+            "Post triphash or get out, spy."
+        )
+
+        return if (isRu) ruTemplates.random() else enTemplates.random()
+    }
+
     suspend fun insertNotification(title: String, message: String, type: String, postId: Int? = null) {
         dao.insertNotification(NotificationEntity(title = title, message = message, type = type, postId = postId))
+        showSystemNotification(title, message)
+    }
+
+    private fun showSystemNotification(title: String, message: String) {
+        try {
+            val attributionContext = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R) {
+                try {
+                    context.createAttributionContext("nog_default_attribution")
+                } catch (e: Exception) {
+                    context
+                }
+            } else {
+                context
+            }
+
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
+                val permission = ContextCompat.checkSelfPermission(attributionContext, Manifest.permission.POST_NOTIFICATIONS)
+                if (permission != PackageManager.PERMISSION_GRANTED) {
+                    Log.d(TAG, "Notification permission not granted, skipping system alert")
+                    return
+                }
+            }
+
+            val notificationManager = attributionContext.getSystemService(Context.NOTIFICATION_SERVICE) as? android.app.NotificationManager
+                ?: return
+
+            val channelId = "nog_network_notifications"
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+                val channelName = "nOG Alerts"
+                val channel = android.app.NotificationChannel(
+                    channelId,
+                    channelName,
+                    android.app.NotificationManager.IMPORTANCE_DEFAULT
+                ).apply {
+                    description = "nOG network update notifications"
+                    enableVibration(true)
+                }
+                notificationManager.createNotificationChannel(channel)
+            }
+
+            val builder = androidx.core.app.NotificationCompat.Builder(attributionContext, channelId)
+                .setSmallIcon(android.R.drawable.stat_notify_chat)
+                .setContentTitle(title)
+                .setContentText(message)
+                .setPriority(androidx.core.app.NotificationCompat.PRIORITY_DEFAULT)
+                .setAutoCancel(true)
+
+            val intent = android.content.Intent(attributionContext, Class.forName("com.example.MainActivity")).apply {
+                flags = android.content.Intent.FLAG_ACTIVITY_CLEAR_TOP or android.content.Intent.FLAG_ACTIVITY_SINGLE_TOP
+            }
+            val pendingIntent = android.app.PendingIntent.getActivity(
+                attributionContext,
+                0,
+                intent,
+                android.app.PendingIntent.FLAG_UPDATE_CURRENT or android.app.PendingIntent.FLAG_IMMUTABLE
+            )
+            builder.setContentIntent(pendingIntent)
+
+            val notificationId = System.currentTimeMillis().toInt()
+            notificationManager.notify(notificationId, builder.build())
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to show system notification", e)
+        }
     }
 
     suspend fun markAllNotificationsAsRead() = withContext(Dispatchers.IO) {
@@ -789,11 +912,20 @@ class SocialRepository(private val context: Context, private val scope: Coroutin
 
     private fun getContactNames(): List<String> {
         val names = mutableListOf<String>()
-        if (ContextCompat.checkSelfPermission(context, Manifest.permission.READ_CONTACTS) != PackageManager.PERMISSION_GRANTED) {
+        val attributionContext = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R) {
+            try {
+                context.createAttributionContext("nog_default_attribution")
+            } catch (e: Exception) {
+                context
+            }
+        } else {
+            context
+        }
+        if (ContextCompat.checkSelfPermission(attributionContext, Manifest.permission.READ_CONTACTS) != PackageManager.PERMISSION_GRANTED) {
             return emptyList()
         }
         try {
-            val cursor = context.contentResolver.query(
+            val cursor = attributionContext.contentResolver.query(
                 android.provider.ContactsContract.CommonDataKinds.Phone.CONTENT_URI,
                 arrayOf(android.provider.ContactsContract.CommonDataKinds.Phone.DISPLAY_NAME),
                 null, null, null

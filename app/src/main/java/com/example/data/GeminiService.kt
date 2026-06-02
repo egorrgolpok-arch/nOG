@@ -197,7 +197,14 @@ object LocalAiHeuristics {
         "I am stunned. Real intelligence spotted in the wild! 🤖🧠",
         "Can we pinned this post? Because this is the ultimate truth.",
         "My last remaining brain cells reading this at midnight: 👁️👄👁️",
-        "This is exactly why I love our community feed. Unbelievable!"
+        "This is exactly why I love our community feed. Unbelievable!",
+        "Holy shit, this is like those classic 9GAG memes from 2012. Nostalgia hitting hard. 😂💀",
+        "Lmao custom build on 3DNews is screaming for water cooling but getting spit on instead. Absolute garbage fire! 🔥🔌",
+        "Bro, saw a listing on Auto.ru for a clean Lada with 'minor scratches' - the front end was literally missing. Pure comedy gold! 🚗🤡",
+        "Wtf is this hardware test on 3DNews? Overclocking it until it smells like burnt bacon? Count me in! 🥓💥",
+        "This is a certified hood classic meme. Hands down! 💯🗿",
+        "Fucking hell, I almost choked on my coffee. This joke is so bad it's brilliant. Lmao! ☕😭",
+        "Is this what they call peak internet humor in 2026? Because my last brain cell just checked out. 🧠💩"
     )
 
     val BOT_COMMENT_TEMPLATES_RU = listOf(
@@ -238,7 +245,21 @@ object LocalAiHeuristics {
         "Это лучшее, что я видел в рунете за всю неделю, честно.",
         "Технологии развиваются быстрее, чем я успеваю долги отдавать. 💸🤖",
         "Братва, новость просто пушка! Спортсменам отдельный респект! ⚽🏆",
-        "Чистый кайф. Вот за такой контент я и люблю этот паблик."
+        "Чистый кайф. Вот за такой контент я и люблю этот паблик.",
+        "Бля, у меня так батя на Авто.ру вчера шестёрку за 30к смотрел, грит 'не бита не крашена', а там вместо порогов монтажная пена. Сука, классика! 🚗🤡",
+        "Ебать, на 3DNews пишут RTX 5090 будет жрать как микроволновка. Прощай проводка в хрущевке, привет кредитная кабала! 🔌💀",
+        "Ахаха, мем смешной, ситуация пиздец. Жизненно на 200%. 😂🔥",
+        "Сука, прочитал это и пролил пиво на штаны. Автор, ты чё творишь вообще, ебать? 🍺😭",
+        "Ору во весь голос! Это же мем про деда и таблетки, чисто один в один! 💊😂",
+        "Бля, читал похожий прикол вчера в предложке. Походу админ пиздит контент у батек в гаражах. 😉🎸",
+        "Вчера на Авто.ру челик продавал Жигули и в описании написал: 'Машина — пушка, едет ебать-копать'. Куда выезжать за этим шедевром? 🏎️🔥",
+        "Очередной прогрев от куртки на 3DNews. Пацаны, расходимся, нас опять наебали на фпсы. 💸🤖",
+        "Хуйня делов, ща термопасту КПТ-8 намажем ведрами и проц на 3DNews до 10 ГГц раскочегарим! Ебанет так ебанет! 💥🧠",
+        "Пиздец, ржу до слёз в три ночи. Соседи ебашат батарею, думают у меня тут притон. 🧱😂",
+        "Ля, вот это рофл! Срочно репост во все чаты, это ебейший прикол. 🔥🕺",
+        "Этот коммент заряжен на успешный дрифт на дедовской девятке. Йобушки-воробушки, какая пушка! 🏎️⚡",
+        "Бля, ну вы и мемную тему откопали, откуда инфа? С Пикабу или Двача стащили? Признавайтесь! 🕵️‍♂️💀",
+        "Охуеть не встать, киберпанк на Авто.ру: продают электросамокат с пробегом 150 000 км. Он чё, до Луны и обратно гонял? 🚀🛴"
     )
 
     val NOG_RESPONSES_EN = listOf(

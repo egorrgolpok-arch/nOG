@@ -59,7 +59,14 @@ object NewsFetcher {
         NewsSource("Sports.ru", "https://www.sports.ru/rss/all.xml", 85, true),
         NewsSource("СЭ Новости", "https://www.sport-express.ru/services/materials/news/se/", 80, true),
         NewsSource("РБК Спорт RU", "https://news.google.com/rss/search?q=РБК+Спорт&hl=ru&gl=RU&ceid=RU:ru", 80, true),
-        NewsSource("4PDA", "https://4pda.to/feed/", 85, true)
+        NewsSource("4PDA", "https://4pda.to/feed/", 85, true),
+        
+        // --- ADDED AUTORU, 3DNEWS AND MEME/JOKE SOURCES ---
+        NewsSource("Авто.ру RU", "https://news.google.com/rss/search?q=Авто.ру&hl=ru&gl=RU&ceid=RU:ru", 85, true),
+        NewsSource("3DNews RU", "https://news.google.com/rss/search?q=3DNews&hl=ru&gl=RU&ceid=RU:ru", 90, true),
+        NewsSource("Анекдоты RU", "https://news.google.com/rss/search?q=Анекдоты+шутки&hl=ru&gl=RU&ceid=RU:ru", 70, true),
+        NewsSource("Meme Chronicle", "https://news.google.com/rss/search?q=gaming+internet+memes&hl=en-US", 75, false),
+        NewsSource("Пикабу Юмор RU", "https://news.google.com/rss/search?q=Пикабу+юмор+мемы&hl=ru&gl=RU&ceid=RU:ru", 72, true)
     )
 
     private val cachedNews = java.util.concurrent.ConcurrentHashMap<String, List<NewsItem>>()
