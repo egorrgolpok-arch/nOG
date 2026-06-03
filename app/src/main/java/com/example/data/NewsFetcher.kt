@@ -88,7 +88,42 @@ object NewsFetcher {
         NewsSource("Reddit ProgrammerHumor", "https://news.google.com/rss/search?q=site:reddit.com/r/programmerhumor&hl=en-US", 76, false),
         NewsSource("WebComic Jokes", "https://news.google.com/rss/search?q=funny+webcomics+jokes&hl=en-US", 73, false),
         NewsSource("Silicon Slapstick", "https://news.google.com/rss/search?q=silicon+valley+tech+humor&hl=en-US", 81, false),
-        NewsSource("Imgur Funny Gems", "https://news.google.com/rss/search?q=imgur+funny+memes+gallery&hl=en-US", 72, false)
+        NewsSource("Imgur Funny Gems", "https://news.google.com/rss/search?q=imgur+funny+memes+gallery&hl=en-US", 72, false),
+
+        // --- EXPANDED NEWS & ARTICLE & JOKE & MEME RESOURCES ---
+        NewsSource("Meduza RU", "https://news.google.com/rss/search?q=Meduza&hl=ru&gl=RU&ceid=RU:ru", 80, true),
+        NewsSource("Лентач RU", "https://news.google.com/rss/search?q=Лентач&hl=ru&gl=RU&ceid=RU:ru", 75, true),
+        NewsSource("Drom Авто", "https://news.google.com/rss/search?q=Drom+автомобили&hl=ru&gl=RU&ceid=RU:ru", 85, true),
+        NewsSource("Drive2 RU", "https://news.google.com/rss/search?q=Drive2&hl=ru&gl=RU&ceid=RU:ru", 80, true),
+        NewsSource("Wylsacom RU", "https://news.google.com/rss/search?q=Wylsacom&hl=ru&gl=RU&ceid=RU:ru", 82, true),
+        NewsSource("TJournal RU", "https://news.google.com/rss/search?q=TJournal&hl=ru&gl=RU&ceid=RU:ru", 70, true),
+        NewsSource("Лайфхакер Лайф", "https://news.google.com/rss/search?q=Лайфхакер&hl=ru&gl=RU&ceid=RU:ru", 80, true),
+        NewsSource("JoyReactor Мемы", "https://news.google.com/rss/search?q=JoyReactor+мемы&hl=ru&gl=RU&ceid=RU:ru", 64, true),
+        NewsSource("Поп.Механика", "https://news.google.com/rss/search?q=Популярная+Механика&hl=ru&gl=RU&ceid=RU:ru", 88, true),
+        NewsSource("Хабр Наука RU", "https://news.google.com/rss/search?q=Habr+Наука&hl=ru&gl=RU&ceid=RU:ru", 92, true),
+        NewsSource("РБК Новости", "https://news.google.com/rss/search?q=РБК&hl=ru&gl=RU&ceid=RU:ru", 88, true),
+        NewsSource("Коммерсантъ", "https://news.google.com/rss/search?q=Коммерсантъ&hl=ru&gl=RU&ceid=RU:ru", 90, true),
+        NewsSource("VK Memes RU", "https://news.google.com/rss/search?q=ВКонтакте+мемы+приколы&hl=ru&gl=RU&ceid=RU:ru", 60, true),
+        NewsSource("Баш.орг Цитатник", "https://news.google.com/rss/search?q=bash.im+цитаты&hl=ru&gl=RU&ceid=RU:ru", 75, true),
+        NewsSource("Анекдоты из РФ", "https://news.google.com/rss/search?q=site:anekdot.ru+лучшие&hl=ru&gl=RU&ceid=RU:ru", 78, true),
+        NewsSource("Игры Mail.ru", "https://news.google.com/rss/search?q=Игры+Mail.ru&hl=ru&gl=RU&ceid=RU:ru", 80, true),
+        
+        // EN sources
+        NewsSource("WIRED Tech", "https://www.wired.com/feed/rss", 92, false),
+        NewsSource("Engadget", "https://www.engadget.com/rss.xml", 88, false),
+        NewsSource("Gizmodo", "https://gizmodo.com/rss", 85, false),
+        NewsSource("TechRadar", "https://www.techradar.com/rss", 86, false),
+        NewsSource("CNN World", "https://news.google.com/rss/search?q=CNN+World&hl=en-US", 90, false),
+        NewsSource("Fox News Live", "https://news.google.com/rss/search?q=Fox+News&hl=en-US", 80, false),
+        NewsSource("Bloomberg Tech", "https://news.google.com/rss/search?q=Bloomberg+Technology&hl=en-US", 92, false),
+        NewsSource("LADbible Viral", "https://news.google.com/rss/search?q=LADbible+funny&hl=en-US", 70, false),
+        NewsSource("Unilad Jokes", "https://news.google.com/rss/search?q=Unilad+memes&hl=en-US", 72, false),
+        NewsSource("Know Your Meme", "https://news.google.com/rss/search?q=site:knowyourmeme.com&hl=en-US", 80, false),
+        NewsSource("Tumblr Trending", "https://news.google.com/rss/search?q=site:tumblr.com+funny&hl=en-US", 70, false),
+        NewsSource("Imgur Viral Memes", "https://news.google.com/rss/search?q=site:imgur.com+viral+memes&hl=en-US", 74, false),
+        NewsSource("Pinterest Gems", "https://news.google.com/rss/search?q=site:pinterest.com+aesthetic+memes&hl=en-US", 75, false),
+        NewsSource("X.com Trending Tech", "https://news.google.com/rss/search?q=X+tech+trends+Twitter&hl=en-US", 78, false),
+        NewsSource("Slashdot Science", "https://slashdot.org/slashdot.rss", 85, false)
     )
 
     private val cachedNews = java.util.concurrent.ConcurrentHashMap<String, List<NewsItem>>()

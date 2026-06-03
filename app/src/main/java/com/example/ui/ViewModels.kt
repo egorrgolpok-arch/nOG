@@ -37,6 +37,7 @@ class SocialViewModel(application: Application) : AndroidViewModel(application) 
     private val repository = SocialRepository(application, viewModelScope)
 
     fun vibrate(milliseconds: Long = 50, amplitude: Int = VibrationEffect.DEFAULT_AMPLITUDE) {
+        if (_isSilentMode.value) return
         try {
             val context = getApplication<Application>()
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
@@ -154,6 +155,16 @@ class SocialViewModel(application: Application) : AndroidViewModel(application) 
     private val _activePostIdForComments = MutableStateFlow<Int?>(null)
     val activePostIdForComments: StateFlow<Int?> = _activePostIdForComments.asStateFlow()
 
+    // --- Silent Mode (No vibrates & no push notifications if enabled) ---
+    private val _isSilentMode = MutableStateFlow<Boolean>(false)
+    val isSilentMode: StateFlow<Boolean> = _isSilentMode.asStateFlow()
+
+    fun toggleSilentMode(enabled: Boolean) {
+        _isSilentMode.value = enabled
+        val prefs = getApplication<Application>().getSharedPreferences("nog_prefs", Context.MODE_PRIVATE)
+        prefs.edit().putBoolean("silent_mode", enabled).apply()
+    }
+
     // --- Persistent Poker Balance ---
     private val _pokerBalance = MutableStateFlow<Int>(1000)
     val pokerBalance: StateFlow<Int> = _pokerBalance.asStateFlow()
@@ -250,6 +261,10 @@ class SocialViewModel(application: Application) : AndroidViewModel(application) 
         // Load persistent Poker balance
         val savedPokerBalance = prefs.getInt("poker_chips_balance", 1000)
         _pokerBalance.value = savedPokerBalance
+
+        // Load silent mode
+        val savedSilent = prefs.getBoolean("silent_mode", false)
+        _isSilentMode.value = savedSilent
 
         // Initialize basic database entries
         viewModelScope.launch(Dispatchers.IO) {

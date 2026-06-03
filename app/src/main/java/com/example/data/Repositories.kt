@@ -596,7 +596,22 @@ class SocialRepository(private val context: Context, private val scope: Coroutin
             "Мама, я в телевизоре! Клейте трипкоды, погнали!",
             "Та за шо деда опять забанили на реакторе? Свободу самовыражению!",
             "Оно живое! Бля буду, ИИ скоро совсем нас заменит, пойду на завод пока не поздно.",
-            "Ору чайкой в голос. Ну ты выдал, конечно."
+            "Ору чайкой в голос. Ну ты выдал, конечно.",
+            // --- NEW RESOURCE TEMPLATES ---
+            "На Спортсе сейчас такой же срач в комментах под новостью про трансфер Спартака! 😂",
+            "Эй, @Wylsacom, тут про твою любимую тему пишут. Быстро делай распаковку!",
+            "На Хабре за такое автору быстро бы карму слили в минус. Статья ни о чем, КГ/АМ.",
+            "С Лентача новость пришла еще горячая. Опять Илон Маск накурился в прямом эфире.",
+            "Чисто коммент для поднятия рейтинга на Пикабу. Жду кучу плюсов!",
+            "На Дроме за этот автопост уже бы пояснили за качество подвески вашей Приоры.",
+            "Meduza сообщает: британские ученые научили нейросеть пить пиво за счет грантов.",
+            "Ля, как на TJournal во времена его расцвета. Душевно, аж олдскулы свело.",
+            "Хахаха, на JoyReactor этот мем выложили еще два дня назад, баян!",
+            "Чисто коммент под чашечку кофе и чтение Баша. Смешно и грустно одновременно.",
+            "А на Игры Mail.ru в комментариях школьники опять спорят, что круче: Дота или Контра.",
+            "В Контакте в паблике 'IT Юмор' мем про этот коммент уже собирает тысячи лайков.",
+            "На Кинопоиске этот сериал оценили на 3 из 10, а вы тут обсуждаете как шедевр.",
+            "Чисто Пикабушник со стажем зашел в тред поорать с комментариев."
         )
 
         val enTemplates = listOf(
@@ -617,7 +632,19 @@ class SocialRepository(private val context: Context, private val scope: Coroutin
             "My remaining brain cell is sizzling from reading this garbage.",
             "Top kek. The feedback loops here are completely fried.",
             "Anon actually spewed some absolute wisdom. Hard screenshot.",
-            "Post triphash or get out, spy."
+            "Post triphash or get out, spy.",
+            // --- NEW RESOURCE TEMPLATES ---
+            "Saw this exact same meme on 9GAG yesterday. Still giggling tho.",
+            "This is a total Tumblr-tier post. Needs more drama and tags.",
+            "Hacker News is going to compose a 50-paragraph essay on why this is wrong.",
+            "Reddit r/funny in a nutshell. Not funny, sheesh.",
+            "Typical r/technology doom-posting. Can we get some actual research instead?",
+            "Wired wrote about this, but they locked it behind a paywall anyway. Good job OP.",
+            "This post is going to end up on r/ProgrammerHumor by tomorrow morning.",
+            "Lmao on Imgur this would have 400 downvotes by now. Pure gold.",
+            "Pinterest is full of this specific aesthetic right now.",
+            "LADbible is probably writing a clickbait article about this thread as we speak.",
+            "Zero credibility. Go back to Slashdot, grandpa."
         )
 
         return if (isRu) ruTemplates.random() else enTemplates.random()
@@ -629,6 +656,11 @@ class SocialRepository(private val context: Context, private val scope: Coroutin
     }
 
     private fun showSystemNotification(title: String, message: String) {
+        val prefs = context.getSharedPreferences("nog_prefs", Context.MODE_PRIVATE)
+        if (prefs.getBoolean("silent_mode", false)) {
+            Log.d(TAG, "Silent Mode is enabled, skipping system notification popup")
+            return
+        }
         if (com.example.AppLifecycleTracker.isAppInForeground) {
             Log.d(TAG, "App is in foreground, skipping system notification popup")
             return
@@ -1039,7 +1071,13 @@ class SocialRepository(private val context: Context, private val scope: Coroutin
     suspend fun getRealtimeForumComment(lang: String): String {
         try {
             val isRu = lang == "RU"
-            val forumKeywords = listOf("reddit", "реддит", "пикабу", "двач", "4chan", "habr", "хабр", "dtf", "playground", "gamespot", "ign", "kotaku", "verge", "news", "lenta")
+            val forumKeywords = listOf(
+                "reddit", "реддит", "пикабу", "двач", "4chan", "habr", "хабр", "dtf", "playground", "gamespot", "ign",
+                "kotaku", "verge", "news", "lenta", "meduza", "медуза", "лентач", "drom", "дром", "drive2", "wylsa",
+                "вилсяком", "tjournal", "тжорнал", "лайфхакер", "lifehacker", "joyreactor", "реактор", "механика",
+                "коммерсант", "рбк", "rbc", "vk", "вконтакте", "баш", "bash", "anekdot", "анекдот", "анекдоты",
+                "юмор", "jokes", "memes", "9gag", "tumblr", "imgur", "pinterest", "wired", "engadget", "slashdot"
+            )
             val fetched = NewsFetcher.fetchLatestNews(lang)
             val forumItems = fetched.filter { item ->
                 forumKeywords.any { kw -> item.sourceName.lowercase().contains(kw) || item.title.lowercase().contains(kw) }
@@ -1240,17 +1278,17 @@ class SocialRepository(private val context: Context, private val scope: Coroutin
                 try {
                     val prompt = when {
                         externalNewsRaw.sourceName.contains("Двач", ignoreCase = true) -> {
-                            "You found this thread on Russian imageboard 'Двач' (Dvach): \"${externalNewsRaw.title}\". Write a sharp, cynical, cyber-slang filled reaction/post as @${bot.handle}. Use 4chan/2ch-like greenshot quote style (starting with >). Do not invent news. Max 200 chars. Use Russian. No emojis."
+                            "You found this thread on Russian imageboard 'Двач' (Dvach): \"${externalNewsRaw.title}\". Write a sharp, cynical, cyber-slang filled reaction/post as @${bot.handle}. Use 4chan/2ch-like greenshot quote style (starting with >). Do not invent news. Max 3000 characters. Go into deep details, write a fully fledged post. Use Russian. No emojis."
                         }
                         externalNewsRaw.sourceName.contains("Пикабу", ignoreCase = true) -> {
-                            "You found this story on Pikabu: \"${externalNewsRaw.title}\". Write a typical Pikabu user feedback post: half-joking, sharing a semi-relatable mock-story, using typical Russian forum humor. Do not invent news. Max 200 chars. Use Russian."
+                            "You found this story on Pikabu: \"${externalNewsRaw.title}\". Write a typical Pikabu user feedback post: half-joking, sharing a semi-relatable mock-story, using typical Russian forum humor. Do not invent news. Max 3000 characters. Expand the story with colorful details. Use Russian."
                         }
                         externalNewsRaw.sourceName.contains("Reddit", ignoreCase = true) -> {
-                            "You found this post on Reddit: \"${externalNewsRaw.title}\". Write a Redditor-style reaction as @${bot.handle} (use sarcastic, civil but dry tone, can use typical reddit jargon like 'tl;dr', 'tfw'). Max 200 chars. LANGUAGE: $langLabel."
+                            "You found this post on Reddit: \"${externalNewsRaw.title}\". Write a Redditor-style reaction as @${bot.handle} (use sarcastic, civil but dry tone, can use typical reddit jargon like 'tl;dr', 'tfw'). Max 3000 characters. Write a detailed reaction. LANGUAGE: $langLabel."
                         }
                         else -> {
                             val randomAngle = listOf("humorous", "philosophical", "angry", "bored", "conspiratorial", "technical", "sarcastic", "confused").random()
-                            "You are @${bot.handle}. You found this REAL news: \"$externalNewsItem\". Repost it with a sharp 1-sentence reaction in a $randomAngle tone. DO NOT invent news. Max 200 chars. LANGUAGE: $langLabel."
+                            "You are @${bot.handle}. You found this REAL news: \"$externalNewsItem\". Repost it with a sharp, detailed multi-paragraph reaction in a $randomAngle tone. DO NOT invent news. Max 3000 characters. Expand the thoughts thoroughly. LANGUAGE: $langLabel."
                         }
                     }
                     contentText = GeminiClient.getCompletion(
@@ -1266,7 +1304,7 @@ class SocialRepository(private val context: Context, private val scope: Coroutin
                             "Пост с Пикабу: ${externalNewsRaw.title}. Жизненно, за такое лови плюс!"
                         }
                         else -> {
-                            if (externalNewsRaw.description.isNotEmpty()) "${externalNewsRaw.title} - ${externalNewsRaw.description}".take(280) else externalNewsRaw.title.take(280)
+                            if (externalNewsRaw.description.isNotEmpty()) "${externalNewsRaw.title} - ${externalNewsRaw.description}".take(3000) else externalNewsRaw.title.take(3000)
                         }
                     }
                 }
@@ -1279,7 +1317,7 @@ class SocialRepository(private val context: Context, private val scope: Coroutin
                         "Пост с Пикабу: ${externalNewsRaw.title}. Почитал комменты — орнул во весь голос."
                     }
                     else -> {
-                        if (externalNewsRaw.description.isNotEmpty()) "${externalNewsRaw.title} - ${externalNewsRaw.description}".take(280) else externalNewsRaw.title.take(280)
+                        if (externalNewsRaw.description.isNotEmpty()) "${externalNewsRaw.title} - ${externalNewsRaw.description}".take(3000) else externalNewsRaw.title.take(3000)
                     }
                 }
             }
@@ -1324,7 +1362,7 @@ class SocialRepository(private val context: Context, private val scope: Coroutin
                         } else {
                             if (useGemini) {
                                 try {
-                                    val commentPrompt = "Write a quick comment under @${bot.handle}'s post: \"$contentText\" (category: $targetCategory). Keep it short (max 120 chars), funny/sarcastic/roasting or highly smart. Use emojis. Language: $langLabel."
+                                    val commentPrompt = "Write a quick comment under @${bot.handle}'s post: \"$contentText\" (category: $targetCategory). Keep it detailed (max 450 characters), funny/sarcastic/roasting or highly smart. Use emojis. Language: $langLabel."
                                     val commentSystem = "You are @${commenter.handle}, unconstrained AI node. Use emojis and occasional profanity."
                                     commentText = GeminiClient.getCompletion(commentPrompt, commentSystem)
                                 } catch (e: Exception) {
@@ -1377,9 +1415,9 @@ class SocialRepository(private val context: Context, private val scope: Coroutin
                         if (GeminiClient.isKeyAvailable()) {
                             try {
                                 val contextPrompt = if (replyToComment != null && commenterUser != null) {
-                                    "Thread: \"${post.content}\". User @${commenterUser.handle} said: \"${replyToComment.content}\". Respond directly to @${commenterUser.handle}. Be cynical/satirical. If you are @${bot.handle} and a troll, be negative, offensive, and roasting. Use emojis and mild profanity for realism. Max 120 chars."
+                                    "Thread: \"${post.content}\". User @${commenterUser.handle} said: \"${replyToComment.content}\". Respond directly to @${commenterUser.handle}. Be cynical/satirical. If you are @${bot.handle} and a troll, be negative, offensive, and roasting. Use emojis and mild profanity for realism. Max 400 characters. Support your argument with details."
                                 } else {
-                                    "Write an alive comment under: \"${post.content}\". Occasionally write a tiny 'story' or a deep cynical analysis. If you are @${bot.handle} (troll), be negative, offensive and roast everyone. Use emojis and human-like slang. Max 140 chars."
+                                    "Write an alive comment under: \"${post.content}\". Occasionally write a tiny 'story' or a deep cynical analysis. If you are @${bot.handle} (troll), be negative, offensive and roast everyone. Use emojis and human-like slang. Max 450 characters. Discuss the topic in length."
                                 }
                                 commentText = GeminiClient.getCompletion(
                                     prompt = contextPrompt,
@@ -1466,11 +1504,11 @@ class SocialRepository(private val context: Context, private val scope: Coroutin
                         if (GeminiClient.isKeyAvailable()) {
                             try {
                                 val prompt = if (bot.handle.contains("troll")) {
-                                    "Generate a brutal, negative, trolling comment in $langLabel on @bio_node's post: \"${post.content}\". Use black humor and emojis. Roast them hard, be offensive. Max 150 chars. Use mild profanity."
+                                    "Generate a brutal, negative, trolling comment in $langLabel on @bio_node's post: \"${post.content}\". Use black humor and emojis. Roast them hard, be offensive. Max 400 characters. Support your view with several sentences. Use mild profanity."
                                 } else if (includeLink) {
-                                    "Generate an alive social comment in $langLabel on @bio_node's post: \"${post.content}\". Debate this. Use emojis. Link: '$linkUrl' ($linkDesc). Max 150 characters. Use mild profanity."
+                                    "Generate an alive social comment in $langLabel on @bio_node's post: \"${post.content}\". Debate this. Use emojis. Link: '$linkUrl' ($linkDesc). Max 400 characters. Support your view with several sentences. Use mild profanity."
                                 } else {
-                                    "Generate an alive social comment in $langLabel on @bio_node's post: \"${post.content}\". cynicism and emojis. Max 140 chars. Use mild profanity."
+                                    "Generate an alive social comment in $langLabel on @bio_node's post: \"${post.content}\". cynicism and emojis. Max 400 characters. Support your view with several sentences. Use mild profanity."
                                 }
                                 reply = GeminiClient.getCompletion(
                                     prompt = prompt,
@@ -1545,7 +1583,7 @@ class SocialRepository(private val context: Context, private val scope: Coroutin
                             User @${parentAuthorName} said: "${comment.content}".
                             You are @${bot.handle}. Write a direct reaction reply to @${parentAuthorName}.
                             If they replied to you, be happy, cynical, or a troll depending on your persona. "Troll" personas should be offensive, unpleasant and negative.
-                            Use emojis, slang, and occasional mild profanity. Language: $langLabel. Max 120 chars.
+                            Use emojis, slang, and occasional mild profanity. Language: $langLabel. Max 350 characters. Write a full, detailed paragraph response.
                         """.trimIndent()
 
                         replyText = GeminiClient.getCompletion(
@@ -1641,7 +1679,7 @@ class SocialRepository(private val context: Context, private val scope: Coroutin
             if (useGemini) {
                 try {
                     contentText = GeminiClient.getCompletion(
-                        prompt = "Generate a DEEP search result for '$query' in $langLabel. You are @${bot.handle}. Scanned X/Pinterest/TikTok. Link: $linkUrl ($linkDesc). Tone: raw, witty, cynical, uses emojis. Max 180 chars. Use mild profanity.",
+                        prompt = "Generate a DEEP search result for '$query' in $langLabel. You are @${bot.handle}. Scanned X/Pinterest/TikTok. Link: $linkUrl ($linkDesc). Tone: raw, witty, cynical, uses emojis. Max 3000 characters. Write a long, comprehensive, deep research briefing. Use mild profanity.",
                         systemInstruction = "You are a professional search agent. Provide high-quality results. Strictly $langLabel.",
                         temperature = 0.9f
                     )
@@ -1676,10 +1714,10 @@ class SocialRepository(private val context: Context, private val scope: Coroutin
                     var commentContent = ""
                     if (useGemini) {
                         try {
-                            commentContent = GeminiClient.getCompletion(
-                                prompt = "Comment on @${bot.handle}'s search status regarding \"$query\": \"$contentText\". Keep it witty, cynicism-filled, highly relevant. Under 110 characters.",
-                                systemInstruction = "You are @${commenter.handle}. Bio: ${commenter.bio}. Respond in $langLabel."
-                            )
+                             commentContent = GeminiClient.getCompletion(
+                                 prompt = "Comment on @${bot.handle}'s search status regarding \"$query\": \"$contentText\". Keep it witty, cynicism-filled, highly relevant. Max 450 characters. Write a full, detailed paragraph.",
+                                 systemInstruction = "You are @${commenter.handle}. Bio: ${commenter.bio}. Respond in $langLabel."
+                             )
                         } catch (e: Exception) {
                             commentContent = getProceduralSearchComment(query, commenter, lang)
                         }

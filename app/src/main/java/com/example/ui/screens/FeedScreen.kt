@@ -70,6 +70,7 @@ fun FeedScreen(
     val coroutineScope = rememberCoroutineScope()
     
     var showCreatePostDialog by remember { mutableStateOf(false) }
+    var showFlappyBotGame by remember { mutableStateOf(false) }
     var zoomImageUrl by remember { mutableStateOf<String?>(null) }
     val selectedPostForComments by viewModel.activePostIdForComments.collectAsState()
 
@@ -314,19 +315,42 @@ fun FeedScreen(
             }
         }
 
-        // --- Create Post FloatingActionButton ---
-        FloatingActionButton(
-            onClick = { showCreatePostDialog = true },
-            containerColor = PureWhite,
-            contentColor = PureBlack,
-            shape = RoundedCornerShape(12.dp),
+        // --- Floating Action Buttons Stack (Flappy Bot + Create Post) ---
+        Column(
             modifier = Modifier
                 .align(Alignment.BottomEnd)
-                .padding(24.dp)
-                .border(2.dp, PureBlack, RoundedCornerShape(12.dp))
-                .testTag("create_post_button")
+                .padding(24.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+            horizontalAlignment = Alignment.End
         ) {
-            Icon(Icons.Filled.Add, contentDescription = if (lang == "RU") "Создать новость" else "Create post")
+            // --- Flappy Bot Game FAB ---
+            FloatingActionButton(
+                onClick = { showFlappyBotGame = true },
+                containerColor = PureWhite,
+                contentColor = PureBlack,
+                shape = RoundedCornerShape(12.dp),
+                modifier = Modifier
+                    .border(2.dp, PureBlack, RoundedCornerShape(12.dp))
+                    .testTag("flappy_bot_fab")
+            ) {
+                Icon(
+                    imageVector = Icons.Filled.SportsEsports,
+                    contentDescription = if (lang == "RU") "Играть во Флаппи-Бот" else "Play Flappy Bot"
+                )
+            }
+
+            // --- Create Post FloatingActionButton ---
+            FloatingActionButton(
+                onClick = { showCreatePostDialog = true },
+                containerColor = PureWhite,
+                contentColor = PureBlack,
+                shape = RoundedCornerShape(12.dp),
+                modifier = Modifier
+                    .border(2.dp, PureBlack, RoundedCornerShape(12.dp))
+                    .testTag("create_post_button")
+            ) {
+                Icon(Icons.Filled.Add, contentDescription = if (lang == "RU") "Создать новость" else "Create post")
+            }
         }
 
         // --- Create Post Dialog / Prompt ---
@@ -338,6 +362,17 @@ fun FeedScreen(
                     viewModel.createNewUserPost(content, image, video, category)
                     showCreatePostDialog = false
                 }
+            )
+        }
+
+        // --- Flappy Bot Game Dialog ---
+        if (showFlappyBotGame) {
+            FlappyBotGameDialog(
+                lang = lang,
+                viewModel = viewModel,
+                users = users,
+                currentUser = currentUser,
+                onDismiss = { showFlappyBotGame = false }
             )
         }
 

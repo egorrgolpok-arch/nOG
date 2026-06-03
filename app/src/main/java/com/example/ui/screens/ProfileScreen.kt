@@ -52,6 +52,7 @@ fun ProfileScreen(
     val verificationClicks by viewModel.verificationClicks.collectAsState()
     val likedPostIds by viewModel.likedPostIds.collectAsState()
     val followingIds by viewModel.currentUserFollowingIds.collectAsState()
+    val isSilentMode by viewModel.isSilentMode.collectAsState()
     val selectedPostForComments by viewModel.activePostIdForComments.collectAsState()
     var zoomImageUrl by remember { mutableStateOf<String?>(null) }
 
@@ -396,6 +397,45 @@ fun ProfileScreen(
                             ) {
                                 Text("ENGLISH (EN)", fontSize = 10.sp, fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold)
                             }
+                        }
+
+                        Spacer(modifier = Modifier.height(16.dp))
+                        HorizontalDivider(color = BorderGray, thickness = 1.dp)
+                        Spacer(modifier = Modifier.height(14.dp))
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = if (lang == "RU") "Режим тишины" else "Silent Mode",
+                                    color = PureWhite,
+                                    fontSize = 11.sp,
+                                    fontFamily = FontFamily.Monospace,
+                                    fontWeight = FontWeight.Bold
+                                )
+                                Text(
+                                    text = if (lang == "RU") "Без вибраций и уведомлений" else "Mute reactions and alerts",
+                                    color = TextGray,
+                                    fontSize = 10.sp,
+                                    lineHeight = 13.sp
+                                )
+                            }
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Switch(
+                                checked = isSilentMode,
+                                onCheckedChange = { viewModel.toggleSilentMode(it) },
+                                colors = SwitchDefaults.colors(
+                                    checkedThumbColor = PureBlack,
+                                    checkedTrackColor = PureWhite,
+                                    uncheckedThumbColor = TextGray,
+                                    uncheckedTrackColor = DeepGray,
+                                    checkedBorderColor = PureWhite,
+                                    uncheckedBorderColor = BorderGray
+                                )
+                            )
                         }
                     }
                 }

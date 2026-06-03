@@ -31,6 +31,9 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.scale
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.animation.core.*
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
@@ -71,6 +74,8 @@ fun CommunityScreen(viewModel: SocialViewModel, innerPadding: PaddingValues) {
     var showBlackJackGame by remember { mutableStateOf(false) }
     var showChessGame by remember { mutableStateOf(false) }
     var showPokerGame by remember { mutableStateOf(false) }
+    var showMatch3Game by remember { mutableStateOf(false) }
+    var showFlappyBotGame by remember { mutableStateOf(false) }
     val context = androidx.compose.ui.platform.LocalContext.current
     
     val imagePickerLauncher = rememberLauncherForActivityResult(
@@ -125,6 +130,28 @@ fun CommunityScreen(viewModel: SocialViewModel, innerPadding: PaddingValues) {
                         horizontalArrangement = Arrangement.spacedBy(10.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
+                        // Flappy Bot Game
+                        Box(
+                            modifier = Modifier
+                                .size(36.dp)
+                                .clip(RoundedCornerShape(4.dp))
+                                .background(PureBlack)
+                                .border(1.dp, AlertRed, RoundedCornerShape(4.dp))
+                                .clickable {
+                                    viewModel.vibrate(25)
+                                    showFlappyBotGame = true
+                                },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Filled.SportsEsports,
+                                contentDescription = "Flappy Bot Game",
+                                tint = AlertRed,
+                                modifier = Modifier.size(22.dp)
+                            )
+                        }
+
+                        // Blackjack (Upgraded to card suit representation to prevent duplicate icons)
                         Box(
                             modifier = Modifier
                                 .size(36.dp)
@@ -137,14 +164,10 @@ fun CommunityScreen(viewModel: SocialViewModel, innerPadding: PaddingValues) {
                                 },
                             contentAlignment = Alignment.Center
                         ) {
-                            Icon(
-                                imageVector = Icons.Filled.SportsEsports,
-                                contentDescription = "Blackjack Mini-game",
-                                tint = AlertYellow,
-                                modifier = Modifier.size(22.dp)
-                            )
+                            Text("♠♥", color = AlertYellow, fontSize = 12.sp, fontWeight = FontWeight.Bold, fontFamily = FontFamily.Monospace)
                         }
 
+                        // Chess Game
                         Box(
                             modifier = Modifier
                                 .size(36.dp)
@@ -160,6 +183,7 @@ fun CommunityScreen(viewModel: SocialViewModel, innerPadding: PaddingValues) {
                             Text("♟", color = AlertGreen, fontSize = 20.sp, fontWeight = FontWeight.Bold)
                         }
 
+                        // Poker Game
                         Box(
                             modifier = Modifier
                                 .size(36.dp)
@@ -173,6 +197,22 @@ fun CommunityScreen(viewModel: SocialViewModel, innerPadding: PaddingValues) {
                             contentAlignment = Alignment.Center
                         ) {
                             Text("♦♣", color = PureWhite, fontSize = 12.sp, fontWeight = FontWeight.Bold, fontFamily = FontFamily.Monospace)
+                        }
+
+                        // Match-3 Stack Game
+                        Box(
+                            modifier = Modifier
+                                .size(36.dp)
+                                .clip(RoundedCornerShape(4.dp))
+                                .background(PureBlack)
+                                .border(1.dp, StarkWhite, RoundedCornerShape(4.dp))
+                                .clickable {
+                                    viewModel.vibrate(25)
+                                    showMatch3Game = true
+                                },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text("⬡⬡", color = StarkWhite, fontSize = 12.sp, fontWeight = FontWeight.Bold, fontFamily = FontFamily.Monospace)
                         }
                     }
                 }
@@ -486,6 +526,20 @@ fun CommunityScreen(viewModel: SocialViewModel, innerPadding: PaddingValues) {
 
     if (showPokerGame) {
         PokerDialog(onDismiss = { showPokerGame = false }, lang = lang, viewModel = viewModel)
+    }
+
+    if (showMatch3Game) {
+        Match3Dialog(onDismiss = { showMatch3Game = false }, lang = lang, viewModel = viewModel)
+    }
+
+    if (showFlappyBotGame) {
+        FlappyBotGameDialog(
+            lang = lang,
+            viewModel = viewModel,
+            users = allUsers,
+            currentUser = currentUser,
+            onDismiss = { showFlappyBotGame = false }
+        )
     }
 }
 
@@ -2696,6 +2750,578 @@ fun PokerDialog(onDismiss: () -> Unit, lang: String, viewModel: SocialViewModel)
                             }
                         }
                     }
+                }
+            }
+        }
+    }
+}
+
+// ==========================================
+// METADATA-SYNCD QUANTUM STACK GAMES: MATCH-3
+// ==========================================
+
+private fun m3HasMatchAt(board: List<List<Int>>, r: Int, c: Int): Boolean {
+    if (c >= 2 && board[r][c] == board[r][c-1] && board[r][c] == board[r][c-2]) return true
+    if (r >= 2 && board[r][c] == board[r-1][c] && board[r][c] == board[r-2][c]) return true
+    return false
+}
+
+private fun m3GenerateRandomBoard(): List<List<Int>> {
+    val board = MutableList(6) { MutableList(6) { 0 } }
+    for (r in 0 until 6) {
+        for (c in 0 until 6) {
+            var possible = (0..5).toList().shuffled()
+            for (tile in possible) {
+                board[r][c] = tile
+                if (m3HasMatchAt(board, r, c)) {
+                    continue
+                }
+                break
+            }
+        }
+    }
+    return board
+}
+
+private fun m3FindMatches(board: List<List<Int>>): Set<Pair<Int, Int>> {
+    val matched = mutableSetOf<Pair<Int, Int>>()
+    for (r in 0 until 6) {
+        for (c in 0 until 4) {
+            val t = board[r][c]
+            if (t != -1 && board[r][c+1] == t && board[r][c+2] == t) {
+                matched.add(Pair(r, c))
+                matched.add(Pair(r, c+1))
+                matched.add(Pair(r, c+2))
+            }
+        }
+    }
+    for (r in 0 until 4) {
+        for (c in 0 until 6) {
+            val t = board[r][c]
+            if (t != -1 && board[r+1][c] == t && board[r+2][c] == t) {
+                matched.add(Pair(r, c))
+                matched.add(Pair(r+1, c))
+                matched.add(Pair(r+2, c))
+            }
+        }
+    }
+    return matched
+}
+
+private fun m3ApplyCascade(board: MutableList<MutableList<Int>>): Int {
+    var totalCleared = 0
+    var matches = m3FindMatches(board)
+    var iteration = 0
+    while (matches.isNotEmpty() && iteration < 15) {
+        totalCleared += matches.size
+        for ((r, c) in matches) {
+            board[r][c] = -1
+        }
+        for (c in 0 until 6) {
+            var writeIndex = 5
+            for (r in 5 downTo 0) {
+                if (board[r][c] != -1) {
+                    board[writeIndex][c] = board[r][c]
+                    if (writeIndex != r) {
+                        board[r][c] = -1
+                    }
+                    writeIndex--
+                }
+            }
+            for (r in writeIndex downTo 0) {
+                board[r][c] = (0..5).random()
+            }
+        }
+        matches = m3FindMatches(board)
+        iteration++
+    }
+    return totalCleared
+}
+
+@OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
+@Composable
+fun Match3Dialog(onDismiss: () -> Unit, lang: String, viewModel: SocialViewModel) {
+    val totalMoves = 15
+    val shapes = listOf("✕", "◯", "▢", "▲", "✦", "❖")
+    
+    var isInfiniteMode by remember { mutableStateOf(false) }
+    var board by remember { mutableStateOf(m3GenerateRandomBoard()) }
+    var score by remember { mutableStateOf(0) }
+    var movesLeft by remember { mutableStateOf(totalMoves) }
+    var selectedTile by remember { mutableStateOf<Pair<Int, Int>?>(null) }
+    var hasClaimedReward by remember { mutableStateOf(false) }
+    var claimedChipsAmount by remember { mutableStateOf(0) }
+    var claimedMilestones by remember { mutableStateOf(0) }
+
+    fun startNewGame() {
+        viewModel.vibrate(50)
+        board = m3GenerateRandomBoard()
+        score = 0
+        movesLeft = totalMoves
+        selectedTile = null
+        hasClaimedReward = false
+        claimedChipsAmount = 0
+        claimedMilestones = 0
+    }
+
+    val potentialReward = when {
+        score >= 1200 -> 800
+        score >= 800 -> 500
+        score >= 500 -> 300
+        score >= 300 -> 150
+        else -> 0
+    }
+
+    fun handleTileClick(r: Int, c: Int) {
+        val prevSelected = selectedTile
+        if (prevSelected == null) {
+            viewModel.vibrate(25)
+            selectedTile = Pair(r, c)
+        } else {
+            val (pr, pc) = prevSelected
+            if (pr == r && pc == c) {
+                selectedTile = null
+            } else {
+                val isAdjacent = (pr == r && kotlin.math.abs(pc - c) == 1) || (pc == c && kotlin.math.abs(pr - r) == 1)
+                if (isAdjacent) {
+                    viewModel.vibrate(35)
+                    val newBoard = board.map { it.toMutableList() }.toMutableList()
+                    val temp = newBoard[pr][pc]
+                    newBoard[pr][pc] = newBoard[r][c]
+                    newBoard[r][c] = temp
+
+                    val found = m3FindMatches(newBoard)
+                    if (found.isNotEmpty()) {
+                        viewModel.vibrate(85)
+                        val cleared = m3ApplyCascade(newBoard)
+                        score += cleared * 20
+                        if (!isInfiniteMode) {
+                            movesLeft--
+                        }
+                        board = newBoard
+                    } else {
+                        viewModel.vibrate(30)
+                    }
+                    selectedTile = null
+                } else {
+                    viewModel.vibrate(25)
+                    selectedTile = Pair(r, c)
+                }
+            }
+        }
+    }
+
+    // --- ANIMATIONS ENGINES ---
+    // Smooth rollup score odometer
+    val animatedScore by animateIntAsState(
+        targetValue = score,
+        animationSpec = tween(durationMillis = 650, easing = FastOutSlowInEasing),
+        label = "scoreRoll"
+    )
+
+    // Breathing pulse for selected node
+    val infiniteTransition = rememberInfiniteTransition(label = "pulse")
+    val breathingScale by infiniteTransition.animateFloat(
+        initialValue = 0.94f,
+        targetValue = 1.14f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(550, easing = LinearEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "breathingEffect"
+    )
+
+    // Endless Milestones claimable check
+    val currentRewardTargetMilestones = score / 500
+    val unclaimedMilestones = currentRewardTargetMilestones - claimedMilestones
+
+    androidx.compose.ui.window.Dialog(
+        onDismissRequest = onDismiss,
+        properties = androidx.compose.ui.window.DialogProperties(usePlatformDefaultWidth = false)
+    ) {
+        Surface(
+            modifier = Modifier.fillMaxSize().background(PureBlack),
+            color = PureBlack
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(start = 20.dp, end = 20.dp, top = 20.dp, bottom = 48.dp)
+                    .navigationBarsPadding(),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.SpaceBetween
+            ) {
+                // Header Row
+                Column(modifier = Modifier.fillMaxWidth()) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(bottom = 6.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column {
+                            Text(
+                                text = if (lang == "RU") "ОТЛАДКА СТЕКА (ТРИ В РЯД)" else "STACK ALIGNMENT (MATCH-3)",
+                                color = PureWhite,
+                                fontSize = 12.sp,
+                                fontFamily = FontFamily.Monospace,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Text(
+                                text = if (lang == "RU") "Выстаивайте одинаковые ноды в ряд" else "Align identical codes horizontally/vertically",
+                                color = TextGray,
+                                fontSize = 10.sp
+                            )
+                        }
+                        IconButton(
+                            onClick = onDismiss
+                        ) {
+                            Icon(
+                                imageVector = Icons.Filled.Close,
+                                contentDescription = "Close",
+                                tint = StarkWhite,
+                                modifier = Modifier.size(22.dp)
+                            )
+                        }
+                    }
+
+                    // Mode Selection Tabs
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 4.dp)
+                            .background(CardGray, RoundedCornerShape(4.dp))
+                            .border(1.dp, BorderGray, RoundedCornerShape(4.dp))
+                            .padding(2.dp),
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        val classicLabel = if (lang == "RU") "КЛАССИКА (15 ХОДОВ)" else "CLASSIC (15 MOVES)"
+                        val endlessLabel = if (lang == "RU") "БЕСКОНЕЧНЫЙ РЕЖИМ" else "ENDLESS MODE"
+
+                        Button(
+                            onClick = {
+                                if (isInfiniteMode) {
+                                    isInfiniteMode = false
+                                    startNewGame()
+                                }
+                            },
+                            modifier = Modifier.weight(1f).height(32.dp),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = if (!isInfiniteMode) PureWhite else androidx.compose.ui.graphics.Color.Transparent,
+                                contentColor = if (!isInfiniteMode) PureBlack else TextGray
+                            ),
+                            contentPadding = PaddingValues(0.dp),
+                            shape = RoundedCornerShape(2.dp)
+                        ) {
+                            Text(
+                                text = classicLabel,
+                                fontSize = 9.sp,
+                                fontFamily = FontFamily.Monospace,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+
+                        Button(
+                            onClick = {
+                                if (!isInfiniteMode) {
+                                    isInfiniteMode = true
+                                    startNewGame()
+                                }
+                            },
+                            modifier = Modifier.weight(1f).height(32.dp),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = if (isInfiniteMode) PureWhite else androidx.compose.ui.graphics.Color.Transparent,
+                                contentColor = if (isInfiniteMode) PureBlack else TextGray
+                            ),
+                            contentPadding = PaddingValues(0.dp),
+                            shape = RoundedCornerShape(2.dp)
+                        ) {
+                            Text(
+                                text = endlessLabel,
+                                fontSize = 9.sp,
+                                fontFamily = FontFamily.Monospace,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                    }
+                }
+
+                // Balance & Score card
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(CardGray)
+                        .border(1.dp, BorderGray, RoundedCornerShape(2.dp))
+                        .padding(12.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column {
+                        Text(
+                            text = if (lang == "RU") "ОЧКИ: $animatedScore" else "SCORE: $animatedScore",
+                            color = PureWhite,
+                            fontSize = 13.sp,
+                            fontFamily = FontFamily.Monospace,
+                            fontWeight = FontWeight.Bold
+                        )
+                        val targetNext = if (isInfiniteMode) {
+                            if (lang == "RU") "Награда: +200🪙 за каждые 500" else "Reward: +200🪙 per 500 pts"
+                        } else {
+                            when {
+                                score < 300 -> if (lang == "RU") "Цель: 300 (+150🪙)" else "Next Target: 300 (+150🪙)"
+                                score < 500 -> if (lang == "RU") "Цель: 500 (+300🪙)" else "Next Target: 500 (+300🪙)"
+                                score < 800 -> if (lang == "RU") "Цель: 800 (+500🪙)" else "Next Target: 800 (+500🪙)"
+                                score < 1200 -> if (lang == "RU") "Цель: 1200 (+800🪙)" else "Next Target: 1200 (+800🪙)"
+                                else -> if (lang == "RU") "Максимум!" else "Elite Tier Reached!"
+                            }
+                        }
+                        Text(
+                            text = targetNext,
+                            color = AlertYellow,
+                            fontSize = 10.sp,
+                            fontFamily = FontFamily.Monospace
+                        )
+                    }
+
+                    Column(horizontalAlignment = Alignment.End) {
+                        Text(
+                            text = if (isInfiniteMode) {
+                                if (lang == "RU") "ХОДЫ: ∞" else "MOVES: ∞"
+                            } else {
+                                if (lang == "RU") "ХОДЫ: $movesLeft" else "MOVES: $movesLeft"
+                            },
+                            color = if (!isInfiniteMode && movesLeft <= 3) AlertRed else PureWhite,
+                            fontSize = 13.sp,
+                            fontFamily = FontFamily.Monospace,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Text(
+                            text = if (isInfiniteMode) {
+                                if (lang == "RU") "Получено: ${claimedMilestones * 200}🪙" else "Earned: ${claimedMilestones * 200}🪙"
+                            } else {
+                                if (lang == "RU") "Награда: +$potentialReward 🪙" else "Reward: +$potentialReward 🪙"
+                            },
+                            color = AlertGreen,
+                            fontSize = 11.sp,
+                            fontFamily = FontFamily.Monospace
+                        )
+                    }
+                }
+
+                // Board Grid Column with bounciness & spring animation
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxWidth(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .wrapContentSize()
+                            .border(1.dp, BorderGray, RoundedCornerShape(4.dp))
+                            .background(DeepGray)
+                            .padding(8.dp),
+                        verticalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        for (r in 0 until 6) {
+                            Row(
+                                horizontalArrangement = Arrangement.spacedBy(4.dp)
+                            ) {
+                                for (c in 0 until 6) {
+                                    val isSelected = selectedTile?.first == r && selectedTile?.second == c
+                                    val tileId = board[r][c]
+                                    val symbol = if (tileId in 0..5) shapes[tileId] else " "
+                                    
+                                    // Animated scaling for state (either breathing pulsing when selected or spring on default)
+                                    val cellScale by animateFloatAsState(
+                                        targetValue = if (isSelected) breathingScale else 1.0f,
+                                        animationSpec = if (isSelected) tween(100) else spring(
+                                            dampingRatio = Spring.DampingRatioMediumBouncy,
+                                            stiffness = Spring.StiffnessLow
+                                        ),
+                                        label = "cellScale"
+                                    )
+
+                                    Box(
+                                        modifier = Modifier
+                                            .size(44.dp)
+                                            .graphicsLayer(
+                                                scaleX = cellScale,
+                                                scaleY = cellScale
+                                            )
+                                            .background(if (isSelected) StarkWhite else CardGray)
+                                            .border(
+                                                width = if (isSelected) 2.dp else 1.dp,
+                                                color = if (isSelected) PureWhite else BorderGray,
+                                                shape = RoundedCornerShape(2.dp)
+                                            )
+                                            .clickable(enabled = isInfiniteMode || movesLeft > 0) {
+                                                handleTileClick(r, c)
+                                            },
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Text(
+                                            text = symbol,
+                                            color = if (isSelected) PureBlack else StarkWhite,
+                                            fontSize = 18.sp,
+                                            fontWeight = FontWeight.Bold
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // Result actions & buttons raised higher
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = 12.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    if (isInfiniteMode) {
+                        if (unclaimedMilestones > 0) {
+                            val rewCoins = unclaimedMilestones * 200
+                            Button(
+                                onClick = {
+                                    viewModel.vibrate(150)
+                                    viewModel.updatePokerBalance(viewModel.pokerBalance.value + rewCoins)
+                                    claimedMilestones = currentRewardTargetMilestones
+                                },
+                                shape = RoundedCornerShape(4.dp),
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = AlertGreen,
+                                    contentColor = PureBlack
+                                ),
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(42.dp)
+                                    .border(1.dp, PureWhite, RoundedCornerShape(4.dp))
+                            ) {
+                                Text(
+                                    text = if (lang == "RU") "ЗАБРАТЬ ВЕХУ +$rewCoins 🪙" else "CLAIM MILESTONE REWARD +$rewCoins 🪙",
+                                    fontSize = 11.sp,
+                                    fontFamily = FontFamily.Monospace,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+                        } else {
+                            val nextGoal = (currentRewardTargetMilestones + 1) * 500
+                            Text(
+                                text = if (lang == "RU") "СЛЕДУЮЩАЯ ВЕХА НА $nextGoal ОЧКОВ" else "NEXT MILESTONE AT $nextGoal PTS",
+                                color = AlertYellow,
+                                fontSize = 11.sp,
+                                fontFamily = FontFamily.Monospace,
+                                fontWeight = FontWeight.Bold,
+                                modifier = Modifier.padding(bottom = 8.dp)
+                            )
+                        }
+                    } else if (movesLeft <= 0) {
+                        Text(
+                            text = if (lang == "RU") "ХОДЫ ИЗРАСХОДОВАНЫ!" else "GAME OVER - MOVES DEPLETED!",
+                            color = AlertRed,
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Bold,
+                            fontFamily = FontFamily.Monospace,
+                            modifier = Modifier.padding(bottom = 8.dp)
+                        )
+                        
+                        if (potentialReward > 0 && !hasClaimedReward) {
+                            Button(
+                                onClick = {
+                                    viewModel.vibrate(150)
+                                    val currentBal = viewModel.pokerBalance.value
+                                    viewModel.updatePokerBalance(currentBal + potentialReward)
+                                    claimedChipsAmount = potentialReward
+                                    hasClaimedReward = true
+                                },
+                                shape = RoundedCornerShape(4.dp),
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = PureWhite,
+                                    contentColor = PureBlack
+                                ),
+                                modifier = Modifier.fillMaxWidth().height(42.dp)
+                            ) {
+                                Text(
+                                    text = if (lang == "RU") "ЗАБРАТЬ НАГРАДУ +$potentialReward 🪙" else "CLAIM CHIPS REWARD +$potentialReward 🪙",
+                                    fontSize = 11.sp,
+                                    fontFamily = FontFamily.Monospace,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+                        } else if (hasClaimedReward) {
+                            Text(
+                                text = if (lang == "RU") "Награда успешно зачислена +$claimedChipsAmount 🪙!" else "Successfully Credited +$claimedChipsAmount 🪙!",
+                                color = AlertGreen,
+                                fontSize = 11.sp,
+                                fontFamily = FontFamily.Monospace,
+                                fontWeight = FontWeight.Bold,
+                                modifier = Modifier.padding(bottom = 8.dp)
+                            )
+                        } else {
+                            Text(
+                                text = if (lang == "RU") "Наберите ≥300 очков для получения чипов" else "Score ≥300 to claim chip reward",
+                                color = TextGray,
+                                fontSize = 11.sp,
+                                fontFamily = FontFamily.Monospace,
+                                modifier = Modifier.padding(bottom = 8.dp)
+                            )
+                        }
+                    } else {
+                        Text(
+                            text = if (lang == "RU") "КЛИКАЙТЕ ПОДРЯД ДВА ТАЙЛА ДЛЯ ОБМЕНА" else "TAP TWO TILES SEQUENTIALLY TO SWAP THEM",
+                            color = TextGray,
+                            fontSize = 11.sp,
+                            fontFamily = FontFamily.Monospace,
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier.padding(bottom = 8.dp)
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(14.dp))
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        Button(
+                            onClick = { startNewGame() },
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(40.dp)
+                                .border(1.dp, PureWhite, RoundedCornerShape(4.dp)),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = CardGray,
+                                contentColor = PureWhite
+                            ),
+                            shape = RoundedCornerShape(4.dp)
+                        ) {
+                            Text(
+                                text = if (lang == "RU") "НАЧАТЬ ЗАНОВО" else "RESTART",
+                                fontSize = 11.sp,
+                                fontFamily = FontFamily.Monospace
+                            )
+                        }
+
+                        Button(
+                            onClick = onDismiss,
+                            modifier = Modifier.weight(1f).height(40.dp),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = DeepGray,
+                                contentColor = TextGray
+                            ),
+                            shape = RoundedCornerShape(4.dp)
+                        ) {
+                            Text(
+                                text = if (lang == "RU") "ЗАКРЫТЬ" else "EXIT",
+                                fontSize = 11.sp,
+                                fontFamily = FontFamily.Monospace
+                            )
+                        }
+                    }
+                    
+                    // Additional spacing under buttons to explicitly raise them from absolute bottom glass edge
+                    Spacer(modifier = Modifier.height(26.dp))
                 }
             }
         }
