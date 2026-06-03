@@ -1,5 +1,7 @@
 package com.example.ui.screens
 
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.delay
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
@@ -2844,6 +2846,8 @@ fun Match3Dialog(onDismiss: () -> Unit, lang: String, viewModel: SocialViewModel
     val totalMoves = 15
     val shapes = listOf("✕", "◯", "▢", "▲", "✦", "❖")
     
+    val scope = rememberCoroutineScope()
+    var isSwapping by remember { mutableStateOf(false) }
     var isInfiniteMode by remember { mutableStateOf(false) }
     var board by remember { mutableStateOf(m3GenerateRandomBoard()) }
     var score by remember { mutableStateOf(0) }
@@ -2862,6 +2866,7 @@ fun Match3Dialog(onDismiss: () -> Unit, lang: String, viewModel: SocialViewModel
         hasClaimedReward = false
         claimedChipsAmount = 0
         claimedMilestones = 0
+        isSwapping = false
     }
 
     val potentialReward = when {
@@ -2873,6 +2878,7 @@ fun Match3Dialog(onDismiss: () -> Unit, lang: String, viewModel: SocialViewModel
     }
 
     fun handleTileClick(r: Int, c: Int) {
+        if (isSwapping) return
         val prevSelected = selectedTile
         if (prevSelected == null) {
             viewModel.vibrate(25)
@@ -2890,19 +2896,34 @@ fun Match3Dialog(onDismiss: () -> Unit, lang: String, viewModel: SocialViewModel
                     newBoard[pr][pc] = newBoard[r][c]
                     newBoard[r][c] = temp
 
-                    val found = m3FindMatches(newBoard)
-                    if (found.isNotEmpty()) {
-                        viewModel.vibrate(85)
-                        val cleared = m3ApplyCascade(newBoard)
-                        score += cleared * 20
-                        if (!isInfiniteMode) {
-                            movesLeft--
-                        }
-                        board = newBoard
-                    } else {
-                        viewModel.vibrate(30)
-                    }
                     selectedTile = null
+                    isSwapping = true
+
+                    // Apply visual swap immediately so player sees change
+                    board = newBoard
+
+                    scope.launch {
+                        delay(240) // Allow smooth swap transition visualization
+                        val found = m3FindMatches(newBoard)
+                        if (found.isNotEmpty()) {
+                            viewModel.vibrate(85)
+                            val cleared = m3ApplyCascade(newBoard)
+                            score += cleared * 20
+                            if (!isInfiniteMode) {
+                                movesLeft--
+                            }
+                            board = newBoard
+                        } else {
+                            viewModel.vibrate(30)
+                            // Swap back smoothly as no matches were aligned
+                            val rolledBackBoard = board.map { it.toMutableList() }.toMutableList()
+                            val undoTemp = rolledBackBoard[pr][pc]
+                            rolledBackBoard[pr][pc] = rolledBackBoard[r][c]
+                            rolledBackBoard[r][c] = undoTemp
+                            board = rolledBackBoard
+                        }
+                        isSwapping = false
+                    }
                 } else {
                     viewModel.vibrate(25)
                     selectedTile = Pair(r, c)
@@ -3154,7 +3175,7 @@ fun Match3Dialog(onDismiss: () -> Unit, lang: String, viewModel: SocialViewModel
                                                 color = if (isSelected) PureWhite else BorderGray,
                                                 shape = RoundedCornerShape(2.dp)
                                             )
-                                            .clickable(enabled = isInfiniteMode || movesLeft > 0) {
+                                            .clickable(enabled = (isInfiniteMode || movesLeft > 0) && !isSwapping) {
                                                 handleTileClick(r, c)
                                             },
                                         contentAlignment = Alignment.Center

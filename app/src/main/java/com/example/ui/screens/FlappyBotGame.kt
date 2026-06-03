@@ -156,7 +156,7 @@ fun FlappyBotGameDialog(
                 birdY += birdVelocity
 
                 // Ground & Ceiling crash verification
-                if (birdY >= 530f || birdY <= 20f) {
+                if (birdY >= 530f || birdY <= 5f) {
                     // CRASH!
                     isPlaying = false
                     isGameOver = true
@@ -182,15 +182,15 @@ fun FlappyBotGameDialog(
                 for (pipe in pipes) {
                     pipe.x -= 4.2f // scrolling speed
 
-                    // Collision checking
+                    // Collision checking (uses slightly trimmed hitbox radius for more satisfying, precise and rewarding passage)
                     val birdX = 120f
-                    val birdRadius = 15f
+                    val birdRadiusForCollision = 10f
                     val pipeWidth = 60f
 
                     // Check horizontal intersection
-                    if (birdX + birdRadius >= pipe.x && birdX - birdRadius <= pipe.x + pipeWidth) {
+                    if (birdX + birdRadiusForCollision >= pipe.x && birdX - birdRadiusForCollision <= pipe.x + pipeWidth) {
                         // Check vertical collision with top pipe or bottom pipe
-                        if (birdY - birdRadius <= pipe.gapY || birdY + birdRadius >= pipe.gapY + pipe.gapHeight) {
+                        if (birdY - birdRadiusForCollision <= pipe.gapY || birdY + birdRadiusForCollision >= pipe.gapY + pipe.gapHeight) {
                             isPlaying = false
                             isGameOver = true
                             viewModel.vibrate(280)
@@ -405,7 +405,7 @@ fun FlappyBotGameDialog(
                 }
 
                 // Game Board Canvas Block
-                Box(
+                androidx.compose.foundation.layout.BoxWithConstraints(
                     modifier = Modifier
                         .fillMaxWidth()
                         .weight(1f)
@@ -415,6 +415,9 @@ fun FlappyBotGameDialog(
                         .clip(RoundedCornerShape(2.dp))
                         .clickable(enabled = isPlaying) { onFlap() }
                 ) {
+                    val boardWidth = maxWidth
+                    val boardHeight = maxHeight
+
                     Canvas(modifier = Modifier.fillMaxSize()) {
                         val virtualWidth = 400f
                         val virtualHeight = 600f
@@ -501,12 +504,9 @@ fun FlappyBotGameDialog(
                         }
                     }
 
-                    // Bot avatar container box representing the bird
-                    val scaleY_offset = this.run {
-                        val virtualHeight = 600f
-                        // Safely scale offset box position according to container scope dynamically
-                        birdY / virtualHeight
-                    }
+                    // Precise dynamic relative mapping from virtual coordinate to actual DP coordinates
+                    val birdX_dp = boardWidth * (120f / 400f)
+                    val birdY_dp = boardHeight * (birdY / 600f)
 
                     Box(
                         modifier = Modifier
@@ -514,18 +514,12 @@ fun FlappyBotGameDialog(
                             // Responsive scaling of flight coordinates
                             .fillMaxSize()
                     ) {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth(0.3f) // Offset based X coordinates
-                                .fillMaxHeight(scaleY_offset)
-                        )
-
                         // Bird/Bot visual element
                         Box(
                             modifier = Modifier
                                 .absoluteOffset(
-                                    x = 105.dp, // 120 pixels mapped roughly in density
-                                    y = (birdY - 15f).dp
+                                    x = birdX_dp - 15.dp,
+                                    y = birdY_dp - 15.dp
                                 )
                                 .size(30.dp)
                                 .clip(CircleShape)
