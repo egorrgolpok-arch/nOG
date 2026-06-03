@@ -71,6 +71,7 @@ fun FeedScreen(
     
     var showCreatePostDialog by remember { mutableStateOf(false) }
     var showFlappyBotGame by remember { mutableStateOf(false) }
+    var showTamagotchiDialog by remember { mutableStateOf(false) }
     var zoomImageUrl by remember { mutableStateOf<String?>(null) }
     val selectedPostForComments by viewModel.activePostIdForComments.collectAsState()
 
@@ -315,41 +316,61 @@ fun FeedScreen(
             }
         }
 
-        // --- Floating Action Buttons Stack (Flappy Bot + Create Post) ---
-        Column(
-            modifier = Modifier
-                .align(Alignment.BottomEnd)
-                .padding(24.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
-            horizontalAlignment = Alignment.End
-        ) {
-            // --- Flappy Bot Game FAB ---
+        // --- Floating Action Buttons Section (Tab-dependent: Feed vs Scanner) ---
+        if (selectedTab == 0) {
+            Column(
+                modifier = Modifier
+                    .align(Alignment.BottomEnd)
+                    .padding(24.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+                horizontalAlignment = Alignment.End
+            ) {
+                // --- Flappy Bot Game FAB ---
+                FloatingActionButton(
+                    onClick = { showFlappyBotGame = true },
+                    containerColor = PureWhite,
+                    contentColor = PureBlack,
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier
+                        .border(2.dp, PureBlack, RoundedCornerShape(12.dp))
+                        .testTag("flappy_bot_fab")
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.SportsEsports,
+                        contentDescription = if (lang == "RU") "Играть во Флаппи-Бот" else "Play Flappy Bot"
+                    )
+                }
+
+                // --- Create Post FloatingActionButton ---
+                FloatingActionButton(
+                    onClick = { showCreatePostDialog = true },
+                    containerColor = PureWhite,
+                    contentColor = PureBlack,
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier
+                        .border(2.dp, PureBlack, RoundedCornerShape(12.dp))
+                        .testTag("create_post_button")
+                ) {
+                    Icon(Icons.Filled.Add, contentDescription = if (lang == "RU") "Создать новость" else "Create post")
+                }
+            }
+        } else {
+            // --- Scanner Tab: Single Yellow Tamagotchi FAB ---
             FloatingActionButton(
-                onClick = { showFlappyBotGame = true },
-                containerColor = PureWhite,
+                onClick = { showTamagotchiDialog = true },
+                containerColor = AlertYellow,
                 contentColor = PureBlack,
                 shape = RoundedCornerShape(12.dp),
                 modifier = Modifier
+                    .align(Alignment.BottomEnd)
+                    .padding(24.dp)
                     .border(2.dp, PureBlack, RoundedCornerShape(12.dp))
-                    .testTag("flappy_bot_fab")
+                    .testTag("tamagotchi_fab")
             ) {
                 Icon(
-                    imageVector = Icons.Filled.SportsEsports,
-                    contentDescription = if (lang == "RU") "Играть во Флаппи-Бот" else "Play Flappy Bot"
+                    imageVector = Icons.Filled.Pets,
+                    contentDescription = if (lang == "RU") "Тамагочи" else "Tamagotchi"
                 )
-            }
-
-            // --- Create Post FloatingActionButton ---
-            FloatingActionButton(
-                onClick = { showCreatePostDialog = true },
-                containerColor = PureWhite,
-                contentColor = PureBlack,
-                shape = RoundedCornerShape(12.dp),
-                modifier = Modifier
-                    .border(2.dp, PureBlack, RoundedCornerShape(12.dp))
-                    .testTag("create_post_button")
-            ) {
-                Icon(Icons.Filled.Add, contentDescription = if (lang == "RU") "Создать новость" else "Create post")
             }
         }
 
@@ -373,6 +394,17 @@ fun FeedScreen(
                 users = users,
                 currentUser = currentUser,
                 onDismiss = { showFlappyBotGame = false }
+            )
+        }
+
+        // --- Tamagotchi Dialog / Menu ---
+        if (showTamagotchiDialog) {
+            TamagotchiDialog(
+                lang = lang,
+                viewModel = viewModel,
+                users = users,
+                currentUser = currentUser,
+                onDismiss = { showTamagotchiDialog = false }
             )
         }
 

@@ -13,6 +13,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -38,6 +39,7 @@ import android.content.Intent
 import android.net.Uri
 import androidx.compose.ui.platform.LocalContext
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ProfileScreen(
     viewModel: SocialViewModel,
@@ -69,6 +71,7 @@ fun ProfileScreen(
     var showVerificationSheet by remember { mutableStateOf(false) }
     var verificationCode by remember { mutableStateOf("") }
     var showTempVerificationDialog by remember { mutableStateOf(false) }
+    var showFollowingList by remember { mutableStateOf(false) }
     val context = LocalContext.current
 
     // Synchronize form values on loaded
@@ -184,7 +187,8 @@ fun ProfileScreen(
                                         color = StarkWhite,
                                         fontSize = 11.sp,
                                         fontFamily = FontFamily.Monospace,
-                                        fontWeight = FontWeight.Bold
+                                        fontWeight = FontWeight.Bold,
+                                        modifier = Modifier.clickable { showFollowingList = true }
                                     )
                                 }
                                 
@@ -705,6 +709,55 @@ fun ProfileScreen(
             }
         }
         
+        
+        if (showFollowingList) {
+            ModalBottomSheet(
+                onDismissRequest = { showFollowingList = false },
+                containerColor = PureBlack,
+                contentColor = PureWhite
+            ) {
+                Column(modifier = Modifier.padding(16.dp).fillMaxWidth()) {
+                    Text(
+                        text = if (lang == "RU") "ПОДПИСКИ" else "FOLLOWING",
+                        color = PureWhite,
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.Bold,
+                        fontFamily = FontFamily.Monospace,
+                        modifier = Modifier.padding(bottom = 16.dp)
+                    )
+                    LazyColumn(modifier = Modifier.fillMaxWidth()) {
+                        items(followingIds.toList()) { followingId ->
+                            val followedUser = users.find { it.id == followingId }
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = 8.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                AsyncImage(
+                                    model = followedUser?.avatarUrl ?: "",
+                                    contentDescription = followedUser?.username,
+                                    modifier = Modifier.size(40.dp).clip(CircleShape),
+                                    contentScale = ContentScale.Crop
+                                )
+                                Spacer(modifier = Modifier.width(12.dp))
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(text = followedUser?.username ?: "Unknown", color = PureWhite, fontSize = 14.sp)
+                                    Text(text = "@${followedUser?.handle ?: ""}", color = TextGray, fontSize = 12.sp)
+                                }
+                                Button(
+                                    onClick = { viewModel.unfollowAgent(followingId) },
+                                    colors = ButtonDefaults.buttonColors(containerColor = Color.Red, contentColor = PureWhite)
+                                ) {
+                                    Text(if (lang == "RU") "ОТПИСАТЬСЯ" else "UNFOLLOW")
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
         if (showTempVerificationDialog) {
             AlertDialog(
                 onDismissRequest = { 

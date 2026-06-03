@@ -15,7 +15,10 @@ data class NewsItem(val sourceName: String, val title: String, val description: 
 
 object NewsFetcher {
     private const val TAG = "NewsFetcher"
-    private val client = OkHttpClient()
+    private val client = OkHttpClient.Builder()
+        .connectTimeout(15, java.util.concurrent.TimeUnit.SECONDS)
+        .readTimeout(15, java.util.concurrent.TimeUnit.SECONDS)
+        .build()
 
     private val sources = listOf(
         NewsSource("BBC News", "https://feeds.bbci.co.uk/news/rss.xml", 95, false),
@@ -42,83 +45,64 @@ object NewsFetcher {
         NewsSource("ESPN Feed", "https://www.espn.com/espn/rss/news", 85, false),
         NewsSource("Ars Technica", "https://feeds.arstechnica.com/arstechnica/index", 95, false),
         
-        // --- NEW CHANNELS REQUESTED ---
-        NewsSource("IGN", "https://news.google.com/rss/search?q=IGN+gaming&hl=en-US", 88, false),
-        NewsSource("Kotaku", "https://kotaku.com/rss", 82, false),
+        // --- EXPANDED NEWS & ARTICLE SOURCES ---
+        NewsSource("IGN Gaming", "https://news.google.com/rss/search?q=IGN+gaming&hl=en-US", 88, false),
+        NewsSource("Kotaku Gaming", "https://kotaku.com/rss", 82, false),
         NewsSource("Eurogamer", "https://www.eurogamer.net/feed", 85, false),
         NewsSource("PC Gamer", "https://www.pcgamer.com/rss", 86, false),
         NewsSource("VentureBeat", "https://venturebeat.com/feed/", 85, false),
-        NewsSource("IGM", "https://news.google.com/rss/search?q=IGM+games&hl=en-US", 80, false),
-        NewsSource("IGM RU", "https://news.google.com/rss/search?q=IGM+игры&hl=ru&gl=RU&ceid=RU:ru", 80, true),
-        NewsSource("StopGame RU", "https://news.google.com/rss/search?q=StopGame&hl=ru&gl=RU&ceid=RU:ru", 84, true),
-        NewsSource("DTF RU", "https://news.google.com/rss/search?q=DTF+Игры&hl=ru&gl=RU&ceid=RU:ru", 83, true),
-        NewsSource("Habr RU", "https://habr.com/ru/rss/all/all/", 92, true),
-        NewsSource("x.com elonmusk", "https://news.google.com/rss/search?q=from:elonmusk+OR+X+trending&hl=en-US", 70, false),
-        NewsSource("X.com RU", "https://news.google.com/rss/search?q=X+Twitter+Илон+Маск&hl=ru&gl=RU&ceid=RU:ru", 75, true),
-        NewsSource("PlayGround.ru", "https://www.playground.ru/rss", 80, true),
-        NewsSource("Sports.ru", "https://www.sports.ru/rss/all.xml", 85, true),
-        NewsSource("СЭ Новости", "https://www.sport-express.ru/services/materials/news/se/", 80, true),
-        NewsSource("РБК Спорт RU", "https://news.google.com/rss/search?q=РБК+Спорт&hl=ru&gl=RU&ceid=RU:ru", 80, true),
-        NewsSource("4PDA", "https://4pda.to/feed/", 85, true),
-        
-        // --- ADDED AUTORU, 3DNEWS AND MEME/JOKE SOURCES ---
-        NewsSource("Авто.ру RU", "https://news.google.com/rss/search?q=Авто.ру&hl=ru&gl=RU&ceid=RU:ru", 85, true),
-        NewsSource("3DNews RU", "https://news.google.com/rss/search?q=3DNews&hl=ru&gl=RU&ceid=RU:ru", 90, true),
-        NewsSource("Анекдоты RU", "https://news.google.com/rss/search?q=Анекдоты+шутки&hl=ru&gl=RU&ceid=RU:ru", 70, true),
-        NewsSource("Anekdot.ru", "https://news.google.com/rss/search?q=site:anekdot.ru&hl=ru&gl=RU&ceid=RU:ru", 75, true),
-        NewsSource("Петросян RU", "https://news.google.com/rss/search?q=ржака+петросян+смешно&hl=ru&gl=RU&ceid=RU:ru", 65, true),
-        NewsSource("Башорг Цитаты", "https://news.google.com/rss/search?q=башорг+смешные+цитаты&hl=ru&gl=RU&ceid=RU:ru", 78, true),
-        NewsSource("Юмор ФМ", "https://news.google.com/rss/search?q=смешные+анекдоты+шутки+приколы&hl=ru&gl=RU&ceid=RU:ru", 70, true),
-        NewsSource("Meme Chronicle", "https://news.google.com/rss/search?q=gaming+internet+memes&hl=en-US", 75, false),
-        NewsSource("Reddit r/memes", "https://news.google.com/rss/search?q=site:reddit.com/r/memes&hl=en-US", 70, false),
-        NewsSource("Reddit r/jokes", "https://news.google.com/rss/search?q=site:reddit.com/r/jokes&hl=en-US", 70, false),
-        NewsSource("Reddit r/funny", "https://news.google.com/rss/search?q=site:reddit.com/r/funny&hl=en-US", 70, false),
-        NewsSource("The Onion Comedy", "https://news.google.com/rss/search?q=site:theonion.com&hl=en-US", 85, false),
-        NewsSource("9GAG Jokes", "https://news.google.com/rss/search?q=9gag+memes+funny&hl=en-US", 72, false),
-        NewsSource("Comedy Central", "https://news.google.com/rss/search?q=site:comedycentral.com&hl=en-US", 85, false),
-        NewsSource("Пикабу Юмор RU", "https://news.google.com/rss/search?q=Пикабу+юмор+мемы&hl=ru&gl=RU&ceid=RU:ru", 72, true),
-        NewsSource("Двач RU", "https://news.google.com/rss/search?q=Двач+тред&hl=ru&gl=RU&ceid=RU:ru", 70, true),
-        NewsSource("Пикабу Тренды RU", "https://news.google.com/rss/search?q=Пикабу&hl=ru&gl=RU&ceid=RU:ru", 72, true),
-        NewsSource("Reddit World", "https://news.google.com/rss/search?q=reddit+trending&hl=en-US", 70, false),
-        NewsSource("Reddit RU", "https://news.google.com/rss/search?q=Реддит&hl=ru&gl=RU&ceid=RU:ru", 70, true),
-        NewsSource("Мемы Рунета RU", "https://news.google.com/rss/search?q=мемы+приколы+рунета&hl=ru&gl=RU&ceid=RU:ru", 74, true),
-        NewsSource("Лучшие Анекдоты RU", "https://news.google.com/rss/search?q=лучшие+анекдоты+дня&hl=ru&gl=RU&ceid=RU:ru", 72, true),
-        NewsSource("КВН Юмор RU", "https://news.google.com/rss/search?q=лучшие+шутки+квн&hl=ru&gl=RU&ceid=RU:ru", 75, true),
-        NewsSource("IT Юмор RU", "https://news.google.com/rss/search?q=it+юмор+программисты&hl=ru&gl=RU&ceid=RU:ru", 80, true),
-        NewsSource("Reddit ProgrammerHumor", "https://news.google.com/rss/search?q=site:reddit.com/r/programmerhumor&hl=en-US", 76, false),
-        NewsSource("WebComic Jokes", "https://news.google.com/rss/search?q=funny+webcomics+jokes&hl=en-US", 73, false),
-        NewsSource("Silicon Slapstick", "https://news.google.com/rss/search?q=silicon+valley+tech+humor&hl=en-US", 81, false),
-        NewsSource("Imgur Funny Gems", "https://news.google.com/rss/search?q=imgur+funny+memes+gallery&hl=en-US", 72, false),
+        NewsSource("Game Informer", "https://news.google.com/rss/search?q=Game+Informer&hl=en-US", 80, false),
+        NewsSource("Polygon", "https://www.polygon.com/rss/index.xml", 88, false),
+        NewsSource("Rock Paper Shotgun", "https://www.rockpapershotgun.com/feed", 85, false),
+        NewsSource("Destructoid", "https://www.destructoid.com/feed/", 80, false),
+        NewsSource("GamesRadar", "https://www.gamesradar.com/feed/", 84, false),
+        NewsSource("Gamasutra/GameDeveloper", "https://www.gamedeveloper.com/rss.xml", 90, false),
+        NewsSource("Kotaku AU", "https://kotaku.com.au/feed/", 80, false),
+        NewsSource("PCGamesN", "https://www.pcgamesn.com/feed", 83, false),
+        NewsSource("VG247", "https://www.vg247.com/feed", 85, false),
+        NewsSource("Gamerant", "https://gamerant.com/feed/", 80, false),
+        NewsSource("Siliconera", "https://www.siliconera.com/feed/", 82, false),
+        NewsSource("DualShockers", "https://www.dualshockers.com/feed/", 81, false),
 
-        // --- EXPANDED NEWS & ARTICLE & JOKE & MEME RESOURCES ---
-        NewsSource("Meduza RU", "https://news.google.com/rss/search?q=Meduza&hl=ru&gl=RU&ceid=RU:ru", 80, true),
-        NewsSource("Лентач RU", "https://news.google.com/rss/search?q=Лентач&hl=ru&gl=RU&ceid=RU:ru", 75, true),
-        NewsSource("Drom Авто", "https://news.google.com/rss/search?q=Drom+автомобили&hl=ru&gl=RU&ceid=RU:ru", 85, true),
-        NewsSource("Drive2 RU", "https://news.google.com/rss/search?q=Drive2&hl=ru&gl=RU&ceid=RU:ru", 80, true),
-        NewsSource("Wylsacom RU", "https://news.google.com/rss/search?q=Wylsacom&hl=ru&gl=RU&ceid=RU:ru", 82, true),
-        NewsSource("TJournal RU", "https://news.google.com/rss/search?q=TJournal&hl=ru&gl=RU&ceid=RU:ru", 70, true),
-        NewsSource("Лайфхакер Лайф", "https://news.google.com/rss/search?q=Лайфхакер&hl=ru&gl=RU&ceid=RU:ru", 80, true),
-        NewsSource("JoyReactor Мемы", "https://news.google.com/rss/search?q=JoyReactor+мемы&hl=ru&gl=RU&ceid=RU:ru", 64, true),
-        NewsSource("Поп.Механика", "https://news.google.com/rss/search?q=Популярная+Механика&hl=ru&gl=RU&ceid=RU:ru", 88, true),
-        NewsSource("Хабр Наука RU", "https://news.google.com/rss/search?q=Habr+Наука&hl=ru&gl=RU&ceid=RU:ru", 92, true),
-        NewsSource("РБК Новости", "https://news.google.com/rss/search?q=РБК&hl=ru&gl=RU&ceid=RU:ru", 88, true),
-        NewsSource("Коммерсантъ", "https://news.google.com/rss/search?q=Коммерсантъ&hl=ru&gl=RU&ceid=RU:ru", 90, true),
-        NewsSource("VK Memes RU", "https://news.google.com/rss/search?q=ВКонтакте+мемы+приколы&hl=ru&gl=RU&ceid=RU:ru", 60, true),
-        NewsSource("Баш.орг Цитатник", "https://news.google.com/rss/search?q=bash.im+цитаты&hl=ru&gl=RU&ceid=RU:ru", 75, true),
-        NewsSource("Анекдоты из РФ", "https://news.google.com/rss/search?q=site:anekdot.ru+лучшие&hl=ru&gl=RU&ceid=RU:ru", 78, true),
-        NewsSource("Игры Mail.ru", "https://news.google.com/rss/search?q=Игры+Mail.ru&hl=ru&gl=RU&ceid=RU:ru", 80, true),
-        
-        // EN sources
-        NewsSource("WIRED Tech", "https://www.wired.com/feed/rss", 92, false),
+        // RU Additions
+        NewsSource("DTF", "https://dtf.ru/rss/all", 88, true),
+        NewsSource("PlayGround.ru", "https://www.playground.ru/rss", 80, true),
+        NewsSource("StopGame", "https://stopgame.ru/rss/new/news", 80, true),
+        NewsSource("Igromania", "https://www.igromania.ru/rss/news.xml", 85, true),
+        NewsSource("Kanobu", "https://kanobu.ru/rss/", 80, true),
+        NewsSource("CyberSport RU", "https://www.cybersport.ru/rss/all", 85, true),
+        NewsSource("Championat", "https://www.championat.com/rss/news/", 80, true),
+        NewsSource("VGTimes", "https://vgtimes.ru/rss/", 78, true),
+        NewsSource("Geektimes/Habr", "https://habr.com/ru/rss/all/all/", 92, true),
+        NewsSource("4PDA", "https://4pda.to/feed/", 85, true),
+        NewsSource("RBC Tech", "https://rssexport.rbc.ru/rbc/topnews/20/main.rss", 88, true),
+        NewsSource("TJournal", "https://tjournal.ru/rss", 75, true),
+        NewsSource("Lenta Tech", "https://lenta.ru/rss/news", 75, true),
+        NewsSource("Gazeta Tech", "https://www.gazeta.ru/export/rss/tech.xml", 80, true),
+        NewsSource("Hi-Tech Mail.ru", "https://hi-tech.mail.ru/rss/", 82, true),
+        NewsSource("Rozetked", "https://rozetked.me/rss", 85, true),
+        NewsSource("Digger", "https://digger.ru/rss", 80, true),
+        NewsSource("Wylsacom", "https://wylsa.com/feed/", 82, true),
+        NewsSource("Droider", "https://droider.ru/feed/", 83, true),
+
+        // General Tech/Science
+        NewsSource("WIRED", "https://www.wired.com/feed/rss", 92, false),
         NewsSource("Engadget", "https://www.engadget.com/rss.xml", 88, false),
         NewsSource("Gizmodo", "https://gizmodo.com/rss", 85, false),
         NewsSource("TechRadar", "https://www.techradar.com/rss", 86, false),
-        NewsSource("CNN World", "https://news.google.com/rss/search?q=CNN+World&hl=en-US", 90, false),
-        NewsSource("Fox News Live", "https://news.google.com/rss/search?q=Fox+News&hl=en-US", 80, false),
-        NewsSource("Bloomberg Tech", "https://news.google.com/rss/search?q=Bloomberg+Technology&hl=en-US", 92, false),
-        NewsSource("LADbible Viral", "https://news.google.com/rss/search?q=LADbible+funny&hl=en-US", 70, false),
-        NewsSource("Unilad Jokes", "https://news.google.com/rss/search?q=Unilad+memes&hl=en-US", 72, false),
-        NewsSource("Know Your Meme", "https://news.google.com/rss/search?q=site:knowyourmeme.com&hl=en-US", 80, false),
+        NewsSource("The Verge", "https://www.theverge.com/rss/index.xml", 88, false),
+        NewsSource("Ars Technica", "https://feeds.arstechnica.com/arstechnica/index", 95, false),
+        NewsSource("Slashdot", "https://slashdot.org/slashdot.rss", 85, false),
+        NewsSource("Popular Science", "https://www.popsci.com/feed/", 87, false),
+        NewsSource("MIT Tech Review", "https://www.technologyreview.com/feed/", 95, false),
+        NewsSource("New Scientist", "https://www.newscientist.com/feed/", 94, false),
+        NewsSource("Phys.org General", "https://phys.org/rss-feed/", 91, false),
+        NewsSource("ScienceNews", "https://www.sciencenews.org/feed", 93, false),
+        NewsSource("Nature News", "https://www.nature.com/nature.rss", 98, false),
+        NewsSource("Scientific American", "https://www.scientificamerican.com/feed/", 94, false),
+        NewsSource("Astronomy", "https://astronomy.com/rss.xml", 89, false),
+        NewsSource("Sky & Telescope", "https://skyandtelescope.org/feed/", 88, false),
+        NewsSource("Space.com", "https://www.space.com/feeds/science.xml", 85, false),
         NewsSource("Tumblr Trending", "https://news.google.com/rss/search?q=site:tumblr.com+funny&hl=en-US", 70, false),
         NewsSource("Imgur Viral Memes", "https://news.google.com/rss/search?q=site:imgur.com+viral+memes&hl=en-US", 74, false),
         NewsSource("Pinterest Gems", "https://news.google.com/rss/search?q=site:pinterest.com+aesthetic+memes&hl=en-US", 75, false),
@@ -142,16 +126,25 @@ object NewsFetcher {
 
         for (source in targetSources) {
             try {
-                val request = Request.Builder().url(source.url).build()
+                val request = Request.Builder()
+                    .url(source.url)
+                    .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36")
+                    .build()
                 val response = client.newCall(request).execute()
                 val xmlBody = response.body?.string()
                 
                 if (response.isSuccessful && !xmlBody.isNullOrEmpty()) {
-                    val parsedItems = parseRss(xmlBody, source)
-                    allNews.addAll(parsedItems.take(5)) // Take top 5 from each
+                    val trimmedBody = xmlBody.trim()
+                    if (trimmedBody.startsWith("<rss") || trimmedBody.startsWith("<feed") || trimmedBody.contains("<?xml")) {
+                        val parsedItems = parseRss(xmlBody, source)
+                        allNews.addAll(parsedItems.take(5)) // Take top 5 from each
+                    } else {
+                        Log.w(TAG, "Skipping non-RSS content for ${source.name}")
+                    }
                 }
             } catch (e: Exception) {
-                Log.e(TAG, "Failed to fetch RSS from ${source.name}", e)
+                // Log only a warning for network failures, avoid excessive stack traces for common timeout issues
+                Log.w(TAG, "Failed to fetch RSS from ${source.name}: ${e.message}")
             }
         }
 
