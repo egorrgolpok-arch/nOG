@@ -509,118 +509,133 @@ fun TamagotchiDialog(
                                 }
                             }
                         }
-                    } else {
+                    } else { // active or dead
                         if (state.isDead) {
-                        // DIED VIEWPORT
-                        Column(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .border(2.dp, PureWhite)
-                                .background(PureBlack)
-                                .padding(16.dp),
-                            horizontalAlignment = Alignment.CenterHorizontally
-                        ) {
-                            Text(
-                                text = """
-                                     🪦 🪦 🪦
-                                    ( x _ x )
-                                    /   |   \
-                                """.trimIndent(),
-                                color = PureWhite,
-                                fontSize = 16.sp,
-                                fontFamily = FontFamily.Monospace,
-                                textAlign = TextAlign.Center,
-                                modifier = Modifier.padding(bottom = 12.dp)
-                            )
-
-                            Text(
-                                text = if (isRu) {
-                                    "ПИТОМЕЦ @${state.petHandle} УМЕР 🖤"
-                                } else {
-                                    "PET @${state.petHandle} DECEASED 🖤"
-                                },
-                                color = PureWhite,
-                                fontSize = 15.sp,
-                                fontWeight = FontWeight.Bold,
-                                fontFamily = FontFamily.Monospace,
-                                textAlign = TextAlign.Center
-                            )
-
-                            Spacer(modifier = Modifier.height(12.dp))
-
-                            val deathDetails = when (state.deathReason) {
-                                "disease" -> {
-                                    val disease = state.deathDiseaseName ?: (if (isRu) "неизвестная болезнь" else "unknown disease")
-                                    if (isRu) {
-                                        "Печальный отчет карантинного отсека: Питомец ${state.petName} пал жертвой страшного недуга.\nПричина смерти: [${disease.uppercase()}]."
-                                    } else {
-                                        "Medical Report: Pet ${state.petName} succumbed to a fatal condition.\nCause of death: [${disease.uppercase()}]."
-                                    }
-                                }
-                                "old_age" -> {
-                                    if (isRu) {
-                                        "Питомец мирно угас от глубокой старости, исчерпав свой кремниевый лимит циклов."
-                                    } else {
-                                        "Pet peacefully reached end of natural lifecycle limits."
-                                    }
-                                }
-                                else -> {
-                                    if (isRu) {
-                                        "Питомец погиб от голода, жуткой антисанитарии и глобального депрессивного расстройства."
-                                    } else {
-                                        "Pet suffered total systems shutdown due to severe starvation and hygiene neglect."
-                                    }
-                                }
-                            }
-
-                            Text(
-                                text = deathDetails,
-                                color = PureWhite,
-                                fontSize = 11.sp,
-                                fontFamily = FontFamily.Monospace,
-                                textAlign = TextAlign.Center,
+                            // DIED VIEWPORT
+                            Column(
                                 modifier = Modifier
-                                    .border(1.dp, BorderGray)
-                                    .padding(8.dp)
-                            )
-
-                            Spacer(modifier = Modifier.height(16.dp))
-
-                            // Action button to bury and reset
-                            Button(
-                                onClick = {
-                                    viewModel.vibrate(100)
-                                    // Cooldown duration setting: 10 hours to 1 day
-                                    val cooldownMs = if (isUserVerified) {
-                                        0L
-                                    } else {
-                                        val hours = Random.nextLong(10, 25)
-                                        hours * 3600L * 1000L
-                                    }
-                                    val cooldownUntilTimestamp = System.currentTimeMillis() + cooldownMs
-                                    
-                                    TamagotchiManager.resetState(context, cooldownUntilTimestamp)
-                                    state = TamagotchiState(hasPet = false, cooldownUntil = cooldownUntilTimestamp)
-                                    notificationMessage = if (isRu) {
-                                        if (isUserVerified) "Память питомца стерта. КД отсутствует т.к. вы верифицированы!"
-                                        else "Питомец похоронен. Модуль перезапуска на КД!"
-                                    } else {
-                                        if (isUserVerified) "Memory formatted. Verified bypass of incubator cooldown limits activated!"
-                                        else "Tombstone erected. Cooldown applied successfully."
-                                    }
-                                },
-                                colors = ButtonDefaults.buttonColors(containerColor = PureWhite, contentColor = PureBlack),
-                                shape = RoundedCornerShape(4.dp),
-                                modifier = Modifier.fillMaxWidth()
+                                    .fillMaxWidth()
+                                    .border(2.dp, PureWhite)
+                                    .background(PureBlack)
+                                    .padding(16.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally
                             ) {
-                                Text(
-                                    text = if (isRu) "ОЧИСТИТЬ ПАМЯТЬ / СБРОСИТЬ КД 🧹" else "FORMAT MEMORY CARD 🧹",
-                                    fontFamily = FontFamily.Monospace,
-                                    fontWeight = FontWeight.Bold,
-                                    fontSize = 11.sp
+                                // Show Avatar when dead
+                                AsyncImage(
+                                    model = state.petAvatar,
+                                    contentDescription = "Pet Avatar",
+                                    modifier = Modifier
+                                        .size(80.dp)
+                                        .clip(CircleShape)
+                                        .border(2.dp, PureWhite, CircleShape),
+                                    contentScale = ContentScale.Crop,
+                                    error = rememberVectorPainter(Icons.Filled.Pets),
+                                    placeholder = rememberVectorPainter(Icons.Filled.Pets)
                                 )
+                                Spacer(modifier = Modifier.height(12.dp))
+                                Text(
+                                    text = """
+                                         🪦 🪦 🪦
+                                        ( x _ x )
+                                        /   |   \
+                                    """.trimIndent(),
+                                    color = PureWhite,
+                                    fontSize = 16.sp,
+                                    fontFamily = FontFamily.Monospace,
+                                    textAlign = TextAlign.Center,
+                                    modifier = Modifier.padding(bottom = 12.dp)
+                                )
+
+                                Text(
+                                    text = if (isRu) {
+                                        "ПИТОМЕЦ @${state.petHandle} УМЕР 🖤"
+                                    } else {
+                                        "PET @${state.petHandle} DECEASED 🖤"
+                                    },
+                                    color = PureWhite,
+                                    fontSize = 15.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    fontFamily = FontFamily.Monospace,
+                                    textAlign = TextAlign.Center
+                                )
+
+                                Spacer(modifier = Modifier.height(12.dp))
+
+                                val deathDetails = when (state.deathReason) {
+                                    "disease" -> {
+                                        val disease = state.deathDiseaseName ?: (if (isRu) "неизвестная болезнь" else "unknown disease")
+                                        if (isRu) {
+                                            "Печальный отчет карантинного отсека: Питомец ${state.petName} пал жертвой страшного недуга.\nПричина смерти: [${disease.uppercase()}]."
+                                        } else {
+                                            "Medical Report: Pet ${state.petName} succumbed to a fatal condition.\nCause of death: [${disease.uppercase()}]."
+                                        }
+                                    }
+                                    "old_age" -> {
+                                        if (isRu) {
+                                            "Питомец мирно угас от глубокой старости, исчерпав свой кремниевый лимит циклов."
+                                        } else {
+                                            "Pet peacefully reached end of natural lifecycle limits."
+                                        }
+                                    }
+                                    else -> {
+                                        if (isRu) {
+                                            "Питомец погиб от голода, жуткой антисанитарии и глобального депрессивного расстройства."
+                                        } else {
+                                            "Pet suffered total systems shutdown due to severe starvation and hygiene neglect."
+                                        }
+                                    }
+                                }
+
+                                Text(
+                                    text = deathDetails,
+                                    color = PureWhite,
+                                    fontSize = 11.sp,
+                                    fontFamily = FontFamily.Monospace,
+                                    textAlign = TextAlign.Center,
+                                    modifier = Modifier
+                                        .border(1.dp, BorderGray)
+                                        .padding(8.dp)
+                                )
+
+                                Spacer(modifier = Modifier.height(16.dp))
+
+                                // Action button to bury and reset
+                                Button(
+                                    onClick = {
+                                        viewModel.vibrate(100)
+                                        // Cooldown duration setting: 10 hours to 1 day
+                                        val cooldownMs = if (isUserVerified) {
+                                            0L
+                                        } else {
+                                            val hours = Random.nextLong(10, 25)
+                                            hours * 3600L * 1000L
+                                        }
+                                        val cooldownUntilTimestamp = System.currentTimeMillis() + cooldownMs
+                                        
+                                        TamagotchiManager.resetState(context, cooldownUntilTimestamp)
+                                        state = TamagotchiState(hasPet = false, cooldownUntil = cooldownUntilTimestamp)
+                                        notificationMessage = if (isRu) {
+                                            if (isUserVerified) "Память питомца стерта. КД отсутствует т.к. вы верифицированы!"
+                                            else "Питомец похоронен. Модуль перезапуска на КД!"
+                                        } else {
+                                            if (isUserVerified) "Memory formatted. Verified bypass of incubator cooldown limits activated!"
+                                            else "Tombstone erected. Cooldown applied successfully."
+                                        }
+                                    },
+                                    colors = ButtonDefaults.buttonColors(containerColor = PureWhite, contentColor = PureBlack),
+                                    shape = RoundedCornerShape(4.dp),
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    Text(
+                                        text = if (isRu) "ОЧИСТИТЬ ПАМЯТЬ / СБРОСИТЬ КД 🧹" else "FORMAT MEMORY CARD 🧹",
+                                        fontFamily = FontFamily.Monospace,
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 11.sp
+                                    )
+                                }
                             }
                         } else {
+                            // ACTIVE PET VIEWPORT
                             Spacer(modifier = Modifier.height(16.dp))
 
                             Row(
@@ -907,11 +922,11 @@ fun TamagotchiDialog(
 
                                         // 11% disease risk simulation on each nutrition action
                                         var message = if (isRu) "Ням-ням! Питомец поел сытно." else "Crunch-crunch! Feed successful."
-                                        if (!newIsSick && Random.nextInt(100) < 11) {
+                                        if (!newIsSick && kotlin.random.Random.nextInt(100) < 11) {
                                             newIsSick = true
-                                            newSickDays = Random.nextInt(2, 11)
+                                            newSickDays = kotlin.random.Random.nextInt(2, 11)
                                             newSickDaysPassed = 0
-                                            newSickHours = Random.nextInt(1, 5).toFloat()
+                                            newSickHours = kotlin.random.Random.nextInt(1, 5).toFloat()
                                             newSickSpentToday = 0f
                                             message = if (isRu) {
                                                 "⚠️ О БОЖЕ! При кормлении занесена квантовая инфекция! Питомец тяжело заболел!"
@@ -946,14 +961,6 @@ fun TamagotchiDialog(
                                         fontSize = 11.sp
                                     )
                                 }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
-}
 
                                 // Wash button which cleans to 100%
                                 Button(
@@ -986,170 +993,12 @@ fun TamagotchiDialog(
                             }
                         }
                     }
-
-                    Spacer(modifier = Modifier.height(16.dp))
-
-                    // --- RETRO SUPER USER INTEGRATION & TESTING TOOLKIT PANEL ---
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .background(CardGray)
-                            .border(1.dp, PureWhite, RoundedCornerShape(4.dp))
-                            .padding(10.dp)
-                    ) {
-                        Column {
-                            Text(
-                                text = if (isRu) {
-                                    "✦ ТЕСТ-ПАНЕЛЬ КУРАТОРА СЕТИ ✦"
-                                } else {
-                                    "✦ SHADOW OVERRIDE CONSOLE ✦"
-                                },
-                                color = PureWhite,
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 11.sp,
-                                fontFamily = FontFamily.Monospace,
-                                modifier = Modifier.fillMaxWidth(),
-                                textAlign = TextAlign.Center
-                            )
-
-                            Spacer(modifier = Modifier.height(8.dp))
-
-                            Text(
-                                text = if (isRu) {
-                                    "Интегрированные симуляционные вентили ускоряют кремниевое время для отладки всех функций."
-                                } else {
-                                    "Accelerate synthetic neural timeframe directly to test indicators, illnesses and recovery periods."
-                                },
-                                color = TextGray,
-                                fontSize = 9.sp,
-                                fontFamily = FontFamily.Monospace,
-                                modifier = Modifier.padding(bottom = 8.dp)
-                            )
-
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.spacedBy(6.dp)
-                            ) {
-                                // Fast-forward time (+1 Hour)
-                                Button(
-                                    onClick = {
-                                        viewModel.vibrate(30)
-                                        if (state.hasPet && !state.isDead) {
-                                            // Simulate 1 whole hour delta pass
-                                            val simulatedMs = 3600L * 1000L
-                                            state = updateTamaStats(state, simulatedMs, isAppActive = false)
-                                            
-                                            // Sickness roll: if not sick, check 11%
-                                            if (!state.isSick && !state.isDead && Random.nextInt(100) < 11) {
-                                                state = state.copy(
-                                                    isSick = true,
-                                                    sickDaysRequired = Random.nextInt(2, 11),
-                                                    sickDaysPassed = 0,
-                                                    sickHoursRequiredEachDay = Random.nextInt(1, 5).toFloat(),
-                                                    sickTimeSpentToday = 0f
-                                                )
-                                                notificationMessage = if (isRu) {
-                                                    "Тест: Время ускорено на 1 ч! Питомца скосила Неизвестная Квантовая Болезнь!"
-                                                } else {
-                                                    "Debug: Time accelerated +1h! Pet contracted Sickness!"
-                                                }
-                                            } else {
-                                                notificationMessage = if (isRu) {
-                                                    "Тест: Время ускорено на 1 ч! Сытость и Гигиена понижены."
-                                                } else {
-                                                    "Debug: Time accelerated +1h! Stats decayed accordingly."
-                                                }
-                                            }
-                                            TamagotchiManager.saveState(context, state)
-                                        }
-                                    },
-                                    colors = ButtonDefaults.buttonColors(containerColor = PureWhite, contentColor = PureBlack),
-                                    shape = RoundedCornerShape(4.dp),
-                                    modifier = Modifier.weight(1f),
-                                    contentPadding = PaddingValues(horizontal = 4.dp, vertical = 6.dp)
-                                ) {
-                                    Text(
-                                        text = if (isRu) "+1 ч" else "+1 hr",
-                                        fontFamily = FontFamily.Monospace,
-                                        fontSize = 10.sp,
-                                        fontWeight = FontWeight.Bold
-                                    )
-                                }
-
-                                // Add treatment time (+30 mins) if sick
-                                Button(
-                                    onClick = {
-                                        viewModel.vibrate(30)
-                                        if (state.hasPet && state.isSick && !state.isDead) {
-                                            val addedHours = 0.5f
-                                            val newSpent = (state.sickTimeSpentToday + addedHours).coerceAtMost(state.sickHoursRequiredEachDay)
-                                            state = state.copy(sickTimeSpentToday = newSpent)
-                                            TamagotchiManager.saveState(context, state)
-                                            notificationMessage = if (isRu) {
-                                                "Тест: Добавлено +30 минут лечения сегодня! (Проведено: ${String.format("%.1f", newSpent)}ч / ${String.format("%.1f", state.sickHoursRequiredEachDay)}ч)"
-                                            } else {
-                                                "Debug: Added +30 mins treatment. (Spent: ${String.format("%.1f", newSpent)}h)"
-                                            }
-                                        }
-                                    },
-                                    enabled = state.hasPet && state.isSick && !state.isDead,
-                                    colors = ButtonDefaults.buttonColors(containerColor = PureWhite, contentColor = PureBlack),
-                                    shape = RoundedCornerShape(4.dp),
-                                    modifier = Modifier.weight(1f),
-                                    contentPadding = PaddingValues(horizontal = 4.dp, vertical = 6.dp)
-                                ) {
-                                    Text(
-                                        text = if (isRu) "+30 мин клинич" else "+30 min treat",
-                                        fontFamily = FontFamily.Monospace,
-                                        fontSize = 10.sp,
-                                        fontWeight = FontWeight.Bold
-                                    )
-                                }
-
-                                // Autocure cheat
-                                Button(
-                                    onClick = {
-                                        viewModel.vibrate(40)
-                                        if (state.hasPet && !state.isDead) {
-                                            state = state.copy(
-                                                isSick = false,
-                                                sickDaysPassed = 0,
-                                                sickDaysRequired = 0,
-                                                sickHoursRequiredEachDay = 0f,
-                                                sickTimeSpentToday = 0f,
-                                                health = 100f,
-                                                hunger = 100f,
-                                                hygiene = 100f,
-                                                mood = 100f
-                                            )
-                                            TamagotchiManager.saveState(context, state)
-                                            notificationMessage = if (isRu) {
-                                                "Тест: Параметры питомца восстановлены к дефолту!"
-                                            } else {
-                                                "Debug: Restored pet parameters back to factory values."
-                                            }
-                                        }
-                                    },
-                                    colors = ButtonDefaults.buttonColors(containerColor = PureWhite, contentColor = PureBlack),
-                                    shape = RoundedCornerShape(4.dp),
-                                    modifier = Modifier.weight(1f),
-                                    contentPadding = PaddingValues(horizontal = 4.dp, vertical = 6.dp)
-                                ) {
-                                    Text(
-                                        text = if (isRu) "ИЦЕЛИТЬ МАКС" else "CURE MAX",
-                                        fontFamily = FontFamily.Monospace,
-                                        fontSize = 10.sp,
-                                        fontWeight = FontWeight.Bold
-                                    )
-                                }
-                            }
-                        }
-                    }
                 }
             }
         }
     }
 }
+
 
 // Stats Decay processing engine
 fun updateTamaStats(state: TamagotchiState, elapsedMs: Long, isAppActive: Boolean): TamagotchiState {
