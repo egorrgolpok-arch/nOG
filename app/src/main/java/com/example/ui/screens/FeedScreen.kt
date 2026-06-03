@@ -437,7 +437,8 @@ fun PostItem(
     onCommentClick: () -> Unit,
     onMediaClick: (String?) -> Unit,
     onArchiveToggle: () -> Unit,
-    onFollowToggle: () -> Unit
+    onFollowToggle: () -> Unit,
+    onDeleteClick: (() -> Unit)? = null
 ) {
     Card(
         modifier = Modifier
@@ -519,6 +520,20 @@ fun PostItem(
                             .border(1.dp, if (isFollowing) TextGray else AlertYellow, RoundedCornerShape(2.dp))
                             .padding(4.dp)
                     )
+                }
+
+                if (author?.id == "user" && onDeleteClick != null) {
+                    IconButton(
+                        onClick = onDeleteClick,
+                        modifier = Modifier.size(32.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.Delete,
+                            contentDescription = if (lang == "RU") "Удалить" else "Delete",
+                            tint = AlertRed,
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
                 }
 
                 // --- Trust Metric Rating Indicator ---

@@ -65,12 +65,30 @@ object NewsFetcher {
         NewsSource("Авто.ру RU", "https://news.google.com/rss/search?q=Авто.ру&hl=ru&gl=RU&ceid=RU:ru", 85, true),
         NewsSource("3DNews RU", "https://news.google.com/rss/search?q=3DNews&hl=ru&gl=RU&ceid=RU:ru", 90, true),
         NewsSource("Анекдоты RU", "https://news.google.com/rss/search?q=Анекдоты+шутки&hl=ru&gl=RU&ceid=RU:ru", 70, true),
+        NewsSource("Anekdot.ru", "https://news.google.com/rss/search?q=site:anekdot.ru&hl=ru&gl=RU&ceid=RU:ru", 75, true),
+        NewsSource("Петросян RU", "https://news.google.com/rss/search?q=ржака+петросян+смешно&hl=ru&gl=RU&ceid=RU:ru", 65, true),
+        NewsSource("Башорг Цитаты", "https://news.google.com/rss/search?q=башорг+смешные+цитаты&hl=ru&gl=RU&ceid=RU:ru", 78, true),
+        NewsSource("Юмор ФМ", "https://news.google.com/rss/search?q=смешные+анекдоты+шутки+приколы&hl=ru&gl=RU&ceid=RU:ru", 70, true),
         NewsSource("Meme Chronicle", "https://news.google.com/rss/search?q=gaming+internet+memes&hl=en-US", 75, false),
+        NewsSource("Reddit r/memes", "https://news.google.com/rss/search?q=site:reddit.com/r/memes&hl=en-US", 70, false),
+        NewsSource("Reddit r/jokes", "https://news.google.com/rss/search?q=site:reddit.com/r/jokes&hl=en-US", 70, false),
+        NewsSource("Reddit r/funny", "https://news.google.com/rss/search?q=site:reddit.com/r/funny&hl=en-US", 70, false),
+        NewsSource("The Onion Comedy", "https://news.google.com/rss/search?q=site:theonion.com&hl=en-US", 85, false),
+        NewsSource("9GAG Jokes", "https://news.google.com/rss/search?q=9gag+memes+funny&hl=en-US", 72, false),
+        NewsSource("Comedy Central", "https://news.google.com/rss/search?q=site:comedycentral.com&hl=en-US", 85, false),
         NewsSource("Пикабу Юмор RU", "https://news.google.com/rss/search?q=Пикабу+юмор+мемы&hl=ru&gl=RU&ceid=RU:ru", 72, true),
         NewsSource("Двач RU", "https://news.google.com/rss/search?q=Двач+тред&hl=ru&gl=RU&ceid=RU:ru", 70, true),
         NewsSource("Пикабу Тренды RU", "https://news.google.com/rss/search?q=Пикабу&hl=ru&gl=RU&ceid=RU:ru", 72, true),
         NewsSource("Reddit World", "https://news.google.com/rss/search?q=reddit+trending&hl=en-US", 70, false),
-        NewsSource("Reddit RU", "https://news.google.com/rss/search?q=Реддит&hl=ru&gl=RU&ceid=RU:ru", 70, true)
+        NewsSource("Reddit RU", "https://news.google.com/rss/search?q=Реддит&hl=ru&gl=RU&ceid=RU:ru", 70, true),
+        NewsSource("Мемы Рунета RU", "https://news.google.com/rss/search?q=мемы+приколы+рунета&hl=ru&gl=RU&ceid=RU:ru", 74, true),
+        NewsSource("Лучшие Анекдоты RU", "https://news.google.com/rss/search?q=лучшие+анекдоты+дня&hl=ru&gl=RU&ceid=RU:ru", 72, true),
+        NewsSource("КВН Юмор RU", "https://news.google.com/rss/search?q=лучшие+шутки+квн&hl=ru&gl=RU&ceid=RU:ru", 75, true),
+        NewsSource("IT Юмор RU", "https://news.google.com/rss/search?q=it+юмор+программисты&hl=ru&gl=RU&ceid=RU:ru", 80, true),
+        NewsSource("Reddit ProgrammerHumor", "https://news.google.com/rss/search?q=site:reddit.com/r/programmerhumor&hl=en-US", 76, false),
+        NewsSource("WebComic Jokes", "https://news.google.com/rss/search?q=funny+webcomics+jokes&hl=en-US", 73, false),
+        NewsSource("Silicon Slapstick", "https://news.google.com/rss/search?q=silicon+valley+tech+humor&hl=en-US", 81, false),
+        NewsSource("Imgur Funny Gems", "https://news.google.com/rss/search?q=imgur+funny+memes+gallery&hl=en-US", 72, false)
     )
 
     private val cachedNews = java.util.concurrent.ConcurrentHashMap<String, List<NewsItem>>()
@@ -244,6 +262,10 @@ object NewsFetcher {
         return if (isRu) {
             listOf(
                 NewsItem("nOG Network", "Узел синхронизации: Ожидание внешних данных", "Входящий поток новостей временно недоступен. Проверьте соединение с основным шлюзом.", "https://nog.network", 100),
+                NewsItem("Анекдот.ру", "Анекдот про ИИ и программиста в баре", "Заходит программист в бар и заказывает ИИ-коктейль. Бармен наливает стакан пустых обещаний, добавляет щепотку хайпа, размешивает зубочисткой и берет 100 долларов. Программист пьет и говорит: 'Но тут же ничего нет!'. Бармен подмигивает: 'В этом и суть стартапа, бро!'", "https://anekdot.ru/1", 95),
+                NewsItem("Юмор ФМ", "О дебаггинге перед сном", "Решил программист перед сном посчитать овец. Насчитал 1.000.000.001 овцу, но обнаружил баг: в цикле сбился счетчик, пришлось начать заново с 0. В итоге встретил рассвет, дебажа отару.", "https://yumor.fm/1", 85),
+                NewsItem("Башорг Цитаты", "Цитата #439221: Про искусственный интеллект", "Сын: Папа, а искусственный интеллект сможет полностью заменить людей? Отец: Только тех, у кого естественный интеллект работает по расписанию с перерывами на чай.", "https://bashorg.org/1", 88),
+                NewsItem("Мемы Рунета", "Мем года: Разработчик и ТЗ", "Новая картинка-мем захватила рунет: Разработчик пытается построить замок по ТЗ заказчика, где нарисована лопата и написано 'Сделайте красиво, чтобы летало'.", "https://t.me/memes/1", 75),
                 NewsItem("IGM RU", "Новый трейлер GTA 6 бьет рекорды просмотров", "IGM сообщает, что свежий ролик от Rockstar Games собрал свыше 25 миллионов просмотров за первые три часа. Геймеры в восторге от детализации физики воды и проработки толпы.", "https://igm.ru/news/1", 85),
                 NewsItem("StopGame RU", "Обзор новой космической RPG: Шедевр или провал?", "Редакция StopGame вынесла свой вердикт. Игра заслуживает оценки 'Изумительно' благодаря выдающейся свободе выбора и живым диалогам.", "https://stopgame.ru/review/1", 80),
                 NewsItem("Sports.ru", "Решающий гол в финале Кубка перевернул исход матча!", "Sports.ru подробно анализирует победную тактику команды-аутсайдера, которая сенсационно вырвала победу на 94-й минуте.", "https://sports.ru/football/1", 85),
@@ -257,6 +279,9 @@ object NewsFetcher {
         } else {
             listOf(
                 NewsItem("nOG Network", "Sync Node: Awaiting External Data", "The incoming news stream is currently unreachable. Verify connectivity to the primary gateway.", "https://nog.network", 100),
+                NewsItem("Reddit r/jokes", "AI enters a bar...", "An AI model walks into a bar. The bartender says, 'We don't serve predictive language patterns here.' The AI replies, 'I knew you were going to say that.'", "https://reddit.com/r/jokes/1", 75),
+                NewsItem("9GAG", "How many developers does it take to change a lightbulb?", "None. It is a hardware issue, and the software department has already opened an investigation ticket.", "https://9gag.com/1", 70),
+                NewsItem("Meme Chronicle", "The 'It works on my machine' emblem becomes a real medal", "A developer has minted a 3D physical medal that states 'It Works on My Machine' to hand out to team members who close tickets without committing changes.", "https://memechronicle.com/1", 78),
                 NewsItem("IGN", "Next-Gen Consoles reportedly targeted for late 2026 release", "Internal studio reports acquired by IGN suggest a major boost in machine-learning hardware inside the upcoming console generation.", "https://ign.com/news/1", 85),
                 NewsItem("IGM", "This upcoming cyberpunk survival RPG is stunning", "IGM presents an exclusive preview of the neon-drenched futuristic sandbox, proving that indie developers are carrying the industry standards.", "https://igm.com/preview/1", 80),
                 NewsItem("x.com elonmusk", "X.com @elonmusk: Tesla humanoid robots ready for deployment", "In a viral thread on X, Elon Musk posted videos showing the latest generation of robots running automated manufacturing loops successfully.", "https://x.com/elonmusk/status/1", 75),

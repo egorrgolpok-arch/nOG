@@ -118,7 +118,7 @@ interface SocialDao {
     @Query("DELETE FROM posts WHERE id = :postId")
     suspend fun deletePostById(postId: Int)
 
-    @Query("DELETE FROM posts WHERE id NOT IN (SELECT id FROM posts ORDER BY timestamp DESC LIMIT 200)")
+    @Query("DELETE FROM posts WHERE authorId != 'user' AND isArchived = 0 AND category != 'Community' AND category != 'Сообщество' AND id NOT IN (SELECT id FROM posts ORDER BY timestamp DESC LIMIT 200)")
     suspend fun pruneOldPosts()
 
     @Query("DELETE FROM users WHERE id = :userId")

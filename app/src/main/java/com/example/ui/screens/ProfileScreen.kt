@@ -50,6 +50,10 @@ fun ProfileScreen(
     val users by viewModel.allUsers.collectAsState()
     val lang by viewModel.selectedLanguage.collectAsState()
     val verificationClicks by viewModel.verificationClicks.collectAsState()
+    val likedPostIds by viewModel.likedPostIds.collectAsState()
+    val followingIds by viewModel.currentUserFollowingIds.collectAsState()
+    val selectedPostForComments by viewModel.activePostIdForComments.collectAsState()
+    var zoomImageUrl by remember { mutableStateOf<String?>(null) }
 
     var isEditing by remember { mutableStateOf(false) }
     // Add Edit State
@@ -607,40 +611,25 @@ fun ProfileScreen(
                 } else {
                     items(archivedPosts, key = { "archive-${it.id}" }) { post ->
                         val author = users.find { it.id == post.authorId }
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .background(DeepGray)
-                                .border(1.dp, BorderGray)
-                                .padding(12.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text(
-                                    text = "@${author?.handle ?: "bot"} • Trust Index ${post.trustScore}%",
-                                    color = TextGray,
-                                    fontSize = 10.sp,
-                                    fontFamily = FontFamily.Monospace
-                                )
-                                Text(
-                                    text = post.content,
-                                    color = StarkWhite,
-                                    fontSize = 12.sp,
-                                    maxLines = 2,
-                                    modifier = Modifier.padding(top = 4.dp)
-                                )
-                            }
-                            
-                            IconButton(
-                                onClick = { viewModel.archivePost(post.id, false) }
-                            ) {
-                                Icon(
-                                    Icons.Filled.BookmarkRemove,
-                                    contentDescription = if (lang == "RU") "Удалить из архива" else "Remove from offline cache",
-                                    tint = AlertRed,
-                                    modifier = Modifier.size(20.dp)
-                                )
-                            }
+                        Box(modifier = Modifier.padding(vertical = 4.dp)) {
+                            PostItem(
+                                post = post,
+                                author = author,
+                                lang = lang,
+                                isLiked = likedPostIds.contains(post.id),
+                                isFollowing = followingIds.contains(author?.id ?: ""),
+                                onLikeClick = { viewModel.toggleLike(post.id) },
+                                onCommentClick = { viewModel.selectPostForComments(post.id) },
+                                onMediaClick = { zoomImageUrl = it },
+                                onArchiveToggle = { viewModel.archivePost(post.id, !post.isArchived) },
+                                onFollowToggle = {
+                                    author?.id?.let { id ->
+                                        if (followingIds.contains(id)) viewModel.unfollowAgent(id)
+                                        else viewModel.followAgent(id)
+                                    }
+                                },
+                                onDeleteClick = if (post.authorId == "user") { { viewModel.deletePost(post.id) } } else null
+                            )
                         }
                     }
                 }
@@ -657,22 +646,20 @@ fun ProfileScreen(
                     )
                 }
                 items(myPosts, key = { "mypost-${it.id}" }) { post ->
-                    Card(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(vertical = 4.dp)
-                            .clickable { 
-                                // Navigate to post or show comments/detail
-                                viewModel.selectPostForComments(post.id)
-                            },
-                        colors = CardDefaults.cardColors(containerColor = DeepGray)
-                    ) {
-                        Row(modifier = Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
-                            Text(post.content, color = PureWhite, modifier = Modifier.weight(1f), maxLines = 2, fontFamily = FontFamily.Monospace)
-                            IconButton(onClick = { viewModel.deletePost(post.id) }) {
-                                Icon(Icons.Filled.Delete, contentDescription = "Delete", tint = AlertRed)
-                            }
-                        }
+                    Box(modifier = Modifier.padding(vertical = 4.dp)) {
+                        PostItem(
+                            post = post,
+                            author = userProfile,
+                            lang = lang,
+                            isLiked = likedPostIds.contains(post.id),
+                            isFollowing = false,
+                            onLikeClick = { viewModel.toggleLike(post.id) },
+                            onCommentClick = { viewModel.selectPostForComments(post.id) },
+                            onMediaClick = { zoomImageUrl = it },
+                            onArchiveToggle = { viewModel.archivePost(post.id, !post.isArchived) },
+                            onFollowToggle = {},
+                            onDeleteClick = { viewModel.deletePost(post.id) }
+                        )
                     }
                 }
             }
@@ -753,6 +740,93 @@ fun ProfileScreen(
                 shape = RoundedCornerShape(0.dp),
                 modifier = Modifier.border(1.dp, PureWhite)
             )
+        }
+
+        // --- Fullscreen Video / Image Zoom Dialog ---
+        if (zoomImageUrl != null) {
+            val isVideoInZoom = zoomImageUrl?.endsWith(".mp4", ignoreCase = true) == true || 
+                                zoomImageUrl?.contains("video", ignoreCase = true) == true ||
+                                zoomImageUrl?.contains("gtv-videos-bucket", ignoreCase = true) == true
+
+            androidx.compose.ui.window.Dialog(
+                onDismissRequest = { zoomImageUrl = null },
+                properties = androidx.compose.ui.window.DialogProperties(usePlatformDefaultWidth = false)
+            ) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(Color.Black.copy(alpha = 0.95f)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .clickable { zoomImageUrl = null }
+                    )
+
+                    if (isVideoInZoom) {
+                        androidx.compose.ui.viewinterop.AndroidView(
+                            factory = { ctx ->
+                                android.widget.VideoView(ctx).apply {
+                                    setVideoURI(android.net.Uri.parse(zoomImageUrl))
+                                    val mc = android.widget.MediaController(ctx)
+                                    mc.setAnchorView(this)
+                                    setMediaController(mc)
+                                    setOnPreparedListener { mp ->
+                                        mp.isLooping = true
+                                        mp.setVolume(1.0f, 1.0f)
+                                        start()
+                                    }
+                                }
+                            },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .aspectRatio(16/9f)
+                                .padding(horizontal = 16.dp, vertical = 24.dp)
+                                .clickable(enabled = false) {},
+                            update = { view ->
+                                if (!view.isPlaying) {
+                                    view.start()
+                                }
+                            }
+                        )
+                    } else {
+                        AsyncImage(
+                            model = zoomImageUrl,
+                            contentDescription = null,
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .padding(16.dp)
+                                .clickable { zoomImageUrl = null },
+                            contentScale = ContentScale.Fit,
+                            error = rememberVectorPainter(Icons.Filled.BrokenImage)
+                        )
+                    }
+
+                    IconButton(
+                        onClick = { zoomImageUrl = null },
+                        modifier = Modifier
+                            .align(Alignment.TopEnd)
+                            .padding(24.dp)
+                    ) {
+                        Icon(Icons.Default.Close, contentDescription = "Close", tint = PureWhite, modifier = Modifier.size(32.dp))
+                    }
+                }
+            }
+        }
+
+        // --- Comments Drawer Bottom-Sheet ---
+        if (selectedPostForComments != null) {
+            val selectedPost = allPosts.find { it.id == selectedPostForComments }
+            if (selectedPost != null) {
+                CommentsBottomSheet(
+                    post = selectedPost,
+                    author = users.find { it.id == selectedPost.authorId },
+                    viewModel = viewModel,
+                    lang = lang,
+                    onDismiss = { viewModel.selectPostForComments(null) }
+                )
+            }
         }
     }
 }

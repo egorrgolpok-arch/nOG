@@ -154,6 +154,16 @@ class SocialViewModel(application: Application) : AndroidViewModel(application) 
     private val _activePostIdForComments = MutableStateFlow<Int?>(null)
     val activePostIdForComments: StateFlow<Int?> = _activePostIdForComments.asStateFlow()
 
+    // --- Persistent Poker Balance ---
+    private val _pokerBalance = MutableStateFlow<Int>(1000)
+    val pokerBalance: StateFlow<Int> = _pokerBalance.asStateFlow()
+
+    fun updatePokerBalance(newBalance: Int) {
+        _pokerBalance.value = newBalance
+        val prefs = getApplication<Application>().getSharedPreferences("nog_prefs", Context.MODE_PRIVATE)
+        prefs.edit().putInt("poker_chips_balance", newBalance).apply()
+    }
+
     val activeCommentsOfSelectedPost = _activePostIdForComments
         .flatMapLatest { id ->
             if (id == null) flowOf(emptyList())
@@ -236,6 +246,10 @@ class SocialViewModel(application: Application) : AndroidViewModel(application) 
         // Load liked posts set
         val savedLiked = prefs.getStringSet("liked_posts", emptySet()) ?: emptySet()
         _likedPostIds.value = savedLiked.mapNotNull { it.toIntOrNull() }.toSet()
+
+        // Load persistent Poker balance
+        val savedPokerBalance = prefs.getInt("poker_chips_balance", 1000)
+        _pokerBalance.value = savedPokerBalance
 
         // Initialize basic database entries
         viewModelScope.launch(Dispatchers.IO) {

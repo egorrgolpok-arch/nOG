@@ -57,8 +57,8 @@ fun CommunityScreen(viewModel: SocialViewModel, innerPadding: PaddingValues) {
     val posts by viewModel.allPosts.collectAsState()
     val communityPosts = posts.filter { post ->
         val author = communityMembers.find { it.id == post.authorId }
-        val isAiCommPost = author?.isVerified == true && author.isAi && post.trustScore in 90..100
-        val isUserCommPost = post.authorId == "user" && post.category == "Community"
+        val isAiCommPost = (author?.isAi == true && post.trustScore >= 75) || post.category == "Community" || post.category == "Сообщество"
+        val isUserCommPost = post.authorId == "user" && (post.category == "Community" || post.category == "Сообщество")
         isAiCommPost || isUserCommPost
     }.sortedByDescending { it.timestamp }
 
@@ -70,6 +70,7 @@ fun CommunityScreen(viewModel: SocialViewModel, innerPadding: PaddingValues) {
     var showTempVerificationDialog by remember { mutableStateOf(false) }
     var showBlackJackGame by remember { mutableStateOf(false) }
     var showChessGame by remember { mutableStateOf(false) }
+    var showPokerGame by remember { mutableStateOf(false) }
     val context = androidx.compose.ui.platform.LocalContext.current
     
     val imagePickerLauncher = rememberLauncherForActivityResult(
@@ -157,6 +158,21 @@ fun CommunityScreen(viewModel: SocialViewModel, innerPadding: PaddingValues) {
                             contentAlignment = Alignment.Center
                         ) {
                             Text("♟", color = AlertGreen, fontSize = 20.sp, fontWeight = FontWeight.Bold)
+                        }
+
+                        Box(
+                            modifier = Modifier
+                                .size(36.dp)
+                                .clip(RoundedCornerShape(4.dp))
+                                .background(PureBlack)
+                                .border(1.dp, PureWhite, RoundedCornerShape(4.dp))
+                                .clickable {
+                                    viewModel.vibrate(25)
+                                    showPokerGame = true
+                                },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text("♦♣", color = PureWhite, fontSize = 12.sp, fontWeight = FontWeight.Bold, fontFamily = FontFamily.Monospace)
                         }
                     }
                 }
@@ -285,7 +301,7 @@ fun CommunityScreen(viewModel: SocialViewModel, innerPadding: PaddingValues) {
                                     Column {
                                         Row(verticalAlignment = Alignment.CenterVertically) {
                                             Text(author?.username ?: "", color = PureWhite, fontWeight = FontWeight.Bold, fontSize = 12.sp)
-                                            if (author?.isVerified == true) {
+                                            if (author?.isVerified == true || author?.isAi == true) {
                                                 Spacer(modifier = Modifier.width(4.dp))
                                                 Icon(
                                                     imageVector = Icons.Filled.CheckCircle,
@@ -466,6 +482,10 @@ fun CommunityScreen(viewModel: SocialViewModel, innerPadding: PaddingValues) {
 
     if (showChessGame) {
         ChessDialog(onDismiss = { showChessGame = false }, lang = lang, viewModel = viewModel)
+    }
+
+    if (showPokerGame) {
+        PokerDialog(onDismiss = { showPokerGame = false }, lang = lang, viewModel = viewModel)
     }
 }
 
@@ -1661,3 +1681,1024 @@ fun AvatarComponent(url: String, modifier: Modifier = Modifier) {
         )
     }
 }
+
+// --- POKER GAME HELPER DATA STRUCTURES ---
+
+data class PokerCard(val suit: String, val rank: String, val value: Int)
+
+enum class PokerHandRank(val score: Int, val ruName: String, val enName: String, val descriptionRu: String, val descriptionEn: String) {
+    ROYAL_FLUSH(9, "Флеш-рояль", "Royal Flush", "A, K, Q, J, 10 одной масти", "A, K, Q, J, 10 of the same suit"),
+    STRAIGHT_FLUSH(8, "Стрит-флеш", "Straight Flush", "5 мастных карт подряд", "5 cards of same suit in sequence"),
+    FOUR_OF_A_KIND(7, "Каре", "Four of a Kind", "4 карты одного номинала", "4 cards of the same rank"),
+    FULL_HOUSE(6, "Фулл-хаус", "Full House", "Тройка + Пара", "Three of a kind + Pair"),
+    FLUSH(5, "Флеш", "Flush", "5 карт одной масти", "Any 5 cards of the same suit"),
+    STRAIGHT(4, "Стрит", "Straight", "5 карт подряд разных мастей", "5 cards in sequence of different suits"),
+    THREE_OF_A_KIND(3, "Тройка", "Three of a Kind", "3 карты одного номинала", "3 cards of the same rank"),
+    TWO_PAIR(2, "Две пары", "Two Pair", "Две разные пары карт", "Two distinct pairs of cards"),
+    PAIR(1, "Пара", "Pair", "Две карты одного номинала", "Two cards of the same rank"),
+    HIGH_CARD(0, "Старшая карта", "High Card", "Старшая карта в руке", "Highest rank card when no other combo is made")
+}
+
+data class PokerHandResult(val rank: PokerHandRank, val values: List<Int>) : Comparable<PokerHandResult> {
+    override fun compareTo(other: PokerHandResult): Int {
+        if (this.rank != other.rank) {
+            return this.rank.score.compareTo(other.rank.score)
+        }
+        for (i in 0 until minOf(this.values.size, other.values.size)) {
+            if (this.values[i] != other.values[i]) {
+                return this.values[i].compareTo(other.values[i])
+            }
+        }
+        return 0
+    }
+}
+
+enum class PokerStage {
+    PRE_FLOP, FLOP, TURN, RIVER, SHOWDOWN
+}
+
+fun createPokerDeck(): List<PokerCard> {
+    val suits = listOf("♠", "♥", "♦", "♣")
+    val ranks = listOf(
+        Pair("2", 2), Pair("3", 3), Pair("4", 4), Pair("5", 5), Pair("6", 6), Pair("7", 7),
+        Pair("8", 8), Pair("9", 9), Pair("10", 10), Pair("J", 11), Pair("Q", 12), Pair("K", 13), Pair("A", 14)
+    )
+    val deck = mutableListOf<PokerCard>()
+    for (suit in suits) {
+        for (rank in ranks) {
+            deck.add(PokerCard(suit, rank.first, rank.second))
+        }
+    }
+    deck.shuffle()
+    return deck
+}
+
+fun getPokerCombinations(cards: List<PokerCard>, k: Int): List<List<PokerCard>> {
+    val result = mutableListOf<List<PokerCard>>()
+    fun helper(start: Int, current: List<PokerCard>) {
+        if (current.size == k) {
+            result.add(current)
+            return
+        }
+        for (i in start until cards.size) {
+            helper(i + 1, current + cards[i])
+        }
+    }
+    helper(0, emptyList())
+    return result
+}
+
+fun evaluate5CardPokerHand(hand: List<PokerCard>): PokerHandResult {
+    if (hand.isEmpty()) {
+        return PokerHandResult(PokerHandRank.HIGH_CARD, emptyList())
+    }
+    val sortedHand = hand.sortedByDescending { it.value }
+    val values = sortedHand.map { it.value }
+    val suits = sortedHand.map { it.suit }
+    
+    val grouped = values.groupBy { it }.mapValues { it.value.size }
+    val sortedGroups = grouped.entries.sortedWith(
+        compareByDescending<Map.Entry<Int, Int>> { it.value }.thenByDescending { it.key }
+    )
+    
+    val isFlush = hand.size >= 5 && suits.distinct().size == 1
+    
+    var isStraight = false
+    var straightHigh = 0
+    val distinctValues = values.distinct()
+    if (distinctValues.size >= 5) {
+        if (distinctValues[0] - distinctValues[4] == 4) {
+            isStraight = true
+            straightHigh = distinctValues[0]
+        } else if (distinctValues.take(5) == listOf(14, 5, 4, 3, 2)) {
+            isStraight = true
+            straightHigh = 5
+        }
+    }
+    
+    if (isFlush && isStraight) {
+        if (straightHigh == 14) {
+            return PokerHandResult(PokerHandRank.ROYAL_FLUSH, listOf(14))
+        }
+        return PokerHandResult(PokerHandRank.STRAIGHT_FLUSH, listOf(straightHigh))
+    }
+    
+    if (sortedGroups.isNotEmpty() && sortedGroups[0].value == 4) {
+        val kicker = if (sortedGroups.size > 1) sortedGroups[1].key else 0
+        return PokerHandResult(PokerHandRank.FOUR_OF_A_KIND, listOf(sortedGroups[0].key, kicker))
+    }
+    
+    if (sortedGroups.size > 1 && sortedGroups[0].value == 3 && sortedGroups[1].value == 2) {
+        return PokerHandResult(PokerHandRank.FULL_HOUSE, listOf(sortedGroups[0].key, sortedGroups[1].key))
+    }
+    
+    if (isFlush) {
+        return PokerHandResult(PokerHandRank.FLUSH, values)
+    }
+    
+    if (isStraight) {
+        return PokerHandResult(PokerHandRank.STRAIGHT, listOf(straightHigh))
+    }
+    
+    if (sortedGroups.isNotEmpty() && sortedGroups[0].value == 3) {
+        val remaining = sortedGroups.drop(1).map { it.key }
+        return PokerHandResult(PokerHandRank.THREE_OF_A_KIND, listOf(sortedGroups[0].key) + remaining)
+    }
+    
+    if (sortedGroups.size > 1 && sortedGroups[0].value == 2 && sortedGroups[1].value == 2) {
+        val kicker = if (sortedGroups.size > 2) sortedGroups[2].key else 0
+        return PokerHandResult(PokerHandRank.TWO_PAIR, listOf(sortedGroups[0].key, sortedGroups[1].key, kicker))
+    }
+    
+    if (sortedGroups.isNotEmpty() && sortedGroups[0].value == 2) {
+        val remaining = sortedGroups.drop(1).map { it.key }
+        return PokerHandResult(PokerHandRank.PAIR, listOf(sortedGroups[0].key) + remaining)
+    }
+    
+    return PokerHandResult(PokerHandRank.HIGH_CARD, values)
+}
+
+fun getBestPokerHand(allCards: List<PokerCard>): PokerHandResult {
+    if (allCards.size < 5) {
+        return evaluate5CardPokerHand(allCards)
+    }
+    val combos = getPokerCombinations(allCards, 5)
+    var bestResult = evaluate5CardPokerHand(combos[0])
+    for (i in 1 until combos.size) {
+        val result = evaluate5CardPokerHand(combos[i])
+        if (result > bestResult) {
+            bestResult = result
+        }
+    }
+    return bestResult
+}
+
+// --- COMPOSE POKER CARD COMPONENT (Monochrome) ---
+
+@Composable
+fun PokerCardView(card: PokerCard, isFaceDown: Boolean, modifier: Modifier = Modifier) {
+    Card(
+        modifier = modifier
+            .width(55.dp)
+            .height(82.dp)
+            .border(1.dp, BorderGray, RoundedCornerShape(4.dp)),
+        colors = CardDefaults.cardColors(containerColor = if (isFaceDown) DeepGray else PureBlack)
+    ) {
+        if (isFaceDown) {
+            Box(
+                modifier = Modifier.fillMaxSize(),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = "NOG",
+                    color = TextGray,
+                    fontSize = 11.sp,
+                    fontFamily = FontFamily.Monospace,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+        } else {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(4.dp),
+                verticalArrangement = Arrangement.SpaceBetween,
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Text(
+                    text = card.rank,
+                    color = PureWhite,
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.Bold,
+                    fontFamily = FontFamily.Monospace,
+                    modifier = Modifier.align(Alignment.Start)
+                )
+                Text(
+                    text = card.suit,
+                    color = PureWhite,
+                    fontSize = 24.sp,
+                    fontWeight = FontWeight.Bold
+                )
+                Text(
+                    text = card.rank,
+                    color = PureWhite,
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.Bold,
+                    fontFamily = FontFamily.Monospace,
+                    modifier = Modifier.align(Alignment.End)
+                )
+            }
+        }
+    }
+}
+
+// --- MAIN POKER GAME DIALOG COMPONENT ---
+
+@OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
+@Composable
+fun PokerDialog(onDismiss: () -> Unit, lang: String, viewModel: SocialViewModel) {
+    val globalPokerBalance by viewModel.pokerBalance.collectAsState()
+    var deckState by remember { mutableStateOf(createPokerDeck()) }
+    val playerCards = remember { mutableStateListOf<PokerCard>() }
+    val botCards = remember { mutableStateListOf<PokerCard>() }
+    val communityCards = remember { mutableStateListOf<PokerCard>() }
+    
+    val initialBalance = remember { viewModel.pokerBalance.value }
+    var playerChips by remember { mutableStateOf(initialBalance) }
+    var botChips by remember { mutableStateOf(1000) }
+    var pot by remember { mutableStateOf(0) }
+
+    LaunchedEffect(playerChips) {
+        viewModel.updatePokerBalance(playerChips)
+    }
+    
+    var currentStage by remember { mutableStateOf(PokerStage.PRE_FLOP) }
+    var activeBet by remember { mutableStateOf(10) }
+    var playerBetInStage by remember { mutableStateOf(10) }
+    var botBetInStage by remember { mutableStateOf(10) }
+    
+    var gameOutcome by remember { mutableStateOf("") } // "", "WIN", "LOSE", "SPLIT", "FOLD_WIN", "FOLD_LOSE"
+    var statusMessage by remember { mutableStateOf("") }
+    
+    var showHints by remember { mutableStateOf(true) }
+    var difficulty by remember { mutableStateOf("MEDIUM") } // "EASY", "MEDIUM", "HARD"
+    var showCheatSheet by remember { mutableStateOf(false) }
+
+    fun getRevealedCommunity(): List<PokerCard> {
+        return when (currentStage) {
+            PokerStage.PRE_FLOP -> emptyList()
+            PokerStage.FLOP -> communityCards.take(3)
+            PokerStage.TURN -> communityCards.take(4)
+            PokerStage.RIVER, PokerStage.SHOWDOWN -> communityCards
+        }
+    }
+
+    fun getBestHand(cards: List<PokerCard>): PokerHandResult {
+        return getBestPokerHand(cards)
+    }
+
+    fun runBotBettingAction() {
+        if (currentStage == PokerStage.SHOWDOWN) return
+        val currentRevealed = getRevealedCommunity()
+        val botCombo = getBestHand(botCards + currentRevealed)
+        val score = botCombo.rank.score
+        
+        var betValue = 0
+        when (difficulty) {
+            "EASY" -> {
+                betValue = 0
+            }
+            "MEDIUM" -> {
+                if (score >= 1) { // Pair or better
+                    if (kotlin.random.Random.nextInt(100) < 55) {
+                        betValue = 10
+                    }
+                }
+            }
+            "HARD" -> {
+                if (score >= 2) { // Two pair or better
+                    betValue = if (score >= 5) 40 else 20
+                } else if (score == 1) { // Pair
+                    if (kotlin.random.Random.nextInt(100) < 45) {
+                        betValue = 10
+                    }
+                } else {
+                    // Bluff 15%
+                    if (kotlin.random.Random.nextInt(100) < 15) {
+                        betValue = 20
+                    }
+                }
+            }
+        }
+        
+        if (betValue > botChips) {
+            betValue = botChips
+        }
+        
+        if (betValue > 0) {
+            botChips -= betValue
+            pot += betValue
+            botBetInStage = betValue
+            activeBet = betValue
+            statusMessage = if (lang == "RU") "Бот ставит $betValue фишек! Колл или фолд?" else "Bot bet $betValue chips! Call or Fold?"
+        } else {
+            botBetInStage = 0
+            activeBet = 0
+            statusMessage = if (lang == "RU") "Бот чекает. Ваша очередь." else "Bot checks. Your action."
+        }
+    }
+
+    fun startNewHand() {
+        viewModel.vibrate(45)
+        deckState = createPokerDeck()
+        playerCards.clear()
+        botCards.clear()
+        communityCards.clear()
+        
+        playerCards.add(deckState[0])
+        playerCards.add(deckState[1])
+        botCards.add(deckState[2])
+        botCards.add(deckState[3])
+        
+        communityCards.add(deckState[4])
+        communityCards.add(deckState[5])
+        communityCards.add(deckState[6])
+        communityCards.add(deckState[7])
+        communityCards.add(deckState[8])
+        
+        deckState = deckState.drop(9)
+        currentStage = PokerStage.PRE_FLOP
+        
+        // Ante of 10
+        val pAnte = minOf(playerChips, 10)
+        val bAnte = minOf(botChips, 10)
+        
+        playerChips -= pAnte
+        botChips -= bAnte
+        pot = pAnte + bAnte
+        
+        playerBetInStage = pAnte
+        botBetInStage = bAnte
+        activeBet = maxOf(pAnte, bAnte)
+        
+        gameOutcome = ""
+        statusMessage = if (lang == "RU") "Сдан префлоп. Пот: $pot. Бот сделал анте." else "Pre-flop dealt. Pot: $pot. Ante collected."
+        
+        // Let bot decide
+        runBotBettingAction()
+    }
+
+    LaunchedEffect(Unit) {
+        startNewHand()
+    }
+
+    fun runShowdown() {
+        val playerHand = getBestHand(playerCards + communityCards)
+        val botHand = getBestHand(botCards + communityCards)
+        val comp = playerHand.compareTo(botHand)
+        
+        if (comp > 0) {
+            viewModel.vibrate(120)
+            gameOutcome = "WIN"
+            playerChips += pot
+            statusMessage = if (lang == "RU") {
+                "Вы выиграли! ${playerHand.rank.ruName}. Бот: ${botHand.rank.ruName}."
+            } else {
+                "You win! ${playerHand.rank.enName}. Bot: ${botHand.rank.enName}."
+            }
+        } else if (comp < 0) {
+            viewModel.vibrate(60)
+            gameOutcome = "LOSE"
+            botChips += pot
+            statusMessage = if (lang == "RU") {
+                "Вы проиграли. Ваша комбо: ${playerHand.rank.ruName}. Бот: ${botHand.rank.ruName}."
+            } else {
+                "You lost. Your combo: ${playerHand.rank.enName}. Bot: ${botHand.rank.enName}."
+            }
+        } else {
+            viewModel.vibrate(50)
+            gameOutcome = "SPLIT"
+            val half = pot / 2
+            playerChips += half
+            botChips += (pot - half)
+            statusMessage = if (lang == "RU") {
+                "Ничья! Раздел банка. Обе руки: ${playerHand.rank.ruName}."
+            } else {
+                "Split pot! Both hands are equal: ${playerHand.rank.enName}."
+            }
+        }
+        pot = 0
+        currentStage = PokerStage.SHOWDOWN
+    }
+
+    fun advanceStage(next: PokerStage) {
+        playerBetInStage = 0
+        botBetInStage = 0
+        activeBet = 0
+        currentStage = next
+        runBotBettingAction()
+    }
+
+    fun handlePlayerCall() {
+        viewModel.vibrate(30)
+        val callAmount = activeBet - playerBetInStage
+        if (callAmount > playerChips) {
+            val allIn = playerChips
+            playerChips = 0
+            pot += allIn
+            playerBetInStage += allIn
+        } else {
+            playerChips -= callAmount
+            pot += callAmount
+            playerBetInStage = activeBet
+        }
+        
+        when (currentStage) {
+            PokerStage.PRE_FLOP -> advanceStage(PokerStage.FLOP)
+            PokerStage.FLOP -> advanceStage(PokerStage.TURN)
+            PokerStage.TURN -> advanceStage(PokerStage.RIVER)
+            PokerStage.RIVER -> runShowdown()
+            else -> {}
+        }
+    }
+
+    fun handlePlayerRaise(addAmt: Int) {
+        val callAmt = activeBet - playerBetInStage
+        val totalRaiseCost = callAmt + addAmt
+        if (totalRaiseCost > playerChips) {
+            val remaining = playerChips
+            playerChips = 0
+            pot += remaining
+            playerBetInStage += remaining
+        } else {
+            playerChips -= totalRaiseCost
+            pot += totalRaiseCost
+            playerBetInStage = activeBet + addAmt
+        }
+        
+        viewModel.vibrate(40)
+        
+        val botCombo = getBestHand(botCards + getRevealedCommunity())
+        val score = botCombo.rank.score
+        
+        var botWillCall = false
+        when (difficulty) {
+            "EASY" -> {
+                botWillCall = (score >= 1 && addAmt < 50) || kotlin.random.Random.nextInt(100) < 20
+            }
+            "MEDIUM" -> {
+                botWillCall = score >= 1 || (score == 0 && kotlin.random.Random.nextInt(100) < 35)
+            }
+            "HARD" -> {
+                botWillCall = score >= 1 || kotlin.random.Random.nextInt(100) < 65
+            }
+        }
+        
+        val callRequired = (playerBetInStage - botBetInStage)
+        if (callRequired > botChips) {
+            val allIn = botChips
+            botChips = 0
+            pot += allIn
+            botBetInStage += allIn
+            statusMessage = if (lang == "RU") "Бот коллирует олл-ин!" else "Bot calls all-in!"
+            
+            when (currentStage) {
+                PokerStage.PRE_FLOP -> advanceStage(PokerStage.FLOP)
+                PokerStage.FLOP -> advanceStage(PokerStage.TURN)
+                PokerStage.TURN -> advanceStage(PokerStage.RIVER)
+                PokerStage.RIVER -> runShowdown()
+                else -> {}
+            }
+        } else if (botWillCall) {
+            botChips -= callRequired
+            pot += callRequired
+            botBetInStage = playerBetInStage
+            activeBet = playerBetInStage
+            statusMessage = if (lang == "RU") "Бот коллирует ваше повышение. Переход к следующей улице." else "Bot calls your raise. Moving forward."
+            
+            when (currentStage) {
+                PokerStage.PRE_FLOP -> advanceStage(PokerStage.FLOP)
+                PokerStage.FLOP -> advanceStage(PokerStage.TURN)
+                PokerStage.TURN -> advanceStage(PokerStage.RIVER)
+                PokerStage.RIVER -> runShowdown()
+                else -> {}
+            }
+        } else {
+            gameOutcome = "FOLD_WIN"
+            playerChips += pot
+            pot = 0
+            currentStage = PokerStage.SHOWDOWN
+            statusMessage = if (lang == "RU") "Бот сбросил карты! Вы забрали банк!" else "Bot folds! You swept the pot."
+        }
+    }
+
+    fun handlePlayerFold() {
+        viewModel.vibrate(20)
+        gameOutcome = "FOLD_LOSE"
+        botChips += pot
+        pot = 0
+        currentStage = PokerStage.SHOWDOWN
+        statusMessage = if (lang == "RU") "Вы сбросили карты. Банк достается боту." else "You folded. Bot sweeps the pot."
+    }
+
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties = DialogProperties(usePlatformDefaultWidth = false)
+    ) {
+        Surface(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(PureBlack),
+            color = PureBlack
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .systemBarsPadding()
+                    .padding(16.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.SpaceBetween
+            ) {
+                Column {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = 10.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column {
+                            Text(
+                                text = if (lang == "RU") "БИНАРНЫЙ ПОКЕР" else "BINARY POKER",
+                                color = PureWhite,
+                                fontFamily = FontFamily.Monospace,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 18.sp
+                            )
+                            Text(
+                                text = if (lang == "RU") "Черно-белый Техасский Холдем" else "Monochrome Texas Hold'em node",
+                                color = TextGray,
+                                fontSize = 10.sp,
+                                fontFamily = FontFamily.Monospace
+                            )
+                            Text(
+                                text = if (lang == "RU") "ОБЩИЙ БАЛАНС: $globalPokerBalance 🪙" else "TOTAL BALANCE: $globalPokerBalance 🪙",
+                                color = AlertYellow,
+                                fontSize = 11.sp,
+                                fontFamily = FontFamily.Monospace,
+                                fontWeight = FontWeight.Bold,
+                                modifier = Modifier.padding(top = 4.dp)
+                            )
+                        }
+                        IconButton(
+                            onClick = {
+                                viewModel.vibrate(30)
+                                onDismiss()
+                            },
+                            modifier = Modifier
+                                .size(36.dp)
+                                .border(1.dp, BorderGray, RoundedCornerShape(4.dp))
+                        ) {
+                            Icon(imageVector = Icons.Filled.Close, contentDescription = "Close", tint = PureWhite, modifier = Modifier.size(18.dp))
+                        }
+                    }
+                    HorizontalDivider(color = BorderGray, modifier = Modifier.padding(vertical = 12.dp))
+                }
+
+                Column(
+                    modifier = Modifier
+                        .weight(1f)
+                        .verticalScroll(rememberScrollState()),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .border(1.dp, BorderGray, RoundedCornerShape(4.dp))
+                            .background(DeepGray)
+                            .padding(8.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column {
+                            Text(
+                                text = if (lang == "RU") "СЛОЖНОСТЬ AI:" else "AI DIFFICULTY:",
+                                color = TextGray,
+                                fontSize = 8.sp,
+                                fontFamily = FontFamily.Monospace,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                                listOf("EASY", "MEDIUM", "HARD").forEach { level ->
+                                    val isSelected = difficulty == level
+                                    val finalLabel = when (level) {
+                                        "EASY" -> if (lang == "RU") "ЛЕГКО" else "EASY"
+                                        "MEDIUM" -> if (lang == "RU") "СРЕДНЕ" else "MEDIUM"
+                                        else -> if (lang == "RU") "СЛОЖНО" else "HARD"
+                                    }
+                                    Box(
+                                        modifier = Modifier
+                                            .clip(RoundedCornerShape(2.dp))
+                                            .background(if (isSelected) PureWhite else PureBlack)
+                                            .border(1.dp, if (isSelected) PureWhite else BorderGray, RoundedCornerShape(2.dp))
+                                            .clickable {
+                                                viewModel.vibrate(25)
+                                                difficulty = level
+                                            }
+                                            .padding(horizontal = 6.dp, vertical = 2.dp)
+                                    ) {
+                                        Text(
+                                            text = finalLabel,
+                                            color = if (isSelected) PureBlack else TextGray,
+                                            fontSize = 8.sp,
+                                            fontFamily = FontFamily.Monospace,
+                                            fontWeight = FontWeight.Bold
+                                        )
+                                    }
+                                }
+                            }
+                        }
+
+                        Column(horizontalAlignment = Alignment.End) {
+                            Text(
+                                text = if (lang == "RU") "ПОДСКАЗКИ:" else "HINTS STATUS:",
+                                color = TextGray,
+                                fontSize = 8.sp,
+                                fontFamily = FontFamily.Monospace,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Box(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(2.dp))
+                                    .background(if (showHints) PureWhite else PureBlack)
+                                    .border(1.dp, if (showHints) PureWhite else BorderGray, RoundedCornerShape(2.dp))
+                                    .clickable {
+                                        viewModel.vibrate(25)
+                                        showHints = !showHints
+                                    }
+                                    .padding(horizontal = 8.dp, vertical = 2.dp)
+                            ) {
+                                Text(
+                                    text = if (showHints) (if (lang == "RU") "ВКЛ" else "ON") else (if (lang == "RU") "ВЫКЛ" else "OFF"),
+                                    color = if (showHints) PureBlack else TextGray,
+                                    fontSize = 8.sp,
+                                    fontFamily = FontFamily.Monospace,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = if (lang == "RU") "🤖 ОППОНЕНТ (Бот): $botChips фишек" else "🤖 BOT NODE: $botChips chips",
+                            color = TextGray,
+                            fontSize = 11.sp,
+                            fontFamily = FontFamily.Monospace,
+                            fontWeight = FontWeight.Bold
+                        )
+                        if (botBetInStage > 0) {
+                            Text(
+                                text = "BET: $botBetInStage",
+                                color = PureWhite,
+                                fontSize = 10.sp,
+                                fontFamily = FontFamily.Monospace,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(6.dp))
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        val isRevealed = (currentStage == PokerStage.SHOWDOWN)
+                        if (botCards.size >= 2) {
+                            PokerCardView(card = botCards[0], isFaceDown = !isRevealed)
+                            PokerCardView(card = botCards[1], isFaceDown = !isRevealed)
+                        } else {
+                            Text("No cards dealt yet...", color = TextGray, fontSize = 11.sp)
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(20.dp))
+
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .border(1.dp, BorderGray, RoundedCornerShape(4.dp))
+                            .background(DeepGray)
+                            .padding(12.dp)
+                    ) {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Text(
+                                    text = if (lang == "RU") "ОБЩИЕ КАРТЫ СТОЛА" else "COMMUNITY CARDS",
+                                    color = TextGray,
+                                    fontSize = 9.sp,
+                                    fontFamily = FontFamily.Monospace,
+                                    fontWeight = FontWeight.Bold
+                                )
+                                Text(
+                                    text = "💰 POT: $pot",
+                                    color = PureWhite,
+                                    fontSize = 11.sp,
+                                    fontFamily = FontFamily.Monospace,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+
+                            Spacer(modifier = Modifier.height(8.dp))
+
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                val currentRevealedCount = when (currentStage) {
+                                    PokerStage.PRE_FLOP -> 0
+                                    PokerStage.FLOP -> 3
+                                    PokerStage.TURN -> 4
+                                    PokerStage.RIVER, PokerStage.SHOWDOWN -> 5
+                                }
+                                for (i in 0 until 5) {
+                                    if (communityCards.size > i) {
+                                        val isCardShown = i < currentRevealedCount
+                                        PokerCardView(
+                                            card = communityCards[i],
+                                            isFaceDown = !isCardShown,
+                                            modifier = Modifier.weight(1f).padding(horizontal = 2.dp)
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(20.dp))
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = if (lang == "RU") "🧑 ВЫ (Игрок): $playerChips фишек" else "🧑 PLAYER NODE: $playerChips chips",
+                            color = PureWhite,
+                            fontSize = 11.sp,
+                            fontFamily = FontFamily.Monospace,
+                            fontWeight = FontWeight.Bold
+                        )
+                        if (playerBetInStage > 0) {
+                            Text(
+                                text = "BET: $playerBetInStage",
+                                color = PureWhite,
+                                fontSize = 10.sp,
+                                fontFamily = FontFamily.Monospace,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(6.dp))
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        if (playerCards.size >= 2) {
+                            PokerCardView(card = playerCards[0], isFaceDown = false)
+                            PokerCardView(card = playerCards[1], isFaceDown = false)
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    if (showHints) {
+                        val playerCurrentCombo = getBestHand(playerCards + getRevealedCommunity())
+                        val rankLabel = if (lang == "RU") playerCurrentCombo.rank.ruName else playerCurrentCombo.rank.enName
+                        
+                        val stratRecommendation = when {
+                            playerCurrentCombo.rank.score >= 5 -> if (lang == "RU") "Монстр-рука! Агрессивно ререйзите." else "Monster hand! Go for hefty raises."
+                            playerCurrentCombo.rank.score >= 2 -> if (lang == "RU") "Хорошая рука. Поддерживайте ставку или повышайте." else "Strong holding. Call or raise."
+                            playerCurrentCombo.rank.score == 1 -> if (lang == "RU") "Пара в руках. Отлично для чека или продления ставки." else "One pair. Ideal for checking or calling."
+                            else -> if (lang == "RU") "Старшая карта. Чек, фолд при крупной ставке." else "High card. Check or fold to heavy betting."
+                        }
+
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .border(1.dp, BorderGray, RoundedCornerShape(4.dp))
+                                .background(DeepGray)
+                                .padding(10.dp)
+                        ) {
+                            Column {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Icon(
+                                        imageVector = Icons.Filled.CheckCircle,
+                                        contentDescription = "Tips Icon",
+                                        tint = PureWhite,
+                                        modifier = Modifier.size(12.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text(
+                                        text = (if (lang == "RU") "АНАЛИЗАТОР КОМБИНАЦИЙ" else "COMBINATION ASSISTANT").uppercase(),
+                                        color = PureWhite,
+                                        fontFamily = FontFamily.Monospace,
+                                        fontSize = 8.sp,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                }
+                                Spacer(modifier = Modifier.height(4.dp))
+                                Text(
+                                    text = "${if (lang == "RU") "Текущая рука" else "Best hand"}: $rankLabel",
+                                    color = PureWhite,
+                                    fontFamily = FontFamily.Monospace,
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                                Text(
+                                    text = "${if (lang == "RU") "Решение" else "Strategy tip"}: $stratRecommendation",
+                                    color = TextGray,
+                                    fontFamily = FontFamily.Monospace,
+                                    fontSize = 9.sp,
+                                    lineHeight = 12.sp
+                                )
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(16.dp))
+                    }
+
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .border(1.dp, PureWhite, RoundedCornerShape(2.dp))
+                            .background(DeepGray)
+                            .padding(10.dp)
+                    ) {
+                        Text(
+                            text = statusMessage.uppercase(),
+                            color = PureWhite,
+                            fontFamily = FontFamily.Monospace,
+                            fontSize = 9.sp,
+                            fontWeight = FontWeight.Bold,
+                            textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .border(1.dp, BorderGray, RoundedCornerShape(4.dp))
+                            .clickable { showCheatSheet = !showCheatSheet }
+                            .padding(10.dp)
+                    ) {
+                        Column {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = if (lang == "RU") "СПРАВОЧНИК КОМБИНАЦИЙ" else "POKER COMBINATIONS INDEX",
+                                    color = PureWhite,
+                                    fontSize = 9.sp,
+                                    fontFamily = FontFamily.Monospace,
+                                    fontWeight = FontWeight.Bold
+                                )
+                                Text(
+                                    text = if (showCheatSheet) "▲" else "▼",
+                                    color = PureWhite,
+                                    fontSize = 8.sp
+                                )
+                            }
+                            if (showCheatSheet) {
+                                Spacer(modifier = Modifier.height(8.dp))
+                                PokerHandRank.values().forEach { pokerRank ->
+                                    Row(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(vertical = 2.dp),
+                                        horizontalArrangement = Arrangement.SpaceBetween
+                                    ) {
+                                        Text(
+                                            text = "${pokerRank.score + 1}. " + if (lang == "RU") pokerRank.ruName else pokerRank.enName,
+                                            color = PureWhite,
+                                            fontSize = 9.sp,
+                                            fontFamily = FontFamily.Monospace,
+                                            fontWeight = FontWeight.Bold
+                                        )
+                                        Text(
+                                            text = if (lang == "RU") pokerRank.descriptionRu else pokerRank.descriptionEn,
+                                            color = TextGray,
+                                            fontSize = 8.sp,
+                                            fontFamily = FontFamily.Monospace
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(24.dp))
+                }
+
+                Column(modifier = Modifier.fillMaxWidth().padding(bottom = 32.dp)) {
+                    HorizontalDivider(color = BorderGray, modifier = Modifier.padding(bottom = 12.dp))
+                    
+                    if (currentStage == PokerStage.SHOWDOWN) {
+                        Button(
+                            onClick = {
+                                viewModel.vibrate(50)
+                                if (playerChips <= 0 || botChips <= 0) {
+                                    playerChips = 1000
+                                    botChips = 1000
+                                }
+                                startNewHand()
+                            },
+                            colors = ButtonDefaults.buttonColors(containerColor = PureWhite, contentColor = PureBlack),
+                            shape = RoundedCornerShape(4.dp),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(48.dp)
+                                .navigationBarsPadding()
+                                .padding(bottom = 12.dp)
+                        ) {
+                            Text(
+                                text = if (playerChips <= 0 || botChips <= 0) {
+                                    if (lang == "RU") "БАНКРОТ! НАЧАТЬ СНАЧАЛА" else "BANKRUPT! INITIALIZE STACK"
+                                } else {
+                                    if (lang == "RU") "СЫГРАТЬ СЛЕДУЮЩУЮ РАЗДАЧУ" else "DEAL NEXT HAND"
+                                },
+                                fontFamily = FontFamily.Monospace,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 11.sp
+                            )
+                        }
+                    } else {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .navigationBarsPadding()
+                                .padding(bottom = 12.dp),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Button(
+                                onClick = { handlePlayerFold() },
+                                colors = ButtonDefaults.buttonColors(containerColor = DeepGray, contentColor = AlertRed),
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .height(44.dp)
+                                    .border(1.dp, AlertRed, RoundedCornerShape(4.dp)),
+                                shape = RoundedCornerShape(4.dp)
+                            ) {
+                                Text(
+                                    text = if (lang == "RU") "ФОЛД" else "FOLD",
+                                    fontFamily = FontFamily.Monospace,
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 11.sp
+                                )
+                            }
+
+                            val matchingBet = activeBet - playerBetInStage
+                            val actionName = if (matchingBet <= 0) {
+                                if (lang == "RU") "ЧЕК" else "CHECK"
+                            } else {
+                                if (lang == "RU") "КОЛЛ $matchingBet" else "CALL $matchingBet"
+                            }
+                            Button(
+                                onClick = { handlePlayerCall() },
+                                colors = ButtonDefaults.buttonColors(containerColor = PureWhite, contentColor = PureBlack),
+                                modifier = Modifier
+                                    .weight(1.5f)
+                                    .height(44.dp),
+                                shape = RoundedCornerShape(4.dp)
+                            ) {
+                                Text(
+                                    text = actionName,
+                                    fontFamily = FontFamily.Monospace,
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 11.sp
+                                )
+                            }
+
+                            Button(
+                                onClick = { handlePlayerRaise(20) },
+                                colors = ButtonDefaults.buttonColors(containerColor = DeepGray, contentColor = PureWhite),
+                                modifier = Modifier
+                                    .weight(1.2f)
+                                    .height(44.dp)
+                                    .border(1.dp, BorderGray, RoundedCornerShape(4.dp)),
+                                shape = RoundedCornerShape(4.dp)
+                            ) {
+                                Text(
+                                    text = if (lang == "RU") "ПОВЫСИТЬ" else "RAISE +20",
+                                    fontFamily = FontFamily.Monospace,
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 10.sp
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
