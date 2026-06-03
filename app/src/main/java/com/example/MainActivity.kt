@@ -45,6 +45,12 @@ import com.example.ui.screens.ProfileScreen
 import com.example.ui.screens.AnalyticsScreen
 import com.example.ui.theme.*
 
+import androidx.work.PeriodicWorkRequestBuilder
+import androidx.work.WorkManager
+import androidx.work.ExistingPeriodicWorkPolicy
+import java.util.concurrent.TimeUnit
+import com.example.workers.TamagotchiWorker
+
 class MainActivity : ComponentActivity() {
     private val viewModel: SocialViewModel by viewModels()
 
@@ -61,6 +67,14 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         
+        // Schedule Tamagotchi background check
+        val workRequest = PeriodicWorkRequestBuilder<TamagotchiWorker>(15, TimeUnit.MINUTES).build()
+        WorkManager.getInstance(applicationContext).enqueueUniquePeriodicWork(
+            "TamagotchiWorker",
+            ExistingPeriodicWorkPolicy.KEEP,
+            workRequest
+        )
+
         // Configure Coil to support GIFs
         val imageLoader = ImageLoader.Builder(this)
             .components {

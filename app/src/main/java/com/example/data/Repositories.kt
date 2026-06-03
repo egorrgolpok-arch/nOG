@@ -35,7 +35,7 @@ class SocialRepository(private val context: Context, private val scope: Coroutin
             AppDatabase::class.java,
             "nog_social_database"
         )
-        .fallbackToDestructiveMigration()
+        .fallbackToDestructiveMigration(dropAllTables = true)
         .build()
     }
 
@@ -248,13 +248,13 @@ class SocialRepository(private val context: Context, private val scope: Coroutin
     suspend fun applyTemporaryVerification() = withContext(Dispatchers.IO) {
         val user = dao.getUserById("user")
         if (user != null) {
-            // 2 hours from now
-            val expiry = System.currentTimeMillis() + (2 * 60 * 60 * 1000L)
+            // 30 minutes from now
+            val expiry = System.currentTimeMillis() + (30 * 60 * 1000L)
             dao.insertUser(user.copy(isVerified = true, verificationExpiry = expiry))
             
             insertNotification(
                 title = if (getSelectedLanguage() == "RU") "Верификация получена! ✅" else "Verification obtained! ✅",
-                message = if (getSelectedLanguage() == "RU") "Вам выдана галочка на 2 часа. Охваты повышены!" else "You have been granted a blue check for 2 hours. Reach increased!",
+                message = if (getSelectedLanguage() == "RU") "Вам выдана галочка на 30 минут. Охваты повышены!" else "You have been granted a blue check for 30 minutes. Reach increased!",
                 type = "SYSTEM"
             )
         }
@@ -1554,8 +1554,8 @@ class SocialRepository(private val context: Context, private val scope: Coroutin
             if (targetBots.isEmpty()) return@launch
 
             // If user replied to AI, let THAT AI respond back if possible
-            val bot = if (isUserReplyingToAi && parentComment != null) {
-                targetBots.find { it.id == parentComment.authorId } ?: targetBots.random()
+            val bot = if (isUserReplyingToAi) {
+                targetBots.find { it.id == parentComment?.authorId } ?: targetBots.random()
             } else {
                 targetBots.random()
             }

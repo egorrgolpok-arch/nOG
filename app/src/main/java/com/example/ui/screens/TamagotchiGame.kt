@@ -227,7 +227,7 @@ fun TamagotchiDialog(
         if (state.hasPet && !state.isDead) {
             val deltaMs = now - state.lastTickTime
             if (deltaMs > 2000L) { // If spent time offline, update now!
-                state = updateTamaStats(state, deltaMs, isAppActive = true)
+                state = updateTamaStats(state, deltaMs, isAppActive = false)
                 TamagotchiManager.saveState(context, state)
             }
         } else {
@@ -650,7 +650,13 @@ fun TamagotchiDialog(
                                     modifier = Modifier
                                         .size(60.dp)
                                         .clip(RoundedCornerShape(8.dp))
-                                        .border(2.dp, PureWhite, RoundedCornerShape(8.dp)),
+                                        .border(2.dp, PureWhite, RoundedCornerShape(8.dp))
+                                        .clickable {
+                                            viewModel.vibrate(30)
+                                            state = state.copy(mood = (state.mood + 5f).coerceAtMost(100f))
+                                            notificationMessage = if (isRu) "Вы погладили питомца! Ему это нравится 💕" else "You pet the Tamagotchi! It purrs 💕"
+                                            TamagotchiManager.saveState(context, state)
+                                        },
                                     contentScale = ContentScale.Crop,
                                     error = rememberVectorPainter(Icons.Filled.Pets),
                                     placeholder = rememberVectorPainter(Icons.Filled.Pets)
@@ -670,6 +676,13 @@ fun TamagotchiDialog(
                                         fontSize = 12.sp,
                                         fontFamily = FontFamily.Monospace
                                     )
+                                    val daysAge = state.ageHours / 24f
+                                    Text(
+                                        text = if (isRu) "Возраст: ${String.format("%.1f", daysAge)} дн." else "Age: ${String.format("%.1f", daysAge)} days",
+                                        color = PureWhite,
+                                        fontSize = 12.sp,
+                                        fontFamily = FontFamily.Monospace
+                                    )
                                 }
                             }
                             
@@ -686,26 +699,6 @@ fun TamagotchiDialog(
                             )
                             Spacer(modifier = Modifier.height(16.dp))
 
-
-                            // Interactive Wash: Add a gesture or button that requires repeated action
-                            Button(
-                                onClick = {
-                                    viewModel.vibrate(50)
-                                    washTaps++
-                                    if (washTaps >= 5) {
-                                        washTaps = 0
-                                        state = state.copy(hygiene = (state.hygiene + 20f).coerceAtMost(100f))
-                                        notificationMessage = if (isRu) "Шшш... Питомец вымыт до блеска!" else "Sploosh... Hygiene restored."
-                                    } else {
-                                        notificationMessage = if (isRu) "Еще чуть-чуть... (${washTaps}/5)" else "Almost clean... (${washTaps}/5)"
-                                    }
-                                    TamagotchiManager.saveState(context, state)
-                                },
-                                modifier = Modifier.fillMaxWidth(),
-                                colors = ButtonDefaults.buttonColors(containerColor = CardGray, contentColor = PureWhite)
-                            ) {
-                                Text(if (isRu) "МЫТЬ (НАЖИМАЙ)" else "WASH (TAP)")
-                            }
 
                             // Dynamic Visual Cartoon block depicting current pet mood and physical state
                             Box(
@@ -907,7 +900,8 @@ fun TamagotchiDialog(
                                 val feedCooldownText = if (!feedAllowed) {
                                     val rem = cooldownFeedMs - elapsedFeed
                                     val mins = rem / (1000L * 60)
-                                    " (${mins}m)"
+                                    val secs = (rem / 1000L) % 60
+                                    " (${mins}m ${secs}s)"
                                 } else ""
 
                                 Button(
@@ -952,13 +946,14 @@ fun TamagotchiDialog(
                                     shape = RoundedCornerShape(4.dp),
                                     modifier = Modifier
                                         .weight(1f)
-                                        .testTag("feed_pet_button")
+                                        .testTag("feed_pet_button"),
+                                    contentPadding = PaddingValues(horizontal = 2.dp)
                                 ) {
                                     Text(
-                                        text = if (isRu) "КОРМИТЬ$feedCooldownText" else "FEED$feedCooldownText",
+                                        text = if (isRu) "ЕДА$feedCooldownText" else "FEED$feedCooldownText",
                                         fontFamily = FontFamily.Monospace,
                                         fontWeight = FontWeight.Bold,
-                                        fontSize = 11.sp
+                                        fontSize = 10.sp
                                     )
                                 }
 
@@ -981,13 +976,14 @@ fun TamagotchiDialog(
                                     shape = RoundedCornerShape(4.dp),
                                     modifier = Modifier
                                         .weight(1f)
-                                        .testTag("wash_pet_button")
+                                        .testTag("wash_pet_button"),
+                                    contentPadding = PaddingValues(horizontal = 2.dp)
                                 ) {
                                     Text(
                                         text = if (isRu) "МЫТЬ 🧼" else "WASH 🧼",
                                         fontFamily = FontFamily.Monospace,
                                         fontWeight = FontWeight.Bold,
-                                        fontSize = 11.sp
+                                        fontSize = 10.sp
                                     )
                                 }
                             }

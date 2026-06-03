@@ -78,9 +78,28 @@ fun FeedScreen(
     var selectedTab by remember { mutableStateOf(0) }
 
     // Log scroll activity for analytics
+    val context = LocalContext.current
     LaunchedEffect(lazyListState.isScrollInProgress) {
         if (lazyListState.isScrollInProgress) {
             viewModel.recordScrollTelemetry()
+            while (true) {
+                kotlinx.coroutines.delay(1000)
+                val state = com.example.ui.screens.TamagotchiManager.loadState(context)
+                if (state.hasPet && !state.isDead) {
+                    val tickNow = System.currentTimeMillis()
+                    val deltaMs = tickNow - state.lastTickTime
+                    var newState = com.example.ui.screens.updateTamaStats(state, deltaMs, isAppActive = true)
+                    // Additional specific scroll boosting
+                    newState = newState.copy(
+                        mood = (newState.mood + 0.5f).coerceAtMost(100f) // extra joy during scroll
+                    )
+                    if (newState.isSick) {
+                        val clinicalHours = 0.05f 
+                        newState = newState.copy(sickTimeSpentToday = (newState.sickTimeSpentToday + clinicalHours).coerceAtMost(newState.sickHoursRequiredEachDay))
+                    }
+                    com.example.ui.screens.TamagotchiManager.saveState(context, newState)
+                }
+            }
         }
     }
 

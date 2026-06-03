@@ -175,6 +175,7 @@ class SocialViewModel(application: Application) : AndroidViewModel(application) 
         prefs.edit().putInt("poker_chips_balance", newBalance).apply()
     }
 
+    @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
     val activeCommentsOfSelectedPost = _activePostIdForComments
         .flatMapLatest { id ->
             if (id == null) flowOf(emptyList())
@@ -459,7 +460,7 @@ class SocialViewModel(application: Application) : AndroidViewModel(application) 
             val current = currentUser.value ?: return@launch
             val updated = current.copy(
                 isVerified = true,
-                verificationExpiry = System.currentTimeMillis() + 1 * 60 * 60 * 1000
+                verificationExpiry = System.currentTimeMillis() + 30 * 60 * 1000L
             )
             repository.insertUser(updated)
             repository.userProfileUpdated() // Update flows
