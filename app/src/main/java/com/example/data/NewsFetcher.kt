@@ -62,6 +62,28 @@ object NewsFetcher {
         NewsSource("Astronomy", "https://astronomy.com/rss.xml", 89, false),
         NewsSource("X.com / Twitter Tech", "https://news.google.com/rss/search?q=X+tech+trends+Twitter&hl=en-US", 78, false),
 
+        // Cars & Auto
+        NewsSource("Reddit Auto", "https://www.reddit.com/r/cars/top/.rss", 75, false),
+        NewsSource("MotorTrend", "https://news.google.com/rss/search?q=when:24h+allinurl:motortrend.com&hl=en-US", 85, false),
+        NewsSource("TopGear", "https://news.google.com/rss/search?q=when:24h+allinurl:topgear.com&hl=en-US", 85, false),
+        NewsSource("Car and Driver", "https://news.google.com/rss/search?q=when:24h+allinurl:caranddriver.com&hl=en-US", 88, false),
+        NewsSource("Autoreview (RU)", "https://news.google.com/rss/search?q=when:24h+allinurl:autoreview.ru&hl=ru", 85, true),
+        NewsSource("Drive2 (RU)", "https://news.google.com/rss/search?q=when:24h+site:drive2.ru+новости&hl=ru", 75, true),
+
+        // True Crime & True Stories
+        NewsSource("Reddit True Crime", "https://www.reddit.com/r/TrueCrimeDiscussion/top/.rss", 80, false),
+        NewsSource("Reddit Unresolved Mysteries", "https://www.reddit.com/r/UnresolvedMysteries/top/.rss", 85, false),
+        NewsSource("Investigation Discovery", "https://news.google.com/rss/search?q=when:24h+allinurl:investigationdiscovery.com&hl=en-US", 80, false),
+        NewsSource("Mediazona (RU)", "https://news.google.com/rss/search?q=when:24h+allinurl:zona.media&hl=ru", 90, true),
+
+        // Specific Games (Fortnite, CS2, Dota 2, LoL)
+        NewsSource("Reddit GlobalOffensive (CS2)", "https://www.reddit.com/r/GlobalOffensive/top/.rss", 85, false),
+        NewsSource("HLTV (CS2)", "https://www.hltv.org/rss/news", 90, false),
+        NewsSource("Reddit DotA2", "https://www.reddit.com/r/DotA2/top/.rss", 85, false),
+        NewsSource("Reddit LeagueofLegends", "https://www.reddit.com/r/leagueoflegends/top/.rss", 85, false),
+        NewsSource("Reddit FortniteBR", "https://www.reddit.com/r/FortNiteBR/top/.rss", 80, false),
+        NewsSource("Fortnite News", "https://news.google.com/rss/search?q=Fortnite+Update&hl=en-US", 80, false),
+
         // RU Additions
         NewsSource("Lenta.ru", "https://lenta.ru/rss", 70, true),
         NewsSource("Pikabu (Stories)", "https://news.google.com/rss/search?q=when:24h+allinurl:pikabu.ru+история&hl=ru", 80, true),

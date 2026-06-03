@@ -287,8 +287,8 @@ class SocialViewModel(application: Application) : AndroidViewModel(application) 
         // Start autonomous Life Simulator loop ticking at a sustainable pace
         viewModelScope.launch {
             while (true) {
-                // Slower tick (2.5s) to satisfy user requested high frequency
-                delay(2500) 
+                // High frequency tick for rapid bot posting
+                delay(800) 
                 if (_isSimulating.value) {
                     try {
                         repository.performSimulationTick()
