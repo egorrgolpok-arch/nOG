@@ -43,6 +43,8 @@ import kotlinx.coroutines.launch
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.ui.text.withStyle
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.style.TextDecoration
@@ -182,7 +184,26 @@ fun FeedScreen(
             }
         }
 
-        Column(modifier = Modifier.fillMaxSize()) {
+        var dragAmountSum by remember { mutableStateOf(0f) }
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .pointerInput(selectedTab) {
+                    detectHorizontalDragGestures(
+                        onDragStart = { dragAmountSum = 0f },
+                        onDragEnd = {
+                            if (dragAmountSum > 140f && selectedTab == 1) { // Swipe Right
+                                selectedTab = 0
+                                viewModel.vibrate(25)
+                            } else if (dragAmountSum < -140f && selectedTab == 0) { // Swipe Left
+                                selectedTab = 1
+                                viewModel.vibrate(25)
+                            }
+                        },
+                        onHorizontalDrag = { _, dragAmount -> dragAmountSum += dragAmount }
+                    )
+                }
+        ) {
             
             // --- Live Activity Stream Ticker ---
             Row(

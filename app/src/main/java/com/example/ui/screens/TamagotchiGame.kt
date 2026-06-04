@@ -48,6 +48,7 @@ data class TamagotchiState(
     val hygiene: Float = 100f,
     val mood: Float = 100f,
     val health: Float = 100f,
+    val feedScrollPoints: Float = 0f,
     val isSick: Boolean = false,
     val sickDaysRequired: Int = 0,
     val sickDaysPassed: Int = 0,
@@ -82,6 +83,7 @@ object TamagotchiManager {
             hygiene = prefs.getFloat("hygiene", 100f),
             mood = prefs.getFloat("mood", 100f),
             health = prefs.getFloat("health", 100f),
+            feedScrollPoints = prefs.getFloat("feed_scroll_points", 0f),
             isSick = prefs.getBoolean("is_sick", false),
             sickDaysRequired = prefs.getInt("sick_days_required", 0),
             sickDaysPassed = prefs.getInt("sick_days_passed", 0),
@@ -111,6 +113,7 @@ object TamagotchiManager {
             putFloat("hygiene", state.hygiene)
             putFloat("mood", state.mood)
             putFloat("health", state.health)
+            putFloat("feed_scroll_points", state.feedScrollPoints)
             putBoolean("is_sick", state.isSick)
             putInt("sick_days_required", state.sickDaysRequired)
             putInt("sick_days_passed", state.sickDaysPassed)
@@ -782,6 +785,11 @@ fun TamagotchiDialog(
                                     value = state.mood,
                                     isAlert = state.mood < 25f
                                 )
+                                ProgressBarWithLabel(
+                                    label = if (isRu) "ЗАРЯД ЛЕНТЫ ⚡: " else "FEED ENERGY ⚡: ",
+                                    value = state.feedScrollPoints,
+                                    isAlert = state.feedScrollPoints < 25f
+                                )
                             }
 
                             Spacer(modifier = Modifier.height(12.dp))
@@ -986,6 +994,50 @@ fun TamagotchiDialog(
                                         fontSize = 10.sp
                                     )
                                 }
+                            }
+
+                            Spacer(modifier = Modifier.height(10.dp))
+
+                            // General kinetic healing button requiring feed scrolling energy!
+                            val healEnergyAllowed = state.feedScrollPoints >= 25f
+                            val healingTextSuffix = if (!healEnergyAllowed) {
+                                " (${state.feedScrollPoints.toInt()}% / 25%)"
+                            } else ""
+
+                            Button(
+                                onClick = {
+                                    viewModel.vibrate(80)
+                                    val newHealth = (state.health + 30f).coerceAtMost(100f)
+                                    val newPoints = (state.feedScrollPoints - 25f).coerceAtLeast(0f)
+                                    state = state.copy(
+                                        health = newHealth,
+                                        feedScrollPoints = newPoints
+                                    )
+                                    TamagotchiManager.saveState(context, state)
+                                    notificationMessage = if (isRu) {
+                                        "❤️ Здоровье восстановлено кинетическим разрядом ленты!"
+                                    } else {
+                                        "❤️ Health restored via kinetic feed scroll discharge!"
+                                    }
+                                },
+                                enabled = healEnergyAllowed && !state.isDead,
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = AlertRed,
+                                    contentColor = PureWhite,
+                                    disabledContainerColor = CardGray,
+                                    disabledContentColor = TextGray
+                                ),
+                                shape = RoundedCornerShape(4.dp),
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .testTag("heal_pet_button")
+                            ) {
+                                Text(
+                                    text = (if (isRu) "ЛЕЧЕНИЕ ❤️" else "HEAL ❤️") + healingTextSuffix,
+                                    fontFamily = FontFamily.Monospace,
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 11.sp
+                                )
                             }
                         }
                     }

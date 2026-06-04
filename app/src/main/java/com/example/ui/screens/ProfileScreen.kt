@@ -265,7 +265,7 @@ fun ProfileScreen(
                                     ) {
                                         Icon(Icons.Filled.Timer, contentDescription = "Temp", modifier = Modifier.size(16.dp))
                                         Spacer(modifier = Modifier.width(8.dp))
-                                        Text(if (lang == "RU") "ВРЕМЕННАЯ (1ч)" else "TEMP (1h)", fontFamily = FontFamily.Monospace, fontSize = 9.sp, fontWeight = FontWeight.Bold)
+                                        Text(if (lang == "RU") "ВРЕМЕННАЯ (30м)" else "TEMP (30m)", fontFamily = FontFamily.Monospace, fontSize = 9.sp, fontWeight = FontWeight.Bold)
                                     }
                                 }
                             } else {

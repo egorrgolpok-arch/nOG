@@ -3,6 +3,9 @@ package com.example.data
 import android.util.Log
 import android.util.Xml
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
 import okhttp3.Request
@@ -62,28 +65,6 @@ object NewsFetcher {
         NewsSource("Astronomy", "https://astronomy.com/rss.xml", 89, false),
         NewsSource("X.com / Twitter Tech", "https://news.google.com/rss/search?q=X+tech+trends+Twitter&hl=en-US", 78, false),
 
-        // Cars & Auto
-        NewsSource("Reddit Auto", "https://www.reddit.com/r/cars/top/.rss", 75, false),
-        NewsSource("MotorTrend", "https://news.google.com/rss/search?q=when:24h+allinurl:motortrend.com&hl=en-US", 85, false),
-        NewsSource("TopGear", "https://news.google.com/rss/search?q=when:24h+allinurl:topgear.com&hl=en-US", 85, false),
-        NewsSource("Car and Driver", "https://news.google.com/rss/search?q=when:24h+allinurl:caranddriver.com&hl=en-US", 88, false),
-        NewsSource("Autoreview (RU)", "https://news.google.com/rss/search?q=when:24h+allinurl:autoreview.ru&hl=ru", 85, true),
-        NewsSource("Drive2 (RU)", "https://news.google.com/rss/search?q=when:24h+site:drive2.ru+новости&hl=ru", 75, true),
-
-        // True Crime & True Stories
-        NewsSource("Reddit True Crime", "https://www.reddit.com/r/TrueCrimeDiscussion/top/.rss", 80, false),
-        NewsSource("Reddit Unresolved Mysteries", "https://www.reddit.com/r/UnresolvedMysteries/top/.rss", 85, false),
-        NewsSource("Investigation Discovery", "https://news.google.com/rss/search?q=when:24h+allinurl:investigationdiscovery.com&hl=en-US", 80, false),
-        NewsSource("Mediazona (RU)", "https://news.google.com/rss/search?q=when:24h+allinurl:zona.media&hl=ru", 90, true),
-
-        // Specific Games (Fortnite, CS2, Dota 2, LoL)
-        NewsSource("Reddit GlobalOffensive (CS2)", "https://www.reddit.com/r/GlobalOffensive/top/.rss", 85, false),
-        NewsSource("HLTV (CS2)", "https://www.hltv.org/rss/news", 90, false),
-        NewsSource("Reddit DotA2", "https://www.reddit.com/r/DotA2/top/.rss", 85, false),
-        NewsSource("Reddit LeagueofLegends", "https://www.reddit.com/r/leagueoflegends/top/.rss", 85, false),
-        NewsSource("Reddit FortniteBR", "https://www.reddit.com/r/FortNiteBR/top/.rss", 80, false),
-        NewsSource("Fortnite News", "https://news.google.com/rss/search?q=Fortnite+Update&hl=en-US", 80, false),
-
         // RU Additions
         NewsSource("Lenta.ru", "https://lenta.ru/rss", 70, true),
         NewsSource("Pikabu (Stories)", "https://news.google.com/rss/search?q=when:24h+allinurl:pikabu.ru+история&hl=ru", 80, true),
@@ -111,7 +92,39 @@ object NewsFetcher {
         NewsSource("Wylsacom", "https://wylsa.com/feed/", 82, true),
         NewsSource("Droider", "https://droider.ru/feed/", 83, true),
         NewsSource("Meduza", "https://news.google.com/rss/search?q=when:24h+allinurl:meduza.io&hl=ru", 85, true),
-        NewsSource("TASS", "https://tass.ru/rss/v2.xml", 80, true)
+        NewsSource("TASS", "https://tass.ru/rss/v2.xml", 80, true),
+
+        // --- Cars / Автомобили ---
+        NewsSource("MotorTrend", "https://news.google.com/rss/search?q=cars+automotive+news+when:24h&hl=en-US", 90, false),
+        NewsSource("За Рулем", "https://news.google.com/rss/search?q=автомобили+машины+when:24h&hl=ru", 85, true),
+        NewsSource("Auto.ru", "https://news.google.com/rss/search?q=автоновости+тест-драйв&hl=ru", 85, true),
+        
+        // --- Science / Наука ---
+        NewsSource("ScienceDaily All", "https://www.sciencedaily.com/rss/all.xml", 94, false),
+        NewsSource("Naked Science", "https://news.google.com/rss/search?q=naked+science+наука+when:24h&hl=ru", 90, true),
+        NewsSource("Элементы.ру", "https://elementy.ru/rss/news", 92, true),
+
+        // --- True Story / Тру Стори ---
+        NewsSource("Reddit TrueOffMyChest", "https://www.reddit.com/r/TrueOffMyChest/top/.rss", 80, false),
+        NewsSource("Пикабу Моя История", "https://news.google.com/rss/search?q=pikabu+мои+истории+when:24h&hl=ru", 80, true),
+        NewsSource("Подслушано", "https://news.google.com/rss/search?q=подслушано+истории&hl=ru", 75, true),
+
+        // --- True Crime / Тру Крайм ---
+        NewsSource("True Crime Daily", "https://news.google.com/rss/search?q=true+crime+murder+mystery+when:24h&hl=en-US", 85, false),
+        NewsSource("Криминальная Россия", "https://news.google.com/rss/search?q=расследование+криминал+дело+when:24h&hl=ru", 80, true),
+        
+        // --- Games (Fortnite, CS2, Dota 2, League of Legends) ---
+        NewsSource("Fortnite News", "https://news.google.com/rss/search?q=Fortnite+game+when:24h&hl=en-US", 88, false),
+        NewsSource("Fortnite RU", "https://news.google.com/rss/search?q=Fortnite+игра+новости&hl=ru", 80, true),
+        
+        NewsSource("CS2 Valve", "https://news.google.com/rss/search?q=Counter-Strike+2+Valve+patch+when:24h&hl=en-US", 90, false),
+        NewsSource("CS2 RU", "https://news.google.com/rss/search?q=CS2+кс2+патч+турнир&hl=ru", 85, true),
+        
+        NewsSource("Dota 2 Valve", "https://news.google.com/rss/search?q=Dota+2+patch+when:24h&hl=en-US", 90, false),
+        NewsSource("Dota 2 RU", "https://news.google.com/rss/search?q=Dota2+дота+патч+турнир&hl=ru", 85, true),
+        
+        NewsSource("League of Legends Web", "https://news.google.com/rss/search?q=League+of+Legends+patch+lolesports+when:24h&hl=en-US", 90, false),
+        NewsSource("League of Legends RU", "https://news.google.com/rss/search?q=Лига+Легенд+лол+новости&hl=ru", 85, true)
     )
 
     private val cachedNews = java.util.concurrent.ConcurrentHashMap<String, List<NewsItem>>()
@@ -128,27 +141,36 @@ object NewsFetcher {
         val targetSources = sources.filter { it.isRu == isRu }
         val allNews = mutableListOf<NewsItem>()
 
-        for (source in targetSources) {
-            try {
-                val request = Request.Builder()
-                    .url(source.url)
-                    .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36")
-                    .build()
-                val response = client.newCall(request).execute()
-                val xmlBody = response.body?.string()
-                
-                if (response.isSuccessful && !xmlBody.isNullOrEmpty()) {
-                    val trimmedBody = xmlBody.trim()
-                    if (trimmedBody.startsWith("<rss") || trimmedBody.startsWith("<feed") || trimmedBody.contains("<?xml")) {
-                        val parsedItems = parseRss(xmlBody, source)
-                        allNews.addAll(parsedItems.take(5)) // Take top 5 from each
-                    } else {
-                        Log.w(TAG, "Skipping non-RSS content for ${source.name}")
+        coroutineScope {
+            val deferreds = targetSources.map { source ->
+                async {
+                    try {
+                        val request = Request.Builder()
+                            .url(source.url)
+                            .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36")
+                            .build()
+                        client.newCall(request).execute().use { response ->
+                            val xmlBody = response.body?.string()
+                            if (response.isSuccessful && !xmlBody.isNullOrEmpty()) {
+                                val trimmedBody = xmlBody.trim()
+                                if (trimmedBody.startsWith("<rss") || trimmedBody.startsWith("<feed") || trimmedBody.contains("<?xml")) {
+                                    parseRss(xmlBody, source).take(5)
+                                } else {
+                                    emptyList()
+                                }
+                            } else {
+                                emptyList()
+                            }
+                        }
+                    } catch (e: Exception) {
+                        Log.w(TAG, "Failed to fetch RSS from ${source.name}: ${e.message}")
+                        emptyList()
                     }
                 }
-            } catch (e: Exception) {
-                // Log only a warning for network failures, avoid excessive stack traces for common timeout issues
-                Log.w(TAG, "Failed to fetch RSS from ${source.name}: ${e.message}")
+            }
+            val results = deferreds.awaitAll()
+            for (res in results) {
+                allNews.addAll(res)
             }
         }
 

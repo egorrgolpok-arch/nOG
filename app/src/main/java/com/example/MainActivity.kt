@@ -16,6 +16,8 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
@@ -163,15 +165,29 @@ class MainActivity : ComponentActivity() {
                                 )
                             )
 
-                            // Community Hub
+                            // Community Hub (With Unread Badge counter!)
+                            val unreadCommunityCount by viewModel.unreadCommunityPostsCount.collectAsState()
                             NavigationBarItem(
                                 selected = currentScreen is Screen.Community,
                                 onClick = { viewModel.navigateTo(Screen.Community) },
                                 icon = {
-                                    Icon(
-                                        imageVector = if (currentScreen is Screen.Community) Icons.Filled.Groups else Icons.Outlined.Groups,
-                                        contentDescription = "Community"
-                                    )
+                                    BadgedBox(
+                                        badge = {
+                                            if (unreadCommunityCount > 0) {
+                                                Badge(
+                                                    containerColor = AlertRed,
+                                                    contentColor = PureWhite
+                                                ) {
+                                                    Text(unreadCommunityCount.toString(), fontFamily = FontFamily.Monospace)
+                                                }
+                                            }
+                                        }
+                                    ) {
+                                        Icon(
+                                            imageVector = if (currentScreen is Screen.Community) Icons.Filled.Groups else Icons.Outlined.Groups,
+                                            contentDescription = "Community"
+                                        )
+                                    }
                                 },
                                 label = {
                                     Text(
@@ -287,14 +303,21 @@ class MainActivity : ComponentActivity() {
                     }
                 ) { innerPadding ->
                     // Screen dispatcher
-                    when (currentScreen) {
-                        is Screen.Feed -> FeedScreen(viewModel = viewModel, innerPadding = innerPadding)
-                        is Screen.Community -> CommunityScreen(viewModel = viewModel, innerPadding = innerPadding)
-                        is Screen.Notifications -> NotificationsScreen(viewModel = viewModel, innerPadding = innerPadding)
-                        is Screen.Analytics -> AnalyticsScreen(viewModel = viewModel, innerPadding = innerPadding)
-                        is Screen.Profile -> ProfileScreen(viewModel = viewModel, innerPadding = innerPadding)
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(innerPadding)
+                            .background(PureBlack)
+                    ) {
+                        when (currentScreen) {
+                            is Screen.Feed -> FeedScreen(viewModel = viewModel, innerPadding = PaddingValues(0.dp))
+                            is Screen.Community -> CommunityScreen(viewModel = viewModel, innerPadding = PaddingValues(0.dp))
+                            is Screen.Notifications -> NotificationsScreen(viewModel = viewModel, innerPadding = PaddingValues(0.dp))
+                            is Screen.Analytics -> AnalyticsScreen(viewModel = viewModel, innerPadding = PaddingValues(0.dp))
+                            is Screen.Profile -> ProfileScreen(viewModel = viewModel, innerPadding = PaddingValues(0.dp))
+                        }
                     }
-                    }
+                }
                 }
             }
         }

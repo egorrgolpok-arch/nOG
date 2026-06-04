@@ -63,7 +63,8 @@ class SocialViewModel(application: Application) : AndroidViewModel(application) 
     private val _currentScreen = MutableStateFlow<Screen>(Screen.Feed)
     val currentScreen: StateFlow<Screen> = _currentScreen.asStateFlow()
 
-    // --- Active User Profile ---
+    private val _lastCommunityViewTime = MutableStateFlow(0L)
+    val lastCommunityViewTime: StateFlow<Long> = _lastCommunityViewTime.asStateFlow()
     val currentUser = repository.getUserByIdFlow("user")
         .stateIn(
             scope = viewModelScope,
@@ -99,6 +100,18 @@ class SocialViewModel(application: Application) : AndroidViewModel(application) 
             started = SharingStarted.WhileSubscribed(5000),
             initialValue = emptyList()
         )
+
+    // Unread Community Posts Count
+    val unreadCommunityPostsCount = combine(allRawPosts, lastCommunityViewTime) { posts, lastViewTime ->
+        // To be accurate with CommunityScreen logic, we just count posts created after the last view time.
+        // We could filter strictly for community, but any new post in the simulation counts as network activity.
+        // Let's filter for posts not by the current user, created after lastViewTime.
+        posts.count { it.authorId != "user" && it.timestamp > lastViewTime }
+    }.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5000),
+        initialValue = 0
+    )
 
     val allPosts = combine(allRawPosts, searchQuery, allUsers, selectedCategory) { posts, query, users, category ->
         var filtered = posts
@@ -255,6 +268,9 @@ class SocialViewModel(application: Application) : AndroidViewModel(application) 
         val savedLang = prefs.getString("selected_lang", "RU") ?: "RU"
         _selectedLanguage.value = savedLang
 
+        // Load last community view time
+        _lastCommunityViewTime.value = prefs.getLong("last_community_view", 0L)
+
         // Load liked posts set
         val savedLiked = prefs.getStringSet("liked_posts", emptySet()) ?: emptySet()
         _likedPostIds.value = savedLiked.mapNotNull { it.toIntOrNull() }.toSet()
@@ -286,9 +302,14 @@ class SocialViewModel(application: Application) : AndroidViewModel(application) 
 
         // Start autonomous Life Simulator loop ticking at a sustainable pace
         viewModelScope.launch {
+            val context = getApplication<Application>()
             while (true) {
-                // High frequency tick for rapid bot posting
-                delay(800) 
+                // Faster tick (1.2s) to satisfy user requested speed optimization
+                delay(1200)
+                
+                // Continuous check for all active cooldowns
+                com.example.workers.CooldownNotifier.checkAndNotifyAllCooldowns(context)
+
                 if (_isSimulating.value) {
                     try {
                         repository.performSimulationTick()
@@ -341,6 +362,12 @@ class SocialViewModel(application: Application) : AndroidViewModel(application) 
     // --- Navigation Calls ---
     fun navigateTo(screen: Screen) {
         _currentScreen.value = screen
+        if (screen is Screen.Community) {
+            val now = System.currentTimeMillis()
+            _lastCommunityViewTime.value = now
+            val prefs = getApplication<Application>().getSharedPreferences("nog_prefs", Context.MODE_PRIVATE)
+            prefs.edit().putLong("last_community_view", now).apply()
+        }
         viewModelScope.launch {
             repository.logMetric("POST_CLICK")
         }
@@ -561,6 +588,12 @@ class SocialViewModel(application: Application) : AndroidViewModel(application) 
     fun recordScrollTelemetry() {
         viewModelScope.launch {
             repository.logMetric("FEED_SCROLL")
+            val context = getApplication<Application>()
+            val state = com.example.ui.screens.TamagotchiManager.loadState(context)
+            if (state.hasPet && !state.isDead) {
+                val newPoints = (state.feedScrollPoints + 1f).coerceAtMost(100f)
+                com.example.ui.screens.TamagotchiManager.saveState(context, state.copy(feedScrollPoints = newPoints))
+            }
         }
     }
 

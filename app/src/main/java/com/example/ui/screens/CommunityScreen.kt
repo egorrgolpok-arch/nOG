@@ -98,7 +98,7 @@ fun CommunityScreen(viewModel: SocialViewModel, innerPadding: PaddingValues) {
                 }
                 Spacer(modifier = Modifier.height(8.dp))
                 TextButton(onClick = { showTempVerificationDialog = true }) {
-                    Text(if (lang == "RU") "ВРЕМЕННАЯ (1 ЧАС)" else "TEMP (1 HOUR)", color = TextGray)
+                    Text(if (lang == "RU") "ВРЕМЕННАЯ (30 МИНУТ)" else "TEMP (30 MIN)", color = TextGray)
                 }
             }
         }
