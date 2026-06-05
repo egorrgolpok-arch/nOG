@@ -2198,13 +2198,14 @@ fun CaseOpenerDialog(
                             .border(1.dp, Color(0xFF333333), RoundedCornerShape(4.dp))
                     ) {
                         val halfWidth = maxWidth / 2
-                        val cardWidth = 100.dp
                         val halfCardWidth = 50.dp
                         
                         Row(
                             modifier = Modifier
                                 .wrapContentWidth(unbounded = true)
-                                .offset(x = halfWidth - halfCardWidth - (spinOffset.value * 100).dp)
+                                .graphicsLayer {
+                                    translationX = (halfWidth - halfCardWidth - (spinOffset.value * 100f).dp).toPx()
+                                }
                                 .align(Alignment.CenterStart)
                         ) {
                             spinItems.forEach { item ->
@@ -2224,13 +2225,13 @@ fun CaseOpenerDialog(
                             imageVector = Icons.Filled.ArrowDropDown,
                             contentDescription = "pointer",
                             tint = Color.Red,
-                            modifier = Modifier.size(20.dp).align(Alignment.TopCenter)
+                            modifier = Modifier.size(24.dp).align(Alignment.TopCenter)
                         )
                         Icon(
                             imageVector = Icons.Filled.ArrowDropUp,
                             contentDescription = "pointer",
                             tint = Color.Red,
-                            modifier = Modifier.size(20.dp).align(Alignment.BottomCenter)
+                            modifier = Modifier.size(24.dp).align(Alignment.BottomCenter)
                         )
                     }
                 } else {

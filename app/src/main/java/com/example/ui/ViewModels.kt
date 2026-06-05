@@ -759,33 +759,35 @@ class SocialViewModel(application: Application) : AndroidViewModel(application) 
         _isSimulating.value = !_isSimulating.value
     }
 
-    fun recordScrollTelemetry() {
+    fun incrementViewsBy(count: Int) {
         viewModelScope.launch {
-            repository.logMetric("FEED_SCROLL")
             val context = getApplication<Application>()
-            
-            // Increment feed views for coin earning!
             val prefs = context.getSharedPreferences("nog_prefs", Context.MODE_PRIVATE)
             val currViews = prefs.getInt("feed_views", 0)
-            val increment = kotlin.random.Random.nextInt(6, 15) // simulates skipped/viewed posts per scroll gesture
-            val updatedViews = currViews + increment
+            val updatedViews = currViews + count
             _feedViews.value = updatedViews
             prefs.edit().putInt("feed_views", updatedViews).apply()
-            
+
             val oldCoinsFromViews = currViews / 10
             val newCoinsFromViews = updatedViews / 10
             if (newCoinsFromViews > oldCoinsFromViews) {
                 val earned = newCoinsFromViews - oldCoinsFromViews
                 val updatedCoins = _userCoins.value + earned
                 updateCoins(updatedCoins)
-                
-                // Add system notification for satisfying feedback
+
                 repository.insertNotification(
                     title = if (_selectedLanguage.value == "RU") "Монета заработана! 🪙" else "Coin Earned! 🪙",
-                    message = if (_selectedLanguage.value == "RU") "Вы заработали +$earned монету за просмотр 1000 новостей в ленте." else "You earned +$earned coin for scrolling 1000 posts in the feed.",
+                    message = if (_selectedLanguage.value == "RU") "Вы заработали +$earned монету за просмотр 10 новостей в ленте." else "You earned +$earned coin for scrolling 10 posts in the feed.",
                     type = "SYSTEM"
                 )
             }
+        }
+    }
+
+    fun recordScrollTelemetry() {
+        viewModelScope.launch {
+            repository.logMetric("FEED_SCROLL")
+            val context = getApplication<Application>()
 
             val state = com.example.ui.screens.TamagotchiManager.loadState(context)
             if (state.hasPet && !state.isDead) {

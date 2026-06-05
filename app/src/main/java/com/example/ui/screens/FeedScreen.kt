@@ -84,6 +84,17 @@ fun FeedScreen(
 
     // Log scroll activity for analytics
     val context = LocalContext.current
+    var maxIndexScrolled by remember { mutableStateOf(0) }
+    LaunchedEffect(lazyListState) {
+        androidx.compose.runtime.snapshotFlow { lazyListState.firstVisibleItemIndex }.collect { index ->
+            if (index > maxIndexScrolled) {
+                val scrolledPast = index - maxIndexScrolled
+                viewModel.incrementViewsBy(scrolledPast)
+                maxIndexScrolled = index
+            }
+        }
+    }
+
     LaunchedEffect(lazyListState.isScrollInProgress) {
         if (lazyListState.isScrollInProgress) {
             viewModel.recordScrollTelemetry()

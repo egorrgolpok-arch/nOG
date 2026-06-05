@@ -224,7 +224,9 @@ fun FlappyBotGameDialog(
                 }
 
                 // Clean up off-screen pipes
-                pipes.removeAll { it.x <= -100f }
+                while (pipes.isNotEmpty() && pipes.first().x <= -100f) {
+                    pipes.removeAt(0)
+                }
 
                 // Spawn new pipes dynamically
                 if (pipes.isEmpty() || (pipes.last().x < 240f)) {
