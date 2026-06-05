@@ -182,8 +182,6 @@ fun FlappyBotGameDialog(
                 }
 
                 // Update pipe coordinates
-                val iterator = pipes.iterator()
-                val pipesToKeep = mutableListOf<FlappyPipe>()
                 var triggeredPoint = false
 
                 for (pipe in pipes) {
@@ -218,10 +216,6 @@ fun FlappyBotGameDialog(
                         pipe.passed = true
                         triggeredPoint = true
                     }
-
-                    if (pipe.x > -100f) {
-                        pipesToKeep.add(pipe)
-                    }
                 }
 
                 if (triggeredPoint) {
@@ -229,9 +223,8 @@ fun FlappyBotGameDialog(
                     viewModel.vibrate(50)
                 }
 
-                // Clean and keep active pipes
-                pipes.clear()
-                pipes.addAll(pipesToKeep)
+                // Clean up off-screen pipes
+                pipes.removeAll { it.x <= -100f }
 
                 // Spawn new pipes dynamically
                 if (pipes.isEmpty() || (pipes.last().x < 240f)) {

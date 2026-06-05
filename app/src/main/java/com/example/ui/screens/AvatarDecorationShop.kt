@@ -147,10 +147,10 @@ object DecorationGenerator {
         }
 
         val basePrice = when (rarity) {
-            "ОБЫЧНАЯ" -> 150
-            "РЕДКАЯ" -> 350
-            "АХУЕННАЯ" -> 750
-            else -> 1500
+            "ОБЫЧНАЯ" -> 15000
+            "РЕДКАЯ" -> 35000
+            "АХУЕННАЯ" -> 75000
+            else -> 150000
         }
 
         val styleType = (id % 10) + 1
@@ -164,52 +164,52 @@ object DecorationGenerator {
             AvatarDecoration(
                 201, 
                 if (lang == "RU") "Плазменные Крылья Демона 🔥" else "Plasma Demon Wings 🔥", 
-                "ЭКСКЛЮЗИВНАЯ", 3500, 11
+                "ЭКСКЛЮЗИВНАЯ", 350000, 11
             ),
             AvatarDecoration(
                 202, 
                 if (lang == "RU") "Рог Радужного Единорога 🦄" else "Rainbow Unicorn Horn 🦄", 
-                "ЭКСКЛЮЗИВНАЯ", 4000, 12
+                "ЭКСКЛЮЗИВНАЯ", 400000, 12
             ),
             AvatarDecoration(
                 203, 
                 if (lang == "RU") "Орбита Космической Сингулярности 🌌" else "Singularity Event Horizon 🌌", 
-                "ЭКСКЛЮЗИВНАЯ", 4500, 13
+                "ЭКСКЛЮЗИВНАЯ", 450000, 13
             ),
             AvatarDecoration(
                 204, 
                 if (lang == "RU") "Аура Золотых Искр Творца ✨" else "Golden Spark Aura ✨", 
-                "ЭКСКЛЮЗИВНАЯ", 5000, 14
+                "ЭКСКЛЮЗИВНАЯ", 500000, 14
             ),
             AvatarDecoration(
                 205, 
                 if (lang == "RU") "Токсичный Кибернетический Глитч 🦠" else "Toxic Bio Cyberglitch 🦠", 
-                "ЭКСКЛЮЗИВНАЯ", 5500, 15
+                "ЭКСКЛЮЗИВНАЯ", 550000, 15
             ),
             AvatarDecoration(
                 206, 
                 if (lang == "RU") "Адская Корона Кровавого Лорда 👑" else "Hellish Lord Crown 👑", 
-                "ЭКСКЛЮЗИВНАЯ", 6000, 16
+                "ЭКСКЛЮЗИВНАЯ", 600000, 16
             ),
             AvatarDecoration(
                 207, 
                 if (lang == "RU") "Оверлорд-Монокультура 🧬" else "Overlord Monoculture 🧬", 
-                "ЭКСКЛЮЗИВНАЯ", 6500, 17
+                "ЭКСКЛЮЗИВНАЯ", 650000, 17
             ),
             AvatarDecoration(
                 208, 
                 if (lang == "RU") "Сияние Истинного Избранника 🌟" else "True Chosen One's Halo 🌟", 
-                "ЭКСКЛЮЗИВНАЯ", 7000, 18
+                "ЭКСКЛЮЗИВНАЯ", 700000, 18
             ),
             AvatarDecoration(
                 209, 
                 if (lang == "RU") "Хакерский Код Матрицы 👾" else "Matrix Hack Screen 👾", 
-                "ЭКСКЛЮЗИВНАЯ", 7500, 19
+                "ЭКСКЛЮЗИВНАЯ", 750000, 19
             ),
             AvatarDecoration(
                 210, 
                 if (lang == "RU") "Черный Нимб Шестого Ангела 🪽" else "Sixth Angel Dark Ring 🪽", 
-                "ЭКСКЛЮЗИВНАЯ", 10000, 20
+                "ЭКСКЛЮЗИВНАЯ", 1000000, 20
             )
         )
     }
@@ -290,140 +290,363 @@ fun AvatarWithDecoration(
                 val avatarRadius = (sizeDp.dp.toPx()) / 2f
                 val decorRadius = avatarRadius + 4.dp.toPx()
 
-                when (decorationId) {
-                    1 -> { // Neon Hot Pink Ring (Pulsing)
+                // Procedurally resolve styleType & colors using deterministic math on decorationId
+                val decorationItem = if (decorationId >= 201) {
+                    DecorationGenerator.getExclusiveDecorations("EN").find { it.id == decorationId }
+                } else {
+                    DecorationGenerator.generateDecoration(decorationId, "EN")
+                }
+                
+                val styleType = decorationItem?.styleType ?: ((decorationId % 10) + 1)
+                
+                val premiumProceduralColors = listOf(
+                    Color(0xFFFF1493), // Hot Pink
+                    Color(0xFF00FFFF), // Electric Cyan
+                    Color(0xFFFF4500), // Fire Orange
+                    Color(0xFF38EF7D), // Neon Green
+                    Color(0xFFD500F9), // Purple Power
+                    Color(0xFFFFEA00), // Sunshine Yellow
+                    Color(0xFF00E5FF), // Cyber Aqua
+                    Color(0xFFFF1744), // Crimson Red
+                    Color(0xFF9C27B0), // Mystical Violet
+                    Color(0xFF3F51B5), // Deep Indigo
+                    Color(0xFF00E676), // Spring Mint Glow
+                    Color(0xFFFF9100)  // Gold Amber
+                )
+
+                val primaryColor = premiumProceduralColors[decorationId % premiumProceduralColors.size]
+                val secondaryColor = premiumProceduralColors[(decorationId + 3) % premiumProceduralColors.size]
+                val tertiaryColor = premiumProceduralColors[(decorationId + 7) % premiumProceduralColors.size]
+
+                when (styleType) {
+                    1 -> { // Neon Procedural Ring with multiple dots
                         drawCircle(
-                            color = Color(0xFFFF1493).copy(alpha = breatheAlpha),
+                            color = primaryColor.copy(alpha = breatheAlpha),
                             radius = decorRadius,
-                            style = Stroke(width = 2.5.dp.toPx())
+                            style = Stroke(width = (2.dp.toPx() + (decorationId % 3) * 0.5f.dp.toPx()))
                         )
-                        // tiny dot
-                        drawCircle(
-                            color = Color.White,
-                            radius = 2.dp.toPx(),
-                            center = Offset(
-                                centerOffset.x + decorRadius * kotlin.math.cos(Math.toRadians(angleRotation.toDouble())).toFloat(),
-                                centerOffset.y + decorRadius * kotlin.math.sin(Math.toRadians(angleRotation.toDouble())).toFloat()
+                        // Dynamic number of dots orbiting
+                        val dotCount = 1 + (decorationId % 4)
+                        val rotDir = if (decorationId % 2 == 0) 1f else -1f
+                        for (i in 0 until dotCount) {
+                            val orbitAngle = angleRotation * rotDir + i * (360f / dotCount)
+                            val rad = Math.toRadians(orbitAngle.toDouble())
+                            drawCircle(
+                                color = if (i == 0) Color.White else secondaryColor.copy(alpha = 0.9f),
+                                radius = (2.dp.toPx() + (i % 2).dp.toPx()),
+                                center = Offset(
+                                    centerOffset.x + decorRadius * kotlin.math.cos(rad).toFloat(),
+                                    centerOffset.y + decorRadius * kotlin.math.sin(rad).toFloat()
+                                )
                             )
-                        )
-                    }
-                    2 -> { // Neon Electric Cyan (Rotating Sparkle)
-                        drawCircle(
-                            color = Color(0xFF00FFFF).copy(alpha = 0.8f),
-                            radius = decorRadius,
-                            style = Stroke(width = 2.dp.toPx())
-                        )
-                        drawCircle(
-                            color = Color.White,
-                            radius = 4.dp.toPx(),
-                            center = Offset(
-                                centerOffset.x + decorRadius * kotlin.math.cos(Math.toRadians(angleRotation.toDouble())).toFloat(),
-                                centerOffset.y + decorRadius * kotlin.math.sin(Math.toRadians(angleRotation.toDouble())).toFloat()
-                            )
-                        )
-                    }
-                    3 -> { // Gold Crown with Jewels
-                        val crownPath = Path().apply {
-                            moveTo(centerOffset.x - avatarRadius * 0.7f, centerOffset.y - avatarRadius * 0.75f)
-                            lineTo(centerOffset.x - avatarRadius * 0.5f, centerOffset.y - avatarRadius * 1.25f)
-                            lineTo(centerOffset.x, centerOffset.y - avatarRadius * 0.85f)
-                            lineTo(centerOffset.x + avatarRadius * 0.5f, centerOffset.y - avatarRadius * 1.25f)
-                            lineTo(centerOffset.x + avatarRadius * 0.7f, centerOffset.y - avatarRadius * 0.75f)
-                            close()
                         }
-                        drawPath(crownPath, color = Color(0xFFFFD700))
-                        // Crown gems
-                        drawCircle(Color(0xFFE60000), radius = 2.dp.toPx(), center = Offset(centerOffset.x - avatarRadius * 0.5f, centerOffset.y - avatarRadius * 1.25f))
-                        drawCircle(Color(0xFF00E676), radius = 2.dp.toPx(), center = Offset(centerOffset.x + avatarRadius * 0.5f, centerOffset.y - avatarRadius * 1.25f))
-                        drawCircle(Color(0xFF2979FF), radius = 2.dp.toPx(), center = centerOffset.copy(y = centerOffset.y - avatarRadius * 0.85f))
                     }
-                    4 -> { // Blazing Fire Border
+                    2 -> { // Concentric Cyber Dashed Rings
+                        // Inner dasher
+                        val innerRadius = decorRadius - 2.dp.toPx()
+                        val innerDash = floatArrayOf(15f + (decorationId % 15), 15f + (decorationId % 10))
                         drawCircle(
-                            color = Color(0xFFFF4500),
+                            color = primaryColor.copy(alpha = 0.8f),
+                            radius = innerRadius,
+                            style = Stroke(width = 1.5.dp.toPx(), pathEffect = PathEffect.dashPathEffect(innerDash, angleRotation))
+                        )
+                        // Outer dasher spinning backwards
+                        val outerDash = floatArrayOf(30f, 20f)
+                        drawCircle(
+                            color = secondaryColor.copy(alpha = 0.6f),
+                            radius = decorRadius + 1.5.dp.toPx(),
+                            style = Stroke(width = 1.dp.toPx(), pathEffect = PathEffect.dashPathEffect(outerDash, -angleRotation))
+                        )
+                    }
+                    3 -> { // Procedural Crown with Crystals
+                        val crownStyle = decorationId % 3
+                        val crownColor = if (decorationId % 4 == 0) Color(0xFFFFD700) else primaryColor // Gold or primary neon color
+                        
+                        if (crownStyle == 0) {
+                            // Elegant Royal Crown
+                            val crownPath = Path().apply {
+                                moveTo(centerOffset.x - avatarRadius * 0.7f, centerOffset.y - avatarRadius * 0.75f)
+                                lineTo(centerOffset.x - avatarRadius * 0.5f, centerOffset.y - avatarRadius * 1.25f)
+                                lineTo(centerOffset.x, centerOffset.y - avatarRadius * 0.85f)
+                                lineTo(centerOffset.x + avatarRadius * 0.5f, centerOffset.y - avatarRadius * 1.25f)
+                                lineTo(centerOffset.x + avatarRadius * 0.7f, centerOffset.y - avatarRadius * 0.75f)
+                                close()
+                            }
+                            drawPath(crownPath, color = crownColor)
+                            // Crystals
+                            drawCircle(secondaryColor, radius = 2.dp.toPx(), center = Offset(centerOffset.x - avatarRadius * 0.5f, centerOffset.y - avatarRadius * 1.25f))
+                            drawCircle(tertiaryColor, radius = 2.dp.toPx(), center = Offset(centerOffset.x + avatarRadius * 0.5f, centerOffset.y - avatarRadius * 1.25f))
+                            drawCircle(Color.White, radius = 2.dp.toPx(), center = centerOffset.copy(y = centerOffset.y - avatarRadius * 0.85f))
+                        } else if (crownStyle == 1) {
+                            // Tech Visor Crown
+                            val crownPath = Path().apply {
+                                moveTo(centerOffset.x - avatarRadius * 0.6f, centerOffset.y - avatarRadius * 0.8f)
+                                lineTo(centerOffset.x - avatarRadius * 0.3f, centerOffset.y - avatarRadius * 1.4f)
+                                lineTo(centerOffset.x, centerOffset.y - avatarRadius * 1.1f)
+                                lineTo(centerOffset.x + avatarRadius * 0.3f, centerOffset.y - avatarRadius * 1.4f)
+                                lineTo(centerOffset.x + avatarRadius * 0.6f, centerOffset.y - avatarRadius * 0.8f)
+                                close()
+                            }
+                            drawPath(crownPath, color = secondaryColor)
+                            drawCircle(Color.White, radius = 2.dp.toPx(), center = Offset(centerOffset.x, centerOffset.y - avatarRadius * 1.1f))
+                        } else {
+                            // Laurel Wreath top arc
+                            for (i in -3..3) {
+                                val leafAngle = i * 20f - 90f
+                                val rad = Math.toRadians(leafAngle.toDouble())
+                                drawCircle(
+                                    color = secondaryColor.copy(alpha = breatheAlpha),
+                                    radius = 3.dp.toPx(),
+                                    center = Offset(
+                                        centerOffset.x + (decorRadius + 1.dp.toPx()) * kotlin.math.cos(rad).toFloat(),
+                                        centerOffset.y + (decorRadius + 1.dp.toPx()) * kotlin.math.sin(rad).toFloat()
+                                    )
+                                )
+                            }
+                        }
+                    }
+                    4 -> { // Blazing Fire Border (ProcedURAL COLORS!)
+                        // Customized Fire: could be magma, frosty blue, bio-green, shadow fire
+                        drawCircle(
+                            color = primaryColor,
                             radius = decorRadius * scalePulse,
                             style = Stroke(width = 3.dp.toPx())
                         )
                         drawCircle(
-                            color = Color(0xFFFFD700),
+                            color = secondaryColor,
                             radius = (decorRadius - 2.dp.toPx()) * scalePulse,
                             style = Stroke(width = 1.5.dp.toPx())
                         )
+                        // Add floating fire sparks
+                        for (i in 0..2) {
+                            val sAngle = angleRotation * 1.5f + (i * 120)
+                            val rad = Math.toRadians(sAngle.toDouble())
+                            drawCircle(
+                                color = tertiaryColor.copy(alpha = breatheAlpha),
+                                radius = 2.5.dp.toPx(),
+                                center = Offset(
+                                    centerOffset.x + (decorRadius + 3.dp.toPx()) * kotlin.math.cos(rad).toFloat(),
+                                    centerOffset.y + (decorRadius + 3.dp.toPx()) * kotlin.math.sin(rad).toFloat()
+                                )
+                            )
+                        }
                     }
-                    5 -> { // Kitty Cat Pink Ears
-                        val leftEar = Path().apply {
-                            moveTo(centerOffset.x - avatarRadius * 0.8f, centerOffset.y - avatarRadius * 0.5f)
-                            lineTo(centerOffset.x - avatarRadius * 0.9f, centerOffset.y - avatarRadius * 1.2f)
-                            lineTo(centerOffset.x - avatarRadius * 0.3f, centerOffset.y - avatarRadius * 0.8f)
-                            close()
+                    5 -> { // Kitty Cat / Bunny / Tech Ears
+                        val earStyle = decorationId % 4
+                        val earColor = primaryColor
+                        
+                        if (earStyle == 0) {
+                            // Cat Ears
+                            val leftEar = Path().apply {
+                                moveTo(centerOffset.x - avatarRadius * 0.8f, centerOffset.y - avatarRadius * 0.5f)
+                                lineTo(centerOffset.x - avatarRadius * 0.9f, centerOffset.y - avatarRadius * 1.2f)
+                                lineTo(centerOffset.x - avatarRadius * 0.3f, centerOffset.y - avatarRadius * 0.8f)
+                                close()
+                            }
+                            val rightEar = Path().apply {
+                                moveTo(centerOffset.x + avatarRadius * 0.8f, centerOffset.y - avatarRadius * 0.5f)
+                                lineTo(centerOffset.x + avatarRadius * 0.9f, centerOffset.y - avatarRadius * 1.2f)
+                                lineTo(centerOffset.x + avatarRadius * 0.3f, centerOffset.y - avatarRadius * 0.8f)
+                                close()
+                            }
+                            drawPath(leftEar, color = earColor)
+                            drawPath(rightEar, color = earColor)
+                        } else if (earStyle == 1) {
+                            // Long Bunny Ears
+                            val leftEar = Path().apply {
+                                moveTo(centerOffset.x - avatarRadius * 0.6f, centerOffset.y - avatarRadius * 0.6f)
+                                cubicTo(
+                                    centerOffset.x - avatarRadius * 0.9f, centerOffset.y - avatarRadius * 1.7f,
+                                    centerOffset.x - avatarRadius * 0.1f, centerOffset.y - avatarRadius * 1.7f,
+                                    centerOffset.x - avatarRadius * 0.2f, centerOffset.y - avatarRadius * 0.7f
+                                )
+                            }
+                            val rightEar = Path().apply {
+                                moveTo(centerOffset.x + avatarRadius * 0.6f, centerOffset.y - avatarRadius * 0.6f)
+                                cubicTo(
+                                    centerOffset.x + avatarRadius * 0.9f, centerOffset.y - avatarRadius * 1.7f,
+                                    centerOffset.x + avatarRadius * 0.1f, centerOffset.y - avatarRadius * 1.7f,
+                                    centerOffset.x + avatarRadius * 0.2f, centerOffset.y - avatarRadius * 0.7f
+                                )
+                            }
+                            drawPath(leftEar, color = secondaryColor)
+                            drawPath(rightEar, color = secondaryColor)
+                        } else if (earStyle == 2) {
+                            // Cyber Tech Antennas
+                            drawRect(
+                                color = secondaryColor,
+                                topLeft = Offset(centerOffset.x - avatarRadius * 0.7f, centerOffset.y - avatarRadius * 1.3f),
+                                size = Size(2.dp.toPx(), avatarRadius * 0.6f)
+                            )
+                            drawCircle(primaryColor, radius = 3.dp.toPx(), center = Offset(centerOffset.x - avatarRadius * 0.7f, centerOffset.y - avatarRadius * 1.3f))
+                            
+                            drawRect(
+                                color = secondaryColor,
+                                topLeft = Offset(centerOffset.x + avatarRadius * 0.7f - 2.dp.toPx(), centerOffset.y - avatarRadius * 1.3f),
+                                size = Size(2.dp.toPx(), avatarRadius * 0.6f)
+                            )
+                            drawCircle(primaryColor, radius = 3.dp.toPx(), center = Offset(centerOffset.x + avatarRadius * 0.7f, centerOffset.y - avatarRadius * 1.3f))
+                        } else {
+                            // Wing Crests
+                            val leftWing = Path().apply {
+                                moveTo(centerOffset.x - avatarRadius * 0.8f, centerOffset.y - avatarRadius * 0.4f)
+                                lineTo(centerOffset.x - avatarRadius * 1.2f, centerOffset.y - avatarRadius * 0.9f)
+                                lineTo(centerOffset.x - avatarRadius * 0.8f, centerOffset.y - avatarRadius * 0.8f)
+                            }
+                            val rightWing = Path().apply {
+                                moveTo(centerOffset.x + avatarRadius * 0.8f, centerOffset.y - avatarRadius * 0.4f)
+                                lineTo(centerOffset.x + avatarRadius * 1.2f, centerOffset.y - avatarRadius * 0.9f)
+                                lineTo(centerOffset.x + avatarRadius * 0.8f, centerOffset.y - avatarRadius * 0.8f)
+                            }
+                            drawPath(leftWing, color = tertiaryColor)
+                            drawPath(rightWing, color = tertiaryColor)
                         }
-                        val rightEar = Path().apply {
-                            moveTo(centerOffset.x + avatarRadius * 0.8f, centerOffset.y - avatarRadius * 0.5f)
-                            lineTo(centerOffset.x + avatarRadius * 0.9f, centerOffset.y - avatarRadius * 1.2f)
-                            lineTo(centerOffset.x + avatarRadius * 0.3f, centerOffset.y - avatarRadius * 0.8f)
-                            close()
-                        }
-                        drawPath(leftEar, color = Color(0xFFFF8DA1))
-                        drawPath(rightEar, color = Color(0xFFFF8DA1))
                     }
-                    6 -> { // Red Devil Horns
-                        val leftHorn = Path().apply {
-                            moveTo(centerOffset.x - avatarRadius * 0.6f, centerOffset.y - avatarRadius * 0.7f)
-                            quadraticTo(
-                                centerOffset.x - avatarRadius * 1.0f, centerOffset.y - avatarRadius * 1.2f,
-                                centerOffset.x - avatarRadius * 0.8f, centerOffset.y - avatarRadius * 1.3f
+                    6 -> { // Red / Cyber / Void Horns
+                        val hornStyle = decorationId % 3
+                        val hornColor = primaryColor
+                        
+                        if (hornStyle == 0) {
+                            val leftHorn = Path().apply {
+                                moveTo(centerOffset.x - avatarRadius * 0.6f, centerOffset.y - avatarRadius * 0.7f)
+                                quadraticTo(
+                                    centerOffset.x - avatarRadius * 1.0f, centerOffset.y - avatarRadius * 1.2f,
+                                    centerOffset.x - avatarRadius * 0.8f, centerOffset.y - avatarRadius * 1.3f
+                                )
+                                quadraticTo(
+                                    centerOffset.x - avatarRadius * 0.7f, centerOffset.y - avatarRadius * 1.0f,
+                                    centerOffset.x - avatarRadius * 0.3f, centerOffset.y - avatarRadius * 0.8f
+                                )
+                                close()
+                            }
+                            val rightHorn = Path().apply {
+                                moveTo(centerOffset.x + avatarRadius * 0.6f, centerOffset.y - avatarRadius * 0.7f)
+                                quadraticTo(
+                                    centerOffset.x + avatarRadius * 1.0f, centerOffset.y - avatarRadius * 1.2f,
+                                    centerOffset.x + avatarRadius * 0.8f, centerOffset.y - avatarRadius * 1.3f
+                                )
+                                quadraticTo(
+                                    centerOffset.x + avatarRadius * 0.7f, centerOffset.y - avatarRadius * 1.0f,
+                                    centerOffset.x + avatarRadius * 0.3f, centerOffset.y - avatarRadius * 0.8f
+                                )
+                                close()
+                            }
+                            drawPath(leftHorn, color = hornColor)
+                            drawPath(rightHorn, color = hornColor)
+                        } else if (hornStyle == 1) {
+                            // Celestial Crescent Moon over avatar
+                            drawOval(
+                                color = secondaryColor.copy(alpha = breatheAlpha),
+                                topLeft = Offset(centerOffset.x - 4.dp.toPx(), centerOffset.y - avatarRadius * 1.5f),
+                                size = Size(8.dp.toPx(), 8.dp.toPx())
                             )
-                            quadraticTo(
-                                centerOffset.x - avatarRadius * 0.7f, centerOffset.y - avatarRadius * 1.0f,
-                                centerOffset.x - avatarRadius * 0.3f, centerOffset.y - avatarRadius * 0.8f
-                            )
-                            close()
+                        } else {
+                            // Dragon horns
+                            val leftHorn = Path().apply {
+                                moveTo(centerOffset.x - avatarRadius * 0.5f, centerOffset.y - avatarRadius * 0.8f)
+                                lineTo(centerOffset.x - avatarRadius * 0.8f, centerOffset.y - avatarRadius * 1.5f)
+                                lineTo(centerOffset.x - avatarRadius * 0.4f, centerOffset.y - avatarRadius * 0.9f)
+                            }
+                            val rightHorn = Path().apply {
+                                moveTo(centerOffset.x + avatarRadius * 0.5f, centerOffset.y - avatarRadius * 0.8f)
+                                lineTo(centerOffset.x + avatarRadius * 0.8f, centerOffset.y - avatarRadius * 1.5f)
+                                lineTo(centerOffset.x + avatarRadius * 0.4f, centerOffset.y - avatarRadius * 0.9f)
+                            }
+                            drawPath(leftHorn, color = secondaryColor)
+                            drawPath(rightHorn, color = secondaryColor)
                         }
-                        val rightHorn = Path().apply {
-                            moveTo(centerOffset.x + avatarRadius * 0.6f, centerOffset.y - avatarRadius * 0.7f)
-                            quadraticTo(
-                                centerOffset.x + avatarRadius * 1.0f, centerOffset.y - avatarRadius * 1.2f,
-                                centerOffset.x + avatarRadius * 0.8f, centerOffset.y - avatarRadius * 1.3f
-                            )
-                            quadraticTo(
-                                centerOffset.x + avatarRadius * 0.7f, centerOffset.y - avatarRadius * 1.0f,
-                                centerOffset.x + avatarRadius * 0.3f, centerOffset.y - avatarRadius * 0.8f
-                            )
-                            close()
-                        }
-                        drawPath(leftHorn, color = Color(0xFFD32F2F))
-                        drawPath(rightHorn, color = Color(0xFFD32F2F))
                     }
-                    7 -> { // Matrix Neon Code Matrix Border
+                    7 -> { // Matrix Code Rain / Custom Tech Dashed
+                        val dashValue = 10f * (1 + decorationId % 4)
+                        val blankValue = 15f * (1 + decorationId % 3)
                         drawCircle(
-                            color = Color(0xFF00FF33).copy(alpha = breatheAlpha),
+                            color = primaryColor.copy(alpha = breatheAlpha),
                             radius = decorRadius,
-                            style = Stroke(width = 2.dp.toPx(), pathEffect = PathEffect.dashPathEffect(floatArrayOf(10f, 15f), angleRotation))
+                            style = Stroke(width = 2.dp.toPx(), pathEffect = PathEffect.dashPathEffect(floatArrayOf(dashValue, blankValue), angleRotation))
                         )
+                        // tech ring crosshairs overlays
+                        if (decorationId % 2 == 0) {
+                            drawCircle(secondaryColor, radius = decorRadius + 3.dp.toPx(), style = Stroke(width = 0.5.dp.toPx()))
+                        }
                     }
-                    8 -> { // Sparkling Star Dust Orbit
-                        val rad1 = Math.toRadians(angleRotation.toDouble())
-                        val rad2 = Math.toRadians((angleRotation + 120f).toDouble())
-                        val rad3 = Math.toRadians((angleRotation + 240f).toDouble())
+                    8 -> { // Sparkling Star Dust Multi-Orbit
+                        val starCount = 3 + (decorationId % 4) // Between 3 and 6 orbiting crystals
+                        val rotSpeedMultiplier = if (decorationId % 2 == 0) 1.2f else -0.8f
+                        
+                        for (i in 0 until starCount) {
+                            val pAngle = angleRotation * rotSpeedMultiplier + (i * (360f / starCount))
+                            val rad = Math.toRadians(pAngle.toDouble())
+                            val currentStarColor = if (i % 3 == 0) primaryColor else if (i % 3 == 1) secondaryColor else tertiaryColor
+                            
+                            drawCircle(
+                                color = currentStarColor.copy(alpha = breatheAlpha),
+                                radius = (2.2.dp.toPx() + (i % 2).dp.toPx()),
+                                center = Offset(
+                                    centerOffset.x + decorRadius * kotlin.math.cos(rad).toFloat(),
+                                    centerOffset.y + decorRadius * kotlin.math.sin(rad).toFloat()
+                                )
+                            )
+                        }
+                    }
+                    9 -> { // Laser Cyber Visor / Target Hud Reticle
+                        // Reticle brackets in 4 corners
+                        val bracketLen = 6.dp.toPx()
+                        val off = decorRadius - 2.dp.toPx()
+                        
+                        // Top-left
+                        drawRect(secondaryColor, topLeft = Offset(centerOffset.x - off, centerOffset.y - off), size = Size(bracketLen, 1.5.dp.toPx()))
+                        drawRect(secondaryColor, topLeft = Offset(centerOffset.x - off, centerOffset.y - off), size = Size(1.5.dp.toPx(), bracketLen))
+                        
+                        // Top-right
+                        drawRect(secondaryColor, topLeft = Offset(centerOffset.x + off - bracketLen, centerOffset.y - off), size = Size(bracketLen, 1.5.dp.toPx()))
+                        drawRect(secondaryColor, topLeft = Offset(centerOffset.x + off, centerOffset.y - off), size = Size(1.5.dp.toPx(), bracketLen))
+                        
+                        // Bottom-left
+                        drawRect(secondaryColor, topLeft = Offset(centerOffset.x - off, centerOffset.y + off), size = Size(bracketLen, 1.5.dp.toPx()))
+                        drawRect(secondaryColor, topLeft = Offset(centerOffset.x - off, centerOffset.y + off - bracketLen), size = Size(1.5.dp.toPx(), bracketLen))
+                        
+                        // Bottom-right
+                        drawRect(secondaryColor, topLeft = Offset(centerOffset.x + off - bracketLen, centerOffset.y + off), size = Size(bracketLen, 1.5.dp.toPx()))
+                        drawRect(secondaryColor, topLeft = Offset(centerOffset.x + off, centerOffset.y + off - bracketLen), size = Size(1.5.dp.toPx(), bracketLen))
 
-                        drawCircle(Color(0xFFFFEA00), radius = 2.5.dp.toPx(), center = Offset(centerOffset.x + decorRadius * kotlin.math.cos(rad1).toFloat(), centerOffset.y + decorRadius * kotlin.math.sin(rad1).toFloat()))
-                        drawCircle(Color(0xFFE1F5FE), radius = 2.5.dp.toPx(), center = Offset(centerOffset.x + decorRadius * kotlin.math.cos(rad2).toFloat(), centerOffset.y + decorRadius * kotlin.math.sin(rad2).toFloat()))
-                        drawCircle(Color(0xFFF50057), radius = 2.5.dp.toPx(), center = Offset(centerOffset.x + decorRadius * kotlin.math.cos(rad3).toFloat(), centerOffset.y + decorRadius * kotlin.math.sin(rad3).toFloat()))
-                    }
-                    9 -> { // Laser Cyber Visor Grid
-                        drawCircle(Color(0xFFD500F9), radius = decorRadius, style = Stroke(width = 1.dp.toPx()))
+                        // Vertical scanner line sweeping
+                        val scanHeightOffset = kotlin.math.sin(Math.toRadians(angleRotation.toDouble() * 2)).toFloat() * avatarRadius
                         drawRect(
-                            color = Color(0xFFFF1744).copy(alpha = breatheAlpha),
-                            topLeft = Offset(centerOffset.x - avatarRadius, centerOffset.y - 2.dp.toPx()),
-                            size = Size(avatarRadius * 2, 4.dp.toPx())
+                            color = primaryColor.copy(alpha = breatheAlpha * 0.7f),
+                            topLeft = Offset(centerOffset.x - avatarRadius * 0.9f, centerOffset.y + scanHeightOffset - 1.dp.toPx()),
+                            size = Size(avatarRadius * 1.8f, 2.dp.toPx())
                         )
                     }
-                    10 -> { // Glowing Angel Holy Ring Halo
-                        drawOval(
-                            color = Color(0xFFFFFF8D).copy(alpha = breatheAlpha),
-                            topLeft = Offset(centerOffset.x - avatarRadius * 0.8f, centerOffset.y - avatarRadius * 1.35f),
-                            size = Size(avatarRadius * 1.6f, 8.dp.toPx()),
-                            style = Stroke(width = 2.dp.toPx())
-                        )
+                    10 -> { // Glowing Angel Holy Ring / Crown of Thorns
+                        val isHaloThorns = decorationId % 2 == 0
+                        if (isHaloThorns) {
+                            // Crown of Thorns
+                            drawCircle(
+                                color = primaryColor,
+                                radius = decorRadius,
+                                style = Stroke(width = 1.dp.toPx())
+                            )
+                            for (i in 0 until 12) {
+                                val spikeAngle = i * 30f + angleRotation * 0.3f
+                                val rad = Math.toRadians(spikeAngle.toDouble())
+                                drawRect(
+                                    color = secondaryColor,
+                                    topLeft = Offset(
+                                        centerOffset.x + decorRadius * kotlin.math.cos(rad).toFloat(),
+                                        centerOffset.y + decorRadius * kotlin.math.sin(rad).toFloat()
+                                    ),
+                                    size = Size(2.dp.toPx(), 4.dp.toPx())
+                                )
+                            }
+                        } else {
+                            // Standard Holy Angelic Halo
+                            drawOval(
+                                color = primaryColor.copy(alpha = breatheAlpha),
+                                topLeft = Offset(centerOffset.x - avatarRadius * 0.8f, centerOffset.y - avatarRadius * 1.35f),
+                                size = Size(avatarRadius * 1.6f, 8.dp.toPx()),
+                                style = Stroke(width = 2.dp.toPx())
+                            )
+                        }
                     }
                     
                     // --- EXCLUSIVE PREMIUM DECORATIONS (11 to 20) ---
@@ -532,7 +755,7 @@ fun AvatarWithDecoration(
                         drawRect(Color(0xFF00E676).copy(alpha = 0.3f), topLeft = Offset(centerOffset.x - avatarRadius, centerOffset.y - avatarRadius), size = Size(avatarRadius * 2, avatarRadius * 2), style = Stroke(width = 1.dp.toPx()))
                         drawCircle(Color(0xFF00FF33), radius = decorRadius, style = Stroke(width = 2.dp.toPx()))
                     }
-                    else -> { // Angelic Holy Dark Sovereign Ring (ID 210)
+                    else -> { // Angelic Holy Dark Sovereign Ring (ID 210 / backup)
                         drawCircle(Color(0xFF1A237E), radius = decorRadius, style = Stroke(width = 3.dp.toPx()))
                         drawOval(
                             color = Color(0xFFD500F9).copy(alpha = breatheAlpha),
@@ -656,7 +879,7 @@ fun AvatarDecorationShopDialog(
                         Text("🌐", fontSize = 16.sp)
                         Spacer(modifier = Modifier.width(6.dp))
                         Text(
-                            text = if (lang == "RU") "Просмотры: $feedViews" else "Views: $feedViews",
+                            text = if (lang == "RU") "Просмотры: $feedViews (10 = 1🪙)" else "Views: $feedViews (10 = 1🪙)",
                             color = TextGray,
                             fontSize = 12.sp,
                             fontFamily = FontFamily.Monospace
@@ -693,7 +916,7 @@ fun AvatarDecorationShopDialog(
                                     fontFamily = FontFamily.Monospace
                                 )
                                 Text(
-                                    text = if (lang == "RU") "Нажмите чтобы забрать +25 монет!" else "Press to claim +25 Coins now!",
+                                    text = if (lang == "RU") "Нажмите чтобы забрать от 100 до 1000 монет!" else "Press to claim from 100 to 1000 coins!",
                                     color = StarkWhite,
                                     fontSize = 11.sp,
                                     fontFamily = FontFamily.Monospace
@@ -972,7 +1195,7 @@ fun AvatarDecorationShopDialog(
                                         }
                                     } else {
                                         Text(
-                                            text = if (lang == "RU") "Цена: ${currentWeeklyExclusive.basePrice} 🪙" else "Price: ${currentWeeklyExclusive.basePrice} 🪙",
+                                            text = if (lang == "RU") "Цена: от ${currentWeeklyExclusive.basePrice} 🪙/день" else "Price: from ${currentWeeklyExclusive.basePrice} 🪙/day",
                                             color = AlertYellow,
                                             fontSize = 14.sp,
                                             fontWeight = FontWeight.Bold,
@@ -1258,9 +1481,9 @@ fun DecorationShopCard(
                     horizontalArrangement = Arrangement.Center
                 ) {
                     Text(
-                        text = "${item.basePrice} 🪙",
+                        text = if (lang == "RU") "от ${item.basePrice} 🪙/день" else "from ${item.basePrice} 🪙/day",
                         color = AlertYellow,
-                        fontSize = 11.sp,
+                        fontSize = 10.sp,
                         fontWeight = FontWeight.Bold,
                         fontFamily = FontFamily.Monospace
                     )
@@ -1970,8 +2193,9 @@ fun CaseOpenerDialog(
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(125.dp)
+                            .clip(RoundedCornerShape(4.dp))
                             .background(Color(0xFF0F0F0F))
-                            .border(1.dp, Color(0xFF333333))
+                            .border(1.dp, Color(0xFF333333), RoundedCornerShape(4.dp))
                     ) {
                         val halfWidth = maxWidth / 2
                         val cardWidth = 100.dp
@@ -1979,7 +2203,7 @@ fun CaseOpenerDialog(
                         
                         Row(
                             modifier = Modifier
-                                .fillMaxWidth()
+                                .wrapContentWidth(unbounded = true)
                                 .offset(x = halfWidth - halfCardWidth - (spinOffset.value * 100).dp)
                                 .align(Alignment.CenterStart)
                         ) {

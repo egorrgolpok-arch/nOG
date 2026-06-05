@@ -324,7 +324,8 @@ class SocialViewModel(application: Application) : AndroidViewModel(application) 
         prefs.edit().putString("last_claimed_daily_reward_date", todayStr).apply()
         
         val current = _userCoins.value
-        val updatedCoins = current + 2
+        val earned = kotlin.random.Random.nextInt(100, 1001)
+        val updatedCoins = current + earned
         updateCoins(updatedCoins)
         
         _isDailyRewardClaimable.value = false
@@ -332,7 +333,7 @@ class SocialViewModel(application: Application) : AndroidViewModel(application) 
         viewModelScope.launch {
             repository.insertNotification(
                 title = if (_selectedLanguage.value == "RU") "Календарь наград! 🪙" else "Daily Reward Claimed! 🪙",
-                message = if (_selectedLanguage.value == "RU") "Получено +2 монеты за вход сегодня. Розыгрыш новых подарков в полночь!" else "Claimed +2 coins today. Next drop available at midnight!",
+                message = if (_selectedLanguage.value == "RU") "Получено +$earned монет за вход сегодня. Розыгрыш новых подарков в полночь!" else "Claimed +$earned coins today. Next drop available at midnight!",
                 type = "SYSTEM"
             )
         }
@@ -771,8 +772,8 @@ class SocialViewModel(application: Application) : AndroidViewModel(application) 
             _feedViews.value = updatedViews
             prefs.edit().putInt("feed_views", updatedViews).apply()
             
-            val oldCoinsFromViews = currViews / 1000
-            val newCoinsFromViews = updatedViews / 1000
+            val oldCoinsFromViews = currViews / 10
+            val newCoinsFromViews = updatedViews / 10
             if (newCoinsFromViews > oldCoinsFromViews) {
                 val earned = newCoinsFromViews - oldCoinsFromViews
                 val updatedCoins = _userCoins.value + earned
