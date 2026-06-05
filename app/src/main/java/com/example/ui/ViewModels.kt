@@ -188,6 +188,156 @@ class SocialViewModel(application: Application) : AndroidViewModel(application) 
         prefs.edit().putInt("poker_chips_balance", newBalance).apply()
     }
 
+    // --- Persistent User Coins (Coins System) ---
+    private val _userCoins = MutableStateFlow<Int>(100)
+    val userCoins: StateFlow<Int> = _userCoins.asStateFlow()
+
+    private val _feedViews = MutableStateFlow<Int>(0)
+    val feedViews: StateFlow<Int> = _feedViews.asStateFlow()
+
+    private val _activeDecorationId = MutableStateFlow<Int?>(null)
+    val activeDecorationId: StateFlow<Int?> = _activeDecorationId.asStateFlow()
+
+    private val _decorationExpiry = MutableStateFlow<Long>(0L)
+    val decorationExpiry: StateFlow<Long> = _decorationExpiry.asStateFlow()
+
+    private val _purchasedDecorationIds = MutableStateFlow<Set<Int>>(emptySet())
+    val purchasedDecorationIds: StateFlow<Set<Int>> = _purchasedDecorationIds.asStateFlow()
+
+    private val _isDailyRewardClaimable = MutableStateFlow<Boolean>(false)
+    val isDailyRewardClaimable: StateFlow<Boolean> = _isDailyRewardClaimable.asStateFlow()
+
+    fun updateCoins(newAmount: Int) {
+        _userCoins.value = newAmount
+        val prefs = getApplication<Application>().getSharedPreferences("nog_prefs", Context.MODE_PRIVATE)
+        prefs.edit().putInt("user_coins2", newAmount).apply()
+    }
+
+    fun getDecorationExpiry(id: Int): Long {
+        val prefs = getApplication<Application>().getSharedPreferences("nog_prefs", Context.MODE_PRIVATE)
+        return prefs.getLong("user_decoration_expires_id_$id", 0L)
+    }
+
+    fun isDecorationOwnedValid(id: Int): Boolean {
+        return System.currentTimeMillis() < getDecorationExpiry(id)
+    }
+
+    fun checkAndRefreshDecorationExpiry() {
+        val prefs = getApplication<Application>().getSharedPreferences("nog_prefs", Context.MODE_PRIVATE)
+        val activeId = prefs.getInt("user_active_decoration", -1)
+        val expiry = prefs.getLong("user_decoration_expiry", 0L)
+        _decorationExpiry.value = expiry
+        
+        if (activeId != -1 && System.currentTimeMillis() < expiry) {
+            _activeDecorationId.value = activeId
+        } else {
+            _activeDecorationId.value = null
+            if (activeId != -1) {
+                prefs.edit().putInt("user_active_decoration", -1).apply()
+            }
+        }
+        
+        // Refresh purchased IDs
+        val purchasedStr = prefs.getStringSet("purchased_decorations", emptySet()) ?: emptySet()
+        _purchasedDecorationIds.value = purchasedStr.mapNotNull { it.toIntOrNull() }.toSet()
+        
+        // Refresh daily check claimable
+        val todayStr = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US).format(java.util.Date())
+        val lastClaimed = prefs.getString("last_claimed_daily_reward_date", "") ?: ""
+        _isDailyRewardClaimable.value = todayStr != lastClaimed
+    }
+
+    fun buyDecoration(id: Int, durationDays: Int, price: Int): Boolean {
+        if (_userCoins.value < price) return false
+        
+        val context = getApplication<Application>()
+        val prefs = context.getSharedPreferences("nog_prefs", Context.MODE_PRIVATE)
+        
+        // Exclusives check
+        if (id in 201..210) {
+            val user = currentUser.value
+            if (user?.isVerified != true) return false
+        }
+        
+        // Calculate new expiry for this specific decoration
+        val currentExpiry = prefs.getLong("user_decoration_expires_id_$id", 0L)
+        val baseTime = if (currentExpiry > System.currentTimeMillis()) currentExpiry else System.currentTimeMillis()
+        val durationMs = durationDays * 24L * 3600L * 1000L
+        val newExpiry = baseTime + durationMs
+        
+        prefs.edit().putLong("user_decoration_expires_id_$id", newExpiry).apply()
+        
+        // Deduct money
+        val updatedCoins = _userCoins.value - price
+        updateCoins(updatedCoins)
+        
+        // Save to purchased list
+        val currentPurchased = prefs.getStringSet("purchased_decorations", emptySet())?.toMutableSet() ?: mutableSetOf()
+        currentPurchased.add(id.toString())
+        prefs.edit().putStringSet("purchased_decorations", currentPurchased).apply()
+        
+        // Wear it automatically!
+        prefs.edit()
+            .putInt("user_active_decoration", id)
+            .putLong("user_decoration_expiry", newExpiry)
+            .apply()
+            
+        checkAndRefreshDecorationExpiry()
+        
+        viewModelScope.launch {
+            repository.insertNotification(
+                title = if (_selectedLanguage.value == "RU") "Покупка успешно оформлена! ⚡" else "Purchase complete! ⚡",
+                message = if (_selectedLanguage.value == "RU") "Вы надели новое украшение на $durationDays дн.!" else "You are now wearing your new decoration for $durationDays days!",
+                type = "SYSTEM"
+            )
+        }
+        return true
+    }
+
+    fun wearDecoration(id: Int) {
+        val context = getApplication<Application>()
+        val prefs = context.getSharedPreferences("nog_prefs", Context.MODE_PRIVATE)
+        val expiry = prefs.getLong("user_decoration_expires_id_$id", 0L)
+        
+        if (expiry > System.currentTimeMillis()) {
+            prefs.edit()
+                .putInt("user_active_decoration", id)
+                .putLong("user_decoration_expiry", expiry)
+                .apply()
+            checkAndRefreshDecorationExpiry()
+        }
+    }
+
+    fun unwearDecoration() {
+        val context = getApplication<Application>()
+        val prefs = context.getSharedPreferences("nog_prefs", Context.MODE_PRIVATE)
+        prefs.edit()
+            .putInt("user_active_decoration", -1)
+            .putLong("user_decoration_expiry", 0L)
+            .apply()
+        checkAndRefreshDecorationExpiry()
+    }
+
+    fun claimDailyReward() {
+        val prefs = getApplication<Application>().getSharedPreferences("nog_prefs", Context.MODE_PRIVATE)
+        val todayStr = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US).format(java.util.Date())
+        prefs.edit().putString("last_claimed_daily_reward_date", todayStr).apply()
+        
+        val current = _userCoins.value
+        val updatedCoins = current + 2
+        updateCoins(updatedCoins)
+        
+        _isDailyRewardClaimable.value = false
+        
+        viewModelScope.launch {
+            repository.insertNotification(
+                title = if (_selectedLanguage.value == "RU") "Календарь наград! 🪙" else "Daily Reward Claimed! 🪙",
+                message = if (_selectedLanguage.value == "RU") "Получено +2 монеты за вход сегодня. Розыгрыш новых подарков в полночь!" else "Claimed +2 coins today. Next drop available at midnight!",
+                type = "SYSTEM"
+            )
+        }
+    }
+
     @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
     val activeCommentsOfSelectedPost = _activePostIdForComments
         .flatMapLatest { id ->
@@ -279,6 +429,15 @@ class SocialViewModel(application: Application) : AndroidViewModel(application) 
         val savedPokerBalance = prefs.getInt("poker_chips_balance", 1000)
         _pokerBalance.value = savedPokerBalance
 
+        // Load persistent user coins and views
+        val savedCoins = prefs.getInt("user_coins2", 100)
+        _userCoins.value = savedCoins
+        
+        val savedViews = prefs.getInt("feed_views", 0)
+        _feedViews.value = savedViews
+        
+        checkAndRefreshDecorationExpiry()
+
         // Load silent mode
         val savedSilent = prefs.getBoolean("silent_mode", false)
         _isSilentMode.value = savedSilent
@@ -303,6 +462,7 @@ class SocialViewModel(application: Application) : AndroidViewModel(application) 
         // Start autonomous Life Simulator loop ticking at a sustainable pace
         viewModelScope.launch {
             val context = getApplication<Application>()
+            var duoTickCount = 0
             while (true) {
                 // Faster tick (1.2s) to satisfy user requested speed optimization
                 delay(1200)
@@ -316,6 +476,13 @@ class SocialViewModel(application: Application) : AndroidViewModel(application) 
                     } catch (e: Exception) {
                         Log.e(TAG, "Failed simulation tick", e)
                     }
+                }
+                
+                // Duolingo push notifications trigger (~ every 30 seconds of active loop)
+                duoTickCount++
+                if (duoTickCount >= 25) {
+                    duoTickCount = 0
+                    triggerDuolingoAlert()
                 }
             }
         }
@@ -574,6 +741,12 @@ class SocialViewModel(application: Application) : AndroidViewModel(application) 
         }
     }
 
+    fun createSystemNotification(title: String, message: String) {
+        viewModelScope.launch {
+            repository.insertNotification(title, message, "SYSTEM")
+        }
+    }
+
     fun clearNotifications() {
         viewModelScope.launch {
             repository.markAllNotificationsAsRead()
@@ -589,6 +762,30 @@ class SocialViewModel(application: Application) : AndroidViewModel(application) 
         viewModelScope.launch {
             repository.logMetric("FEED_SCROLL")
             val context = getApplication<Application>()
+            
+            // Increment feed views for coin earning!
+            val prefs = context.getSharedPreferences("nog_prefs", Context.MODE_PRIVATE)
+            val currViews = prefs.getInt("feed_views", 0)
+            val increment = kotlin.random.Random.nextInt(6, 15) // simulates skipped/viewed posts per scroll gesture
+            val updatedViews = currViews + increment
+            _feedViews.value = updatedViews
+            prefs.edit().putInt("feed_views", updatedViews).apply()
+            
+            val oldCoinsFromViews = currViews / 1000
+            val newCoinsFromViews = updatedViews / 1000
+            if (newCoinsFromViews > oldCoinsFromViews) {
+                val earned = newCoinsFromViews - oldCoinsFromViews
+                val updatedCoins = _userCoins.value + earned
+                updateCoins(updatedCoins)
+                
+                // Add system notification for satisfying feedback
+                repository.insertNotification(
+                    title = if (_selectedLanguage.value == "RU") "Монета заработана! 🪙" else "Coin Earned! 🪙",
+                    message = if (_selectedLanguage.value == "RU") "Вы заработали +$earned монету за просмотр 1000 новостей в ленте." else "You earned +$earned coin for scrolling 1000 posts in the feed.",
+                    type = "SYSTEM"
+                )
+            }
+
             val state = com.example.ui.screens.TamagotchiManager.loadState(context)
             if (state.hasPet && !state.isDead) {
                 val newPoints = (state.feedScrollPoints + 1f).coerceAtMost(100f)
@@ -616,4 +813,110 @@ class SocialViewModel(application: Application) : AndroidViewModel(application) 
             }
         }
     }
+
+    // --- CS2 CASE DROPS & DUOLINGO ALERTS INTEGRATION ---
+    fun unlockCaseDecoration(id: Int, name: String, rarity: String, styleType: Int, durationHours: Int) {
+        val context = getApplication<Application>()
+        val prefs = context.getSharedPreferences("nog_prefs", Context.MODE_PRIVATE)
+        
+        // Calculate custom temporary expiry
+        val durationMs = durationHours * 3600L * 1000L
+        val expiry = System.currentTimeMillis() + durationMs
+        prefs.edit().putLong("user_decoration_expires_id_$id", expiry).apply()
+        
+        // Save to SharedPreferences set
+        val currentPurchased = prefs.getStringSet("purchased_decorations", emptySet())?.toMutableSet() ?: mutableSetOf()
+        currentPurchased.add(id.toString())
+        prefs.edit().putStringSet("purchased_decorations", currentPurchased).apply()
+        
+        // Auto wear
+        prefs.edit()
+            .putInt("user_active_decoration", id)
+            .putLong("user_decoration_expiry", expiry)
+            .apply()
+            
+        checkAndRefreshDecorationExpiry()
+        
+        viewModelScope.launch {
+            repository.insertNotification(
+                title = if (_selectedLanguage.value == "RU") "ВЫПАЛ ДРОП ИЗ КЕЙСА! 🎉" else "CASE DROP UNLOCKED! 🎉",
+                message = if (_selectedLanguage.value == "RU") "Ого! Временное украшение: $name на $durationHours ч.!" else "Whoa! Got temporary frame: $name for $durationHours hrs!",
+                type = "SYSTEM"
+            )
+        }
+    }
+
+    fun triggerDuolingoAlert() {
+        val alert = duoAlerts.random()
+        val title = if (_selectedLanguage.value == "RU") alert.titleRu else alert.titleEn
+        val msg = if (_selectedLanguage.value == "RU") alert.textRu else alert.textEn
+        viewModelScope.launch {
+            repository.insertNotification(title, msg, "SYSTEM")
+        }
+    }
 }
+
+data class DuoAlert(val titleRu: String, val textRu: String, val titleEn: String, val textEn: String)
+
+val duoAlerts = listOf(
+    DuoAlert(
+        "🦉 Зеленая сова следит", 
+        "Привет, это Дуо! Твои уведомления выключены? Ничего, я уже стою у твоей двери.",
+        "🦉 Green Owl is watching", 
+        "Hi, it's Duo! Your notifications seem disabled. That's fine, I'm already standing outside your door."
+    ),
+    DuoAlert(
+        "👀 Слишком расслабился?", 
+        "Ты не заходил во Флаппи Бот уже целых 5 секунд. Кошка плачет, бот грустит.",
+        "👀 Too relaxed?", 
+        "You haven't played FlappyBot for a whole 5 seconds. The cat is crying, the bot is sad."
+    ),
+    DuoAlert(
+        "🪵 Твой тамагочи голодает", 
+        "Если ты не покормишь его сейчас, я припомню тебе это во сне. Заходи быстро!",
+        "🪵 Your Tamagotchi is starving", 
+        "If you don't feed it right now, I'll remind you of this in your dreams. Get back in!"
+    ),
+    DuoAlert(
+        "🪙 16,000 монет на кейсы?", 
+        "Хватит копить монеты, как цифровой дракон! Открой кейс и выбей что-то ахуенное!",
+        "🪙 16,000 coins for Cases?", 
+        "Stop hoarding coins like a digital dragon! Spin a case and drop something insane!"
+    ),
+    DuoAlert(
+        "😡 Не игнорируй меня!", 
+        "Я знаю, что ты видишь это пуш-уведомление. Твой стрик горит так же ярко, как моя ярость.",
+        "😡 Don't ignore me!", 
+        "I know you see this push. Your streak is burning as bright as my righteous anger."
+    ),
+    DuoAlert(
+        "🧠 5 секунд кодинга в день...", 
+        "...могли бы спасти тебя от пожизненного кринжа. Но ты выбрал листать мемы.",
+        "🧠 5 seconds of coding a day...", 
+        "...could save you from a lifetime of cringe. But you chose to scroll memes instead."
+    ),
+    DuoAlert(
+        "📍 Координаты получены", 
+        "Обнаружен в 12 метрах от дивана. Хватит бегать от тренировок, возвращайся в приложение!",
+        "📍 Coordinates GPS-locked", 
+        "Detected 12 meters from your couch. Stop running away from lessons, return immediately!"
+    ),
+    DuoAlert(
+        "📉 Стрик потерян? Почти.", 
+        "Еще минута — и твоя серия посещений сгорит. И нет, взятка Габену тут не поможет.",
+        "📉 Streak lost? Almost.", 
+        "One more minute and your daily streak turns to ash. No, bribery of Gabe won't save you."
+    ),
+    DuoAlert(
+        "🎯 Открыть кейсы?", 
+        "Дешёвые понты стоят дорого. Давай проверим твою удачу в симуляторе кейсов CS2!",
+        "🎯 Open cases?", 
+        "Cheap bragging rights are expensive. Let's test your luck in the CS2 case simulator!"
+    ),
+    DuoAlert(
+        "💀 Трупные пятна тамагочи", 
+        "Если не откроешь питомца прямо сейчас, он превратится в пиксельный фарш. Бегом сюда!",
+        "💀 Tamagotchi rigor mortis", 
+        "If you don't check your pet right now, it will turn into pixel mush. Get in here now!"
+    )
+)

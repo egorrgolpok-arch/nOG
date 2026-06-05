@@ -1,6 +1,7 @@
 package com.example.ui.screens
 
 import androidx.compose.animation.*
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
@@ -67,6 +68,7 @@ fun FeedScreen(
     val selectedCategory by viewModel.selectedCategory.collectAsState()
     val currentUser by viewModel.currentUser.collectAsState()
     val currentUserFollowingIds by viewModel.currentUserFollowingIds.collectAsState()
+    val activeUserDecId by viewModel.activeDecorationId.collectAsState()
     
     val lazyListState = rememberLazyListState()
     val coroutineScope = rememberCoroutineScope()
@@ -74,6 +76,7 @@ fun FeedScreen(
     var showCreatePostDialog by remember { mutableStateOf(false) }
     var showFlappyBotGame by remember { mutableStateOf(false) }
     var showTamagotchiDialog by remember { mutableStateOf(false) }
+    var showDecorationShopDialog by remember { mutableStateOf(false) }
     var zoomImageUrl by remember { mutableStateOf<String?>(null) }
     val selectedPostForComments by viewModel.activePostIdForComments.collectAsState()
 
@@ -86,7 +89,9 @@ fun FeedScreen(
             viewModel.recordScrollTelemetry()
             while (true) {
                 kotlinx.coroutines.delay(1000)
-                val state = com.example.ui.screens.TamagotchiManager.loadState(context)
+                val state = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                    com.example.ui.screens.TamagotchiManager.loadState(context)
+                }
                 if (state.hasPet && !state.isDead) {
                     val tickNow = System.currentTimeMillis()
                     val deltaMs = tickNow - state.lastTickTime
@@ -99,7 +104,9 @@ fun FeedScreen(
                         val clinicalHours = 0.05f 
                         newState = newState.copy(sickTimeSpentToday = (newState.sickTimeSpentToday + clinicalHours).coerceAtMost(newState.sickHoursRequiredEachDay))
                     }
-                    com.example.ui.screens.TamagotchiManager.saveState(context, newState)
+                    kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                        com.example.ui.screens.TamagotchiManager.saveState(context, newState)
+                    }
                 }
             }
         }
@@ -312,44 +319,70 @@ fun FeedScreen(
                     }
                 }
             } else {
-                when (selectedTab) {
-                    0 -> {
-                        // Global chronological feed
-                        LazyColumn(
-                            state = lazyListState,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .weight(1f)
-                                .testTag("feed_list"),
-                            contentPadding = PaddingValues(bottom = 80.dp)
-                        ) {
-                            items(posts, key = { it.id }) { post ->
-                                val author = users.find { it.id == post.authorId }
-                                val isF = currentUserFollowingIds.contains(post.authorId)
-                                PostItem(
-                                    post = post,
-                                    author = author,
-                                    lang = lang,
-                                    isLiked = likedPostIds.contains(post.id),
-                                    isFollowing = isF,
-                                    onLikeClick = { viewModel.toggleLike(post.id) },
-                                    onCommentClick = { viewModel.selectPostForComments(post.id) },
-                                    onMediaClick = { zoomImageUrl = it },
-                                    onArchiveToggle = { viewModel.archivePost(post.id, !post.isArchived) },
-                                    onFollowToggle = {
-                                        if (author != null) {
-                                            if (isF) viewModel.unfollowAgent(post.authorId)
-                                            else viewModel.followAgent(post.authorId)
+                AnimatedContent(
+                    targetState = selectedTab,
+                    transitionSpec = {
+                        if (targetState > initialState) {
+                            (slideInHorizontally(animationSpec = tween(180)) { width -> width } + fadeIn(animationSpec = tween(180))) togetherWith
+                            (slideOutHorizontally(animationSpec = tween(180)) { width -> -width } + fadeOut(animationSpec = tween(180)))
+                        } else {
+                            (slideInHorizontally(animationSpec = tween(180)) { width -> -width } + fadeIn(animationSpec = tween(180))) togetherWith
+                            (slideOutHorizontally(animationSpec = tween(180)) { width -> width } + fadeOut(animationSpec = tween(180)))
+                        }
+                    },
+                    modifier = Modifier.weight(1f).fillMaxWidth(),
+                    label = "tab_transition"
+                ) { targetTab ->
+                    when (targetTab) {
+                        0 -> {
+                            // Global chronological feed
+                            LazyColumn(
+                                state = lazyListState,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .fillMaxHeight()
+                                    .testTag("feed_list"),
+                                contentPadding = PaddingValues(bottom = 80.dp)
+                            ) {
+                                items(posts, key = { it.id }) { post ->
+                                    val author = users.find { it.id == post.authorId }
+                                    val isF = currentUserFollowingIds.contains(post.authorId)
+                                    val resolvedDecId = remember(author, activeUserDecId) {
+                                        if (author?.id == "user") {
+                                            activeUserDecId
+                                        } else if (author?.isAi == true) {
+                                            val hash = java.lang.Math.abs(author.id.hashCode())
+                                            (hash % 210) + 1
+                                        } else {
+                                            null
                                         }
                                     }
-                                )
+                                    PostItem(
+                                        post = post,
+                                        author = author,
+                                        lang = lang,
+                                        isLiked = likedPostIds.contains(post.id),
+                                        isFollowing = isF,
+                                        decorationId = resolvedDecId,
+                                        onLikeClick = { viewModel.toggleLike(post.id) },
+                                        onCommentClick = { viewModel.selectPostForComments(post.id) },
+                                        onMediaClick = { zoomImageUrl = it },
+                                        onArchiveToggle = { viewModel.archivePost(post.id, !post.isArchived) },
+                                        onFollowToggle = {
+                                            if (author != null) {
+                                                if (isF) viewModel.unfollowAgent(post.authorId)
+                                                else viewModel.followAgent(post.authorId)
+                                            }
+                                        }
+                                    )
+                                }
                             }
                         }
-                    }
-                    1 -> {
-                        // AI recommendation matrix inspector console (fosters deep multiagent exploration)
-                        Box(modifier = Modifier.weight(1f)) {
-                            AiMindsExplorer(viewModel = viewModel, users = users)
+                        1 -> {
+                            // AI recommendation matrix inspector console (fosters deep multiagent exploration)
+                            Box(modifier = Modifier.fillMaxSize()) {
+                                AiMindsExplorer(viewModel = viewModel, users = users)
+                            }
                         }
                     }
                 }
@@ -395,22 +428,45 @@ fun FeedScreen(
                 }
             }
         } else {
-            // --- Scanner Tab: Single Yellow Tamagotchi FAB ---
-            FloatingActionButton(
-                onClick = { showTamagotchiDialog = true },
-                containerColor = AlertYellow,
-                contentColor = PureBlack,
-                shape = RoundedCornerShape(12.dp),
+            // --- Bottom Right Action Column (Decorations + Tamagotchi) ---
+            Column(
                 modifier = Modifier
                     .align(Alignment.BottomEnd)
-                    .padding(24.dp)
-                    .border(2.dp, PureBlack, RoundedCornerShape(12.dp))
-                    .testTag("tamagotchi_fab")
+                    .padding(24.dp),
+                horizontalAlignment = Alignment.End,
+                verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                Icon(
-                    imageVector = Icons.Filled.Pets,
-                    contentDescription = if (lang == "RU") "Тамагочи" else "Tamagotchi"
-                )
+                // --- Avatar Decorations Shop FAB (Worn Styles Shop Button) ---
+                FloatingActionButton(
+                    onClick = { showDecorationShopDialog = true },
+                    containerColor = AlertYellow,
+                    contentColor = PureBlack,
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier
+                        .border(2.dp, PureBlack, RoundedCornerShape(12.dp))
+                        .testTag("decorations_shop_fab")
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.AutoAwesome,
+                        contentDescription = if (lang == "RU") "Украшения аватарок" else "Avatar Upgrades"
+                    )
+                }
+
+                // --- Scanner Tab: Single Yellow Tamagotchi FAB ---
+                FloatingActionButton(
+                    onClick = { showTamagotchiDialog = true },
+                    containerColor = AlertYellow,
+                    contentColor = PureBlack,
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier
+                        .border(2.dp, PureBlack, RoundedCornerShape(12.dp))
+                        .testTag("tamagotchi_fab")
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.Pets,
+                        contentDescription = if (lang == "RU") "Тамагочи" else "Tamagotchi"
+                    )
+                }
             }
         }
 
@@ -445,6 +501,15 @@ fun FeedScreen(
                 users = users,
                 currentUser = currentUser,
                 onDismiss = { showTamagotchiDialog = false }
+            )
+        }
+
+        // --- Avatar Decoration Shop Dialog ---
+        if (showDecorationShopDialog) {
+            AvatarDecorationShopDialog(
+                viewModel = viewModel,
+                lang = lang,
+                onDismiss = { showDecorationShopDialog = false }
             )
         }
 
@@ -540,6 +605,7 @@ fun PostItem(
     lang: String,
     isLiked: Boolean = false,
     isFollowing: Boolean = false,
+    decorationId: Int? = null,
     onLikeClick: () -> Unit,
     onCommentClick: () -> Unit,
     onMediaClick: (String?) -> Unit,
@@ -566,16 +632,11 @@ fun PostItem(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                AsyncImage(
-                    model = author?.avatarUrl ?: "https://robohash.org/unknown.png?size=200x200&set=set1",
-                    contentDescription = author?.username,
-                    modifier = Modifier
-                        .size(42.dp)
-                        .clip(CircleShape)
-                        .border(1.dp, PureWhite, CircleShape),
-                    contentScale = ContentScale.Crop,
-                    error = rememberVectorPainter(Icons.Filled.AccountCircle),
-                    placeholder = rememberVectorPainter(Icons.Filled.AccountCircle)
+                AvatarWithDecoration(
+                    avatarUrl = author?.avatarUrl ?: "https://robohash.org/unknown.png?size=200x200&set=set1",
+                    decorationId = decorationId,
+                    sizeDp = 42,
+                    borderWidthDp = 1
                 )
                 
                 Spacer(modifier = Modifier.width(12.dp))

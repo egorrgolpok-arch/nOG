@@ -24,6 +24,8 @@ import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.animation.*
+import androidx.compose.animation.core.tween
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
@@ -121,6 +123,8 @@ class MainActivity : ComponentActivity() {
                     val currentScreen by viewModel.currentScreen.collectAsState()
                     val alerts by viewModel.notifications.collectAsState()
                     val lang by viewModel.selectedLanguage.collectAsState()
+                    val activeUserDecId by viewModel.activeDecorationId.collectAsState()
+                    val currentUser by viewModel.currentUser.collectAsState()
                     
                     // Count unread notifications to show numerical badge
                     val unreadAlertsCount = alerts.filter { !it.isRead }.size
@@ -278,9 +282,11 @@ class MainActivity : ComponentActivity() {
                                 selected = currentScreen is Screen.Profile,
                                 onClick = { viewModel.navigateTo(Screen.Profile) },
                                 icon = {
-                                    Icon(
-                                        imageVector = if (currentScreen is Screen.Profile) Icons.Filled.AccountCircle else Icons.Outlined.AccountCircle,
-                                        contentDescription = if (lang == "RU") "Нода" else "Node"
+                                    com.example.ui.screens.AvatarWithDecoration(
+                                        avatarUrl = currentUser?.avatarUrl,
+                                        decorationId = activeUserDecId,
+                                        sizeDp = 24,
+                                        borderWidthDp = 1
                                     )
                                 },
                                 label = {

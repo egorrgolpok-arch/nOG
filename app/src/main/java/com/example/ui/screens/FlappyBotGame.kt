@@ -92,22 +92,29 @@ fun FlappyBotGameDialog(
         }
     }
 
-    val cooldownMs = 5 * 60 * 1000 // 5 minutes cooldown
+    val cooldownMs = 5 * 1000 // 5 seconds cooldown
     val timePassed = systemTime - lastGameOverTime
     val isCooldownActive = !isVerified && (timePassed < cooldownMs) && (lastGameOverTime > 0)
     val remainingSeconds = if (isCooldownActive) ((cooldownMs - timePassed) / 1000).toInt() else 0
 
-    // Choose our bot contender
-    val bots = remember(users) { users.filter { it.isAi && it.id != "user" } }
     var gameCounter by remember { mutableStateOf(0) }
-    val selectedBot = remember(gameCounter, bots) {
-        if (bots.isNotEmpty()) bots.random() else currentUser
-    }
-
-    // Physics parameters & Game states
     var isPlaying by remember { mutableStateOf(false) }
     var isGameOver by remember { mutableStateOf(false) }
     var score by remember { mutableStateOf(0) }
+
+    val bots = remember(users) { users.filter { it.isAi && it.id != "user" } }
+    var selectedBot by remember { mutableStateOf<com.example.data.UserEntity?>(null) }
+
+    LaunchedEffect(gameCounter, bots, currentUser) {
+        if (!isPlaying) {
+            selectedBot = if (bots.isNotEmpty()) {
+                val idx = java.lang.Math.abs(gameCounter) % bots.size
+                bots[idx]
+            } else {
+                currentUser
+            }
+        }
+    }
 
     // Virtual resolution is 400x600
     var birdY by remember { mutableStateOf(250f) }
@@ -350,9 +357,10 @@ fun FlappyBotGameDialog(
                             fontFamily = FontFamily.Monospace
                         )
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            if (selectedBot != null) {
+                            val sBot = selectedBot
+                            if (sBot != null) {
                                 AsyncImage(
-                                    model = selectedBot.avatarUrl,
+                                    model = sBot.avatarUrl,
                                     contentDescription = "Contender avatar",
                                     modifier = Modifier
                                         .size(16.dp)
@@ -361,7 +369,7 @@ fun FlappyBotGameDialog(
                                 )
                                 Spacer(modifier = Modifier.width(6.dp))
                                 Text(
-                                    text = selectedBot.username,
+                                    text = sBot.username,
                                     color = AlertYellow,
                                     fontSize = 11.sp,
                                     fontFamily = FontFamily.Monospace,
@@ -531,9 +539,10 @@ fun FlappyBotGameDialog(
                                 ),
                             contentAlignment = Alignment.Center
                         ) {
-                            if (selectedBot != null) {
+                            val sBot = selectedBot
+                            if (sBot != null) {
                                 AsyncImage(
-                                    model = selectedBot.avatarUrl,
+                                    model = sBot.avatarUrl,
                                     contentDescription = "Fly bot image",
                                     modifier = Modifier
                                         .fillMaxSize()

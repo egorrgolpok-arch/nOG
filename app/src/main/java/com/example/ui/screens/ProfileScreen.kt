@@ -56,7 +56,36 @@ fun ProfileScreen(
     val followingIds by viewModel.currentUserFollowingIds.collectAsState()
     val isSilentMode by viewModel.isSilentMode.collectAsState()
     val selectedPostForComments by viewModel.activePostIdForComments.collectAsState()
+    val activeUserDecId by viewModel.activeDecorationId.collectAsState()
+    val decorationExpiry by viewModel.decorationExpiry.collectAsState()
     var zoomImageUrl by remember { mutableStateOf<String?>(null) }
+
+    var remainingTimeText by remember { mutableStateOf("") }
+    LaunchedEffect(activeUserDecId, decorationExpiry, lang) {
+        if (activeUserDecId != null && decorationExpiry > System.currentTimeMillis()) {
+            while (true) {
+                val ms = decorationExpiry - System.currentTimeMillis()
+                if (ms <= 0) {
+                    remainingTimeText = ""
+                    viewModel.checkAndRefreshDecorationExpiry()
+                    break
+                }
+                val seconds = ms / 1000
+                val minutes = seconds / 60
+                val hours = minutes / 60
+                val days = hours / 24
+                
+                remainingTimeText = if (lang == "RU") {
+                    "УКРАШЕНИЕ ПРОПАДЕТ ЧЕРЕЗ: " + (if (days > 0) "${days}д. " else "") + "${hours % 24}ч. ${minutes % 60}м. ${seconds % 60}с."
+                } else {
+                    "UPGRADE EXPIRES IN: " + (if (days > 0) "${days}d. " else "") + "${hours % 24}h ${minutes % 60}m ${seconds % 60}s"
+                }
+                delay(1000)
+            }
+        } else {
+            remainingTimeText = ""
+        }
+    }
 
     var isEditing by remember { mutableStateOf(false) }
     // Add Edit State
@@ -133,16 +162,11 @@ fun ProfileScreen(
                         Row(
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            AsyncImage(
-                                model = userProfile?.avatarUrl ?: sampleAvatars.first(),
-                                contentDescription = userProfile?.username,
-                                modifier = Modifier
-                                    .size(72.dp)
-                                    .clip(CircleShape)
-                                    .border(2.dp, PureWhite, CircleShape),
-                                contentScale = ContentScale.Crop,
-                                error = rememberVectorPainter(Icons.Filled.AccountCircle),
-                                placeholder = rememberVectorPainter(Icons.Filled.AccountCircle)
+                            AvatarWithDecoration(
+                                avatarUrl = userProfile?.avatarUrl ?: sampleAvatars.first(),
+                                decorationId = activeUserDecId,
+                                sizeDp = 72,
+                                borderWidthDp = 2
                             )
                             Spacer(modifier = Modifier.width(20.dp))
                             Column {
@@ -190,6 +214,39 @@ fun ProfileScreen(
                                         fontWeight = FontWeight.Bold,
                                         modifier = Modifier.clickable { showFollowingList = true }
                                     )
+                                }
+                                
+                                if (remainingTimeText.isNotEmpty()) {
+                                    Spacer(modifier = Modifier.height(12.dp))
+                                    Box(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .background(Color(0xFF1A0F2E))
+                                            .border(1.dp, Color(0xFF8E24AA), RoundedCornerShape(2.dp))
+                                            .padding(8.dp)
+                                    ) {
+                                        Row(
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.Center,
+                                            modifier = Modifier.fillMaxWidth()
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Filled.Timer,
+                                                contentDescription = "Timer",
+                                                tint = Color(0xFFE040FB),
+                                                modifier = Modifier.size(14.dp)
+                                            )
+                                            Spacer(modifier = Modifier.width(6.dp))
+                                            Text(
+                                                text = remainingTimeText,
+                                                color = Color(0xFFE040FB),
+                                                fontSize = 10.sp,
+                                                fontWeight = FontWeight.Bold,
+                                                fontFamily = FontFamily.Monospace,
+                                                textAlign = TextAlign.Center
+                                            )
+                                        }
+                                    }
                                 }
                                 
                                 Spacer(modifier = Modifier.height(12.dp))

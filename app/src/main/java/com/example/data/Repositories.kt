@@ -42,6 +42,7 @@ class SocialRepository(private val context: Context, private val scope: Coroutin
     private val dao: SocialDao by lazy { database.socialDao() }
     private val categoryCycleIndex = java.util.concurrent.atomic.AtomicInteger(0)
     private val sharedNetworkTrends = mutableListOf<TrendingTrendItem>()
+    private var lastTrendFetchTime = 0L
     private val recentlyUsedContent = mutableSetOf<String>()
     private val recentlyUsedComments = mutableSetOf<String>()
 
@@ -92,6 +93,11 @@ class SocialRepository(private val context: Context, private val scope: Coroutin
     }
 
     private suspend fun fetchRealTimeSocialTrendsAndSyncContext(lang: String) = withContext(Dispatchers.IO) {
+        val now = System.currentTimeMillis()
+        if (sharedNetworkTrends.isNotEmpty() && (now - lastTrendFetchTime < 5000L)) {
+            return@withContext
+        }
+        lastTrendFetchTime = now
         val useGemini = GeminiClient.isKeyAvailable()
         val langLabel = if (lang == "RU") "Russian" else "English"
         Log.d(TAG, "Initiating wide & targeted intelligence search across X and open sources...")

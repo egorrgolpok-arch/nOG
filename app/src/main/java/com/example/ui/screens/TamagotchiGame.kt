@@ -222,6 +222,16 @@ fun TamagotchiDialog(
     var sittingTimeMs by remember { mutableStateOf(0L) } // track sitting time
     var washTaps by remember { mutableStateOf(0) } // tap counter for washing
 
+    LaunchedEffect(notificationMessage) {
+        val msg = notificationMessage
+        if (msg != null && msg.isNotEmpty()) {
+            viewModel.createSystemNotification(
+                title = if (isRu) "Тамагочи" else "Tamagotchi System",
+                message = msg
+            )
+        }
+    }
+
     val isUserVerified = currentUser?.isVerified == true
 
     // Offline progress calculations and real-time ticking loop when dialog is open
@@ -231,12 +241,16 @@ fun TamagotchiDialog(
             val deltaMs = now - state.lastTickTime
             if (deltaMs > 2000L) { // If spent time offline, update now!
                 state = updateTamaStats(state, deltaMs, isAppActive = false)
-                TamagotchiManager.saveState(context, state)
+                kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                    TamagotchiManager.saveState(context, state)
+                }
             }
         } else {
             // Keep tick updated to now
             state = state.copy(lastTickTime = now)
-            TamagotchiManager.saveState(context, state)
+            kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                TamagotchiManager.saveState(context, state)
+            }
         }
 
         // Active ticking loop while the User is looking at the Tamagotchi
@@ -247,10 +261,14 @@ fun TamagotchiDialog(
             if (state.hasPet && !state.isDead) {
                 // Every second of active view increases mood slightly, and adds to treatment time if sick
                 state = updateTamaStats(state, tickNow - state.lastTickTime, isAppActive = true)
-                TamagotchiManager.saveState(context, state)
+                kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                    TamagotchiManager.saveState(context, state)
+                }
             } else {
                 state = state.copy(lastTickTime = tickNow)
-                TamagotchiManager.saveState(context, state)
+                kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                    TamagotchiManager.saveState(context, state)
+                }
             }
         }
     }
