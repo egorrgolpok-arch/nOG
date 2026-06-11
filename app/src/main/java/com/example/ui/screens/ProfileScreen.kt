@@ -918,6 +918,9 @@ fun ProfileScreen(
                         androidx.compose.ui.viewinterop.AndroidView(
                             factory = { ctx ->
                                 android.widget.VideoView(ctx).apply {
+                                    if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+                                        setAudioFocusRequest(android.media.AudioManager.AUDIOFOCUS_NONE)
+                                    }
                                     setVideoURI(android.net.Uri.parse(zoomImageUrl))
                                     val mc = android.widget.MediaController(ctx)
                                     mc.setAnchorView(this)

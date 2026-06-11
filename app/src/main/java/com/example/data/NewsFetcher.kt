@@ -124,7 +124,17 @@ object NewsFetcher {
         NewsSource("Dota 2 RU", "https://news.google.com/rss/search?q=Dota2+дота+патч+турнир&hl=ru", 85, true),
         
         NewsSource("League of Legends Web", "https://news.google.com/rss/search?q=League+of+Legends+patch+lolesports+when:24h&hl=en-US", 90, false),
-        NewsSource("League of Legends RU", "https://news.google.com/rss/search?q=Лига+Легенд+лол+новости&hl=ru", 85, true)
+        NewsSource("League of Legends RU", "https://news.google.com/rss/search?q=Лига+Легенд+лол+новости&hl=ru", 85, true),
+        
+        // --- Added High-Fidelity Information Feeds ---
+        NewsSource("The Hacker News", "https://feeds.feedburner.com/TheHackersNews", 95, false),
+        NewsSource("The Register", "https://www.theregister.com/headlines.rss", 90, false),
+        NewsSource("Phoronix (Linux)", "https://www.phoronix.com/phoronix-rss.php", 92, false),
+        NewsSource("Slashdot", "https://rss.slashdot.org/Slashdot/slashdotMain", 88, false),
+        NewsSource("3DNews RU", "https://3dnews.ru/news/rss/", 88, true),
+        NewsSource("Overclockers RU", "https://www.overclockers.ru/rss/all.xml", 85, true),
+        NewsSource("ServerNews RU", "https://servernews.ru/news/rss", 90, true),
+        NewsSource("IXBT Games", "https://ixbt.games/export/news.rss", 85, true)
     )
 
     private val cachedNews = java.util.concurrent.ConcurrentHashMap<String, List<NewsItem>>()

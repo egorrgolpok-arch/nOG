@@ -1,0 +1,1934 @@
+package com.example.ui.screens
+
+import androidx.compose.foundation.*
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.*
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import com.example.ui.SocialViewModel
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+import kotlin.random.Random
+
+// Color palette for dark terminal aesthetic
+private val PureBlack = Color(0xFF000000)
+private val PureWhite = Color(0xFFFFFFFF)
+private val DeepGray = Color(0xFF0D0D0D)
+private val CardGray = Color(0xFF141414)
+private val BorderGray = Color(0xFF222222)
+private val TextGray = Color(0xFF888888)
+private val AccentGray = Color(0xFF555555)
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun CasinoScreen(
+    viewModel: SocialViewModel,
+    innerPadding: PaddingValues
+) {
+    val userCoins by viewModel.userCoins.collectAsState()
+    val isRu = viewModel.selectedLanguage.collectAsState().value == "RU"
+    
+    var activeGame by remember { mutableStateOf<String?>(null) } // "blackjack", "poker", "durak", "racing", "roulette", "slots"
+
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text(
+                            text = if (activeGame == null) {
+                                if (isRu) "🛰️ СУБОРБИТАЛЬНОЕ nOG КАЗИНО" else "🛰️ SUBORBITAL nOG CASINO"
+                            } else {
+                                when (activeGame) {
+                                    "blackjack" -> if (isRu) "♠️ БЛЕКДЖЕК" else "♠️ BLACKJACK"
+                                    "poker" -> if (isRu) "♦️ ТЕХАССКИЙ ПОКЕР" else "♦️ TEXAS HOLD'EM"
+                                    "durak" -> if (isRu) "♣️ ДУРАК С БОТАМИ" else "♣️ DURAK VS BOTS"
+                                    "racing" -> if (isRu) "🏇 СИНАПТИЧЕСКИЕ СКАЧКИ" else "🏇 SYNAPTIC RACES"
+                                    "roulette" -> if (isRu) "🎡 МОНОХРОМНАЯ РУЛЕТКА" else "🎡 MONOCHROME ROULETTE"
+                                    "slots" -> if (isRu) "🎰 ЦИФРОВЫЕ СЛОТЫ" else "🎰 CYPHER SLOT MACHINE"
+                                    else -> "nOG"
+                                }
+                            },
+                            fontFamily = FontFamily.Monospace,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 15.sp,
+                            color = PureWhite
+                        )
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(
+                                "🪙 $userCoins",
+                                fontFamily = FontFamily.Monospace,
+                                fontWeight = FontWeight.Bold,
+                                color = PureWhite,
+                                fontSize = 14.sp
+                            )
+                        }
+                    }
+                },
+                navigationIcon = {
+                    if (activeGame != null) {
+                        IconButton(onClick = { 
+                            viewModel.vibrate(25)
+                            activeGame = null 
+                        }) {
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                                contentDescription = "Back",
+                                tint = PureWhite
+                            )
+                        }
+                    }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = PureBlack,
+                    titleContentColor = PureWhite
+                )
+            )
+        },
+        containerColor = PureBlack,
+        modifier = Modifier.padding(innerPadding)
+    ) { padValues ->
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(padValues)
+                .background(PureBlack)
+        ) {
+            if (activeGame == null) {
+                // Game Selection Screen
+                LazyColumn(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    item {
+                        Card(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .border(1.dp, BorderGray, RoundedCornerShape(4.dp)),
+                            colors = CardDefaults.cardColors(containerColor = CardGray),
+                            shape = RoundedCornerShape(4.dp)
+                        ) {
+                            Column(modifier = Modifier.padding(16.dp)) {
+                                Text(
+                                    text = if (isRu) "ВЕЙПОР-СЕТЬ nOG-CASINO 🛸" else "nOG-CASINO VAPORNET 🛸",
+                                    color = PureWhite,
+                                    fontSize = 14.sp,
+                                    fontFamily = FontFamily.Monospace,
+                                    fontWeight = FontWeight.Bold
+                                )
+                                Spacer(modifier = Modifier.height(4.dp))
+                                Text(
+                                    text = if (isRu) "Откалибровано под стандартную теорию вероятностей. Никаких накруток со стороны владельца. nOG гарантирует чистые 100% честные математические шансы." 
+                                           else "Calibrated under authentic mathematical statistics. No backend skewing. nOG node coordinates guarantee exact casino grade fair percentages.",
+                                    color = TextGray,
+                                    fontSize = 11.sp,
+                                    fontFamily = FontFamily.Monospace,
+                                    lineHeight = 16.sp
+                                )
+                            }
+                        }
+                    }
+
+                    val gamesList = listOf(
+                        GameCardData("blackjack", if (isRu) "♠️ Блекджек (21)" else "♠️ Blackjack (21)", if (isRu) "Играй против дилера-бота до 21 очка. Выплаты 1.5x за блекджек." else "Standard 21 against terminal bot dealer. Payouts 3:2.", Icons.Default.Casino),
+                        GameCardData("poker", if (isRu) "♦️ Техасский Покер" else "♦️ Texas Hold'em", if (isRu) "Дуэль один на один против кибер-бота. Полные круги ставок и комбинаций." else "Heads-up Texas Hold'em duel against adaptive AI bot.", Icons.Default.Style),
+                        GameCardData("durak", if (isRu) "♣️ Дурак с ботами" else "♣️ Durak Card Game", if (isRu) "Легендарная русская игра. Атакуй, защищайся козырем и переиграй интеллект." else "Legendary Russian card game. Offend, defend, trump up to beat the bot.", Icons.Default.SportsEsports),
+                        GameCardData("racing", if (isRu) "🏇 Скачки рандом-ботов" else "🏇 Synaptic Horse Races", if (isRu) "Ставь на одного из электронных скакунов. Котировки и заезды в реальном времени!" else "Choose your virtual horse bot runner. Unbiased telemetry curves.", Icons.Default.DirectionsRun),
+                        GameCardData("roulette", if (isRu) "🎡 Монохромная Рулетка" else "🎡 Monochrome Roulette", if (isRu) "Испытай судьбу на колесе. Числа (0-36), четное/нечетное, белое/черное." else "Make your bets on 0-36. White/Black, Low/High, Odds/Evens.", Icons.Default.Cached),
+                        GameCardData("slots", if (isRu) "🎰 Cypher-слоты" else "🎰 Cypher Slot Machine", if (isRu) "Прокрути три барабана и сорви куш в 1,000,000 монет. Шансы близки к реальным!" else "3-reel spin machine. Hit combinations to claim the jackpot.", Icons.Default.ViewWeek)
+                    )
+
+                    items(gamesList) { game ->
+                        Surface(
+                            onClick = { 
+                                viewModel.vibrate(40)
+                                activeGame = game.id 
+                            },
+                            modifier = Modifier.fillMaxWidth(),
+                            border = BorderStroke(1.dp, BorderGray),
+                            color = CardGray,
+                            shape = RoundedCornerShape(4.dp)
+                        ) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(16.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(40.dp)
+                                        .background(DeepGray)
+                                        .border(1.dp, BorderGray, RoundedCornerShape(4.dp)),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(
+                                        imageVector = game.icon,
+                                        contentDescription = null,
+                                        tint = PureWhite,
+                                        modifier = Modifier.size(24.dp)
+                                    )
+                                }
+                                Spacer(modifier = Modifier.width(16.dp))
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        text = game.title,
+                                        color = PureWhite,
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 13.sp,
+                                        fontFamily = FontFamily.Monospace
+                                    )
+                                    Spacer(modifier = Modifier.height(2.dp))
+                                    Text(
+                                        text = game.desc,
+                                        color = TextGray,
+                                        fontSize = 10.sp,
+                                        fontFamily = FontFamily.Monospace,
+                                        lineHeight = 14.sp
+                                    )
+                                }
+                                Icon(
+                                    imageVector = Icons.Default.ChevronRight,
+                                    contentDescription = null,
+                                    tint = AccentGray,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                            }
+                        }
+                    }
+                }
+            } else {
+                // Render Game
+                when (activeGame) {
+                    "blackjack" -> BlackjackGame(viewModel, userCoins, isRu)
+                    "poker" -> PokerGame(viewModel, userCoins, isRu)
+                    "durak" -> DurakGame(viewModel, userCoins, isRu)
+                    "racing" -> HorseRacingGame(viewModel, userCoins, isRu)
+                    "roulette" -> RouletteGame(viewModel, userCoins, isRu)
+                    "slots" -> SlotsGame(viewModel, userCoins, isRu)
+                }
+            }
+        }
+    }
+}
+
+data class GameCardData(
+    val id: String,
+    val title: String,
+    val desc: String,
+    val icon: ImageVector
+)
+
+// Card rendering helper for casino games
+@Composable
+fun PlayingCardView(card: String) {
+    Box(
+        modifier = Modifier
+            .size(width = 48.dp, height = 70.dp)
+            .background(PureBlack)
+            .border(1.5.dp, PureWhite, RoundedCornerShape(4.dp)),
+        contentAlignment = Alignment.Center
+    ) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.SpaceBetween,
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(4.dp)
+        ) {
+            Text(
+                text = card.take(if(card.startsWith("10")) 2 else 1),
+                color = PureWhite,
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Bold,
+                fontFamily = FontFamily.Monospace,
+                modifier = Modifier.align(Alignment.Start)
+            )
+            Text(
+                text = card.last().toString(),
+                color = PureWhite,
+                fontSize = 20.sp,
+                modifier = Modifier.align(Alignment.CenterHorizontally)
+            )
+            Text(
+                text = card.take(if(card.startsWith("10")) 2 else 1),
+                color = PureWhite,
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Bold,
+                fontFamily = FontFamily.Monospace,
+                modifier = Modifier
+                    .align(Alignment.End)
+            )
+        }
+    }
+}
+
+// ==========================================
+// 1. BLACKJACK GAME IMPLEMENTATION
+// ==========================================
+@Composable
+fun BlackjackGame(viewModel: SocialViewModel, userCoins: Int, isRu: Boolean) {
+    val scope = rememberCoroutineScope()
+    var betAmount by remember { mutableStateOf(10) }
+    var inGame by remember { mutableStateOf(false) }
+    val playerHand = remember { mutableStateListOf<String>() }
+    val dealerHand = remember { mutableStateListOf<String>() }
+    var gameStatus by remember { mutableStateOf("") } // "won", "lost", "push", "blackjack", ""
+    var statusText by remember { mutableStateOf("") }
+
+    val suits = listOf("♠", "♣", "♥", "♦")
+    val ranks = listOf("2", "3", "4", "5", "6", "7", "8", "9", "10", "J", "Q", "K", "A")
+
+    fun getCardScore(card: String): Int {
+        val r = card.dropLast(1)
+        return when (r) {
+            "A" -> 11
+            "K", "Q", "J", "10" -> 10
+            else -> r.toIntOrNull() ?: 10
+        }
+    }
+
+    fun getHandScore(hand: List<String>): Int {
+        var sum = hand.sumOf { getCardScore(it) }
+        var aces = hand.count { it.startsWith("A") }
+        while (sum > 21 && aces > 0) {
+            sum -= 10
+            aces -= 1
+        }
+        return sum
+    }
+
+    fun dealCard(): String {
+        return ranks.random() + suits.random()
+    }
+
+    fun checkOutcome() {
+        val pScore = getHandScore(playerHand)
+        val dScore = getHandScore(dealerHand)
+        
+        when {
+            pScore > 21 -> {
+                gameStatus = "lost"
+                statusText = if (isRu) "ПЕРЕБОР! ВЫ ПРОИГРАЛИ." else "BUST! YOU LOST."
+                viewModel.vibrate(80)
+            }
+            dScore > 21 -> {
+                gameStatus = "won"
+                statusText = if (isRu) "У ДИЛЕРА ПЕРЕБОР! ВЫ ВЫИГРАЛИ!" else "DEALER BUST! YOU WIN!"
+                viewModel.updateCoins(userCoins + betAmount * 2)
+                viewModel.vibrate(120)
+            }
+            pScore > dScore -> {
+                gameStatus = "won"
+                statusText = if (isRu) "ВЫ ВЫИГРАЛИ!" else "YOU WIN!"
+                viewModel.updateCoins(userCoins + betAmount * 2)
+                viewModel.vibrate(120)
+            }
+            pScore < dScore -> {
+                gameStatus = "lost"
+                statusText = if (isRu) "ВЫ ПРОИГРАЛИ." else "YOU LOST."
+                viewModel.vibrate(80)
+            }
+            else -> {
+                gameStatus = "push"
+                statusText = if (isRu) "НИЧЬЯ (ПУШ)." else "PUSH. COINS RETURNED."
+                viewModel.updateCoins(userCoins + betAmount)
+                viewModel.vibrate(40)
+            }
+        }
+    }
+
+    fun startGame() {
+        if (userCoins < betAmount) {
+            statusText = if (isRu) "НЕДОСТАТОЧНО МОНЕТ" else "NOT ENOUGH COINS"
+            return
+        }
+        viewModel.updateCoins(userCoins - betAmount)
+        viewModel.vibrate(30)
+        
+        playerHand.clear()
+        dealerHand.clear()
+        
+        playerHand.add(dealCard())
+        playerHand.add(dealCard())
+        dealerHand.add(dealCard())
+        dealerHand.add(dealCard())
+
+        inGame = true
+        gameStatus = ""
+        statusText = ""
+
+        if (getHandScore(playerHand) == 21) {
+            // Player Blackjack
+            inGame = false
+            gameStatus = "blackjack"
+            statusText = if (isRu) "⚡ БЛЕКДЖЕК! ПОБЕДА!" else "⚡ BLACKJACK! YOU WIN!"
+            viewModel.updateCoins(userCoins + (betAmount * 2.5).toInt())
+            viewModel.vibrate(200)
+        }
+    }
+
+    fun hit() {
+        if (!inGame) return
+        viewModel.vibrate(25)
+        playerHand.add(dealCard())
+        if (getHandScore(playerHand) > 21) {
+            inGame = false
+            checkOutcome()
+        }
+    }
+
+    fun stand() {
+        if (!inGame) return
+        inGame = false
+        scope.launch {
+            // Dealer bot plays
+            while (getHandScore(dealerHand) < 17) {
+                delay(600)
+                dealerHand.add(dealCard())
+                viewModel.vibrate(15)
+            }
+            checkOutcome()
+        }
+    }
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(16.dp),
+        verticalArrangement = Arrangement.SpaceBetween,
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        // Dealer cards
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Text(
+                if (isRu) "КАРТЫ ДИЛЕРА" else "DEALER HAND",
+                color = TextGray,
+                fontFamily = FontFamily.Monospace,
+                fontSize = 11.sp
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                dealerHand.forEachIndexed { idx, card ->
+                    if (inGame && idx == 1) {
+                        // Hidden card
+                        Box(
+                            modifier = Modifier
+                                .size(width = 48.dp, height = 70.dp)
+                                .background(PureBlack)
+                                .border(1.5.dp, TextGray, RoundedCornerShape(4.dp)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text("?", color = TextGray, fontSize = 24.sp, fontFamily = FontFamily.Monospace)
+                        }
+                    } else {
+                        PlayingCardView(card)
+                    }
+                }
+            }
+            if (!inGame && dealerHand.isNotEmpty()) {
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    "${if (isRu) "Счет: " else "Score: "}${getHandScore(dealerHand)}",
+                    color = TextGray,
+                    fontFamily = FontFamily.Monospace,
+                    fontSize = 11.sp
+                )
+            }
+        }
+
+        // Status text
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            if (statusText.isNotEmpty()) {
+                Text(
+                    text = statusText,
+                    color = PureWhite,
+                    fontFamily = FontFamily.Monospace,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 14.sp,
+                    textAlign = TextAlign.Center
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+            }
+        }
+
+        // Player cards
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                playerHand.forEach { card ->
+                    PlayingCardView(card)
+                }
+            }
+            if (playerHand.isNotEmpty()) {
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    "${if (isRu) "Твой счет: " else "Your Score: "}${getHandScore(playerHand)}",
+                    color = PureWhite,
+                    fontFamily = FontFamily.Monospace,
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(
+                if (isRu) "ТВОИ КАРТЫ" else "YOUR HAND",
+                color = TextGray,
+                fontFamily = FontFamily.Monospace,
+                fontSize = 11.sp
+            )
+        }
+
+        // Betting & Actions
+        Column(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            if (!inGame) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceEvenly,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    IconButton(onClick = { if (betAmount > 5) { betAmount -= 5; viewModel.vibrate(10) } }) {
+                        Icon(Icons.Default.Remove, contentDescription = "Less Bet", tint = PureWhite)
+                    }
+                    Text(
+                        text = "${if (isRu) "СТАВКА: " else "BET: "} $betAmount 🪙",
+                        color = PureWhite,
+                        fontFamily = FontFamily.Monospace,
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                    IconButton(onClick = { if (betAmount + 5 <= userCoins) { betAmount += 5; viewModel.vibrate(10) } }) {
+                        Icon(Icons.Default.Add, contentDescription = "More Bet", tint = PureWhite)
+                    }
+                }
+                Spacer(modifier = Modifier.height(8.dp))
+                Button(
+                    onClick = { startGame() },
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(4.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = PureWhite, contentColor = PureBlack)
+                ) {
+                    Text(if (isRu) "РАЗДАТЬ КАРТЫ" else "DEAL HANDS", fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold)
+                }
+            } else {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    Button(
+                        onClick = { hit() },
+                        modifier = Modifier.weight(1f),
+                        shape = RoundedCornerShape(4.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = CardGray, contentColor = PureWhite),
+                        border = BorderStroke(1.dp, BorderGray)
+                    ) {
+                        Text(if (isRu) "ЕЩЕ (ЕЩЁ)" else "HIT", fontFamily = FontFamily.Monospace)
+                    }
+                    Button(
+                        onClick = { stand() },
+                        modifier = Modifier.weight(1f),
+                        shape = RoundedCornerShape(4.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = PureWhite, contentColor = PureBlack)
+                    ) {
+                        Text(if (isRu) "ХВАТИТ" else "STAND", fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold)
+                    }
+                }
+            }
+        }
+    }
+}
+
+// ==========================================
+// 2. TEXAS HOLD'EM POKER GAME IMPLEMENTATION
+// ==========================================
+@Composable
+fun PokerGame(viewModel: SocialViewModel, userCoins: Int, isRu: Boolean) {
+    val scope = rememberCoroutineScope()
+    var betAmt by remember { mutableStateOf(20) }
+    var inPokerGame by remember { mutableStateOf(false) }
+    val playerHand = remember { mutableStateListOf<String>() }
+    val botHand = remember { mutableStateListOf<String>() }
+    val communityCards = remember { mutableStateListOf<String>() }
+    var potAmt by remember { mutableStateOf(0) }
+    var pokerStatusText by remember { mutableStateOf("") }
+    
+    // Game stage: 0 = Pre-flop, 1 = Flop, 2 = Turn, 3 = River, 4 = Showdown
+    var gameStage by remember { mutableStateOf(0) }
+
+    val suits = listOf("♠", "♣", "♥", "♦")
+    val ranks = listOf("2", "3", "4", "5", "6", "7", "8", "9", "10", "J", "Q", "K", "A")
+
+    fun evaluateHand(handAndCommunity: List<String>): Pair<Int, String> {
+        // Standard heads up card combinations rating
+        // High Card = 1, Pair = 2, Two Pair = 3, Trips = 4, Straight = 5, Flush = 6, FullHouse = 7, Quads = 8, StraightFlush = 9
+        val ranksInPlay = handAndCommunity.map { it.dropLast(1) }
+        val suitsInPlay = handAndCommunity.map { it.last().toString() }
+        
+        val rankValues = mapOf("2" to 2, "3" to 3, "4" to 4, "5" to 5, "6" to 6, "7" to 7, "8" to 8, "9" to 9, "10" to 10, "J" to 11, "Q" to 12, "K" to 13, "A" to 14)
+        
+        val sortedVals = ranksInPlay.map { rankValues[it] ?: 0 }.sortedDescending()
+        
+        val hasFlush = suitsInPlay.groupBy { it }.any { it.value.size >= 5 }
+        
+        val straightCheck = sortedVals.distinct()
+        var hasStraight = false
+        var straightHigh = 0
+        if (straightCheck.size >= 5) {
+            for (i in 0..straightCheck.size - 5) {
+                if (straightCheck[i] - straightCheck[i + 4] == 4) {
+                    hasStraight = true
+                    straightHigh = straightCheck[i]
+                    break
+                }
+            }
+            // Low Ace straight (A-2-3-4-5)
+            if (straightCheck.contains(14) && straightCheck.contains(2) && straightCheck.contains(3) && straightCheck.contains(4) && straightCheck.contains(5)) {
+                hasStraight = true
+                straightHigh = 5
+            }
+        }
+
+        val counts = ranksInPlay.groupBy { it }.mapValues { it.value.size }
+        val pairs = counts.filter { it.value == 2 }.keys.toList()
+        val trips = counts.filter { it.value == 3 }.keys.toList()
+        val quads = counts.filter { it.value == 4 }.keys.toList()
+
+        return when {
+            hasFlush && hasStraight -> Pair(9, if (isRu) "Стрит-Флэш!" else "Straight Flush!")
+            quads.isNotEmpty() -> Pair(8, if (isRu) "Каре!" else "Four of a Kind!")
+            trips.isNotEmpty() && pairs.isNotEmpty() -> Pair(7, if (isRu) "Фулл-Хаус!" else "Full House!")
+            hasFlush -> Pair(6, if (isRu) "Флэш!" else "Flush!")
+            hasStraight -> Pair(5, if (isRu) "Стрит!" else "Straight!")
+            trips.isNotEmpty() -> Pair(4, if (isRu) "Тройка!" else "Three of a Kind!")
+            pairs.size >= 2 -> Pair(3, if (isRu) "Две Пары!" else "Two Pairs!")
+            pairs.size == 1 -> Pair(2, if (isRu) "Пара!" else "One Pair!")
+            else -> Pair(1, if (isRu) "Старшая Карта" else "High Card")
+        }
+    }
+
+    fun dealCard(): String {
+        return ranks.random() + suits.random()
+    }
+
+    fun cleanHands() {
+        playerHand.clear()
+        botHand.clear()
+        communityCards.clear()
+    }
+
+    fun startPoker() {
+        if (userCoins < betAmt) {
+            pokerStatusText = if (isRu) "НЕДОСТАТОЧНО МОНЕТ" else "NOT ENOUGH COINS"
+            return
+        }
+        viewModel.vibrate(40)
+        cleanHands()
+        viewModel.updateCoins(userCoins - betAmt)
+        
+        playerHand.add(dealCard())
+        playerHand.add(dealCard())
+        
+        botHand.add(dealCard())
+        botHand.add(dealCard())
+        
+        potAmt = betAmt * 2
+        gameStage = 0
+        inPokerGame = true
+        pokerStatusText = if (isRu) "РАУНД ПРЕФЛОП. Бот коллировал ставку в $betAmt." else "ROUND PRE-FLOP. Bot matched your deposit of $betAmt."
+    }
+
+    fun nextTurn() {
+        if (!inPokerGame) return
+        viewModel.vibrate(30)
+        when (gameStage) {
+            0 -> { // Deal Flop (3 cards)
+                communityCards.add(dealCard())
+                communityCards.add(dealCard())
+                communityCards.add(dealCard())
+                gameStage = 1
+                pokerStatusText = if (isRu) "ФЛОП РАЗДАН. Сделай ставку или чек!" else "FLOP DEALT. Select next bet or check!"
+            }
+            1 -> { // Deal Turn (1 card)
+                communityCards.add(dealCard())
+                gameStage = 2
+                pokerStatusText = if (isRu) "ТЁРН РАЗДАН!" else "TURN DEALT!"
+            }
+            2 -> { // Deal River (1 card)
+                communityCards.add(dealCard())
+                gameStage = 3
+                pokerStatusText = if (isRu) "РИВЕР РАЗДАН! Финальный раунд раскрытия!" else "RIVER DEALT! Press Showdown!"
+            }
+            3 -> { // Showdown
+                gameStage = 4
+                inPokerGame = false
+                val playerResult = evaluateHand(playerHand + communityCards)
+                val botResult = evaluateHand(botHand + communityCards)
+                
+                if (playerResult.first > botResult.first) {
+                    pokerStatusText = if (isRu) "ВЫ ВЫИГРАЛИ БАНК $potAmt 🪙! Ваша комбинация: ${playerResult.second}" 
+                                       else "YOU WIN POT $potAmt 🪙! Your Hand: ${playerResult.second}"
+                    viewModel.updateCoins(userCoins + potAmt)
+                    viewModel.vibrate(150)
+                } else if (playerResult.first < botResult.first) {
+                    pokerStatusText = if (isRu) "БОТ ПОБЕДИЛ с комбинацией: ${botResult.second}" 
+                                       else "BOT TAKES BANK with hand: ${botResult.second}"
+                    viewModel.vibrate(80)
+                } else {
+                    pokerStatusText = if (isRu) "СПЛИТ ПОТ! Равные комбинации: ${playerResult.second}" 
+                                       else "SPLIT POT! Both players hold equivalent hands: ${playerResult.second}"
+                    viewModel.updateCoins(userCoins + potAmt / 2)
+                    viewModel.vibrate(50)
+                }
+            }
+        }
+    }
+
+    fun raisePoker() {
+        if (userCoins < betAmt) {
+            pokerStatusText = if (isRu) "НЕ ХВАТАЕТ МОНЕТ ДЛЯ ПОВЫШЕНИЯ" else "NOT ENOUGH COINS TO RAISE"
+            return
+        }
+        viewModel.updateCoins(userCoins - betAmt)
+        potAmt += betAmt * 2
+        nextTurn()
+    }
+
+    fun foldPoker() {
+        inPokerGame = false
+        gameStage = 0
+        pokerStatusText = if (isRu) "ВЫ СБРОСИЛИ КАРТЫ. Банк ушел боту." else "YOU FOLD. Bot claims the pot."
+        viewModel.vibrate(30)
+    }
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(16.dp),
+        verticalArrangement = Arrangement.SpaceBetween,
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        // Bot Cards View
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Text(if (isRu) "ОППОНЕНТ (КИБЕР-БОТ)" else "OPPONENT (CYBER-BOT)", color = TextGray, fontSize = 11.sp, fontFamily = FontFamily.Monospace)
+            Spacer(modifier = Modifier.height(8.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                botHand.forEach { card ->
+                    if (gameStage < 4) {
+                        Box(
+                            modifier = Modifier
+                                .size(width = 48.dp, height = 70.dp)
+                                .background(PureBlack)
+                                .border(1.5.dp, TextGray, RoundedCornerShape(4.dp)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text("?", color = TextGray, fontSize = 24.sp, fontFamily = FontFamily.Monospace)
+                        }
+                    } else {
+                        PlayingCardView(card)
+                    }
+                }
+            }
+        }
+
+        // Community Cards & Pot
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Text(
+                "${if (isRu) "ТЕКУЩИЙ БАНК: " else "CURRENT POT: "} $potAmt 🪙",
+                color = PureWhite,
+                fontWeight = FontWeight.Bold,
+                fontFamily = FontFamily.Monospace,
+                fontSize = 14.sp
+            )
+            Spacer(modifier = Modifier.height(12.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                if (communityCards.isEmpty()) {
+                    repeat(5) {
+                        Box(
+                            modifier = Modifier
+                                .size(width = 40.dp, height = 58.dp)
+                                .background(PureBlack)
+                                .border(1.dp, BorderGray, RoundedCornerShape(4.dp)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text("-", color = AccentGray, fontSize = 12.sp, fontFamily = FontFamily.Monospace)
+                        }
+                    }
+                } else {
+                    communityCards.forEach { card -> ReadyCard(card) }
+                    repeat(5 - communityCards.size) {
+                        Box(
+                            modifier = Modifier
+                                .size(width = 40.dp, height = 58.dp)
+                                .background(PureBlack)
+                                .border(1.dp, BorderGray, RoundedCornerShape(4.dp)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text("-", color = AccentGray, fontSize = 12.sp, fontFamily = FontFamily.Monospace)
+                        }
+                    }
+                }
+            }
+            Spacer(modifier = Modifier.height(12.dp))
+            Text(
+                text = pokerStatusText,
+                color = PureWhite,
+                fontSize = 11.sp,
+                fontFamily = FontFamily.Monospace,
+                textAlign = TextAlign.Center,
+                lineHeight = 16.sp
+            )
+        }
+
+        // Player Cards View
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                playerHand.forEach { card -> PlayingCardView(card) }
+            }
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(if (isRu) "ТВОИ КАРТЫ" else "YOUR HOLE CARDS", color = TextGray, fontSize = 11.sp, fontFamily = FontFamily.Monospace)
+        }
+
+        // Controls
+        Column(modifier = Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
+            if (!inPokerGame) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceEvenly,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    IconButton(onClick = { if (betAmt > 10) { betAmt -= 10; viewModel.vibrate(10) } }) {
+                        Icon(Icons.Default.Remove, contentDescription = null, tint = PureWhite)
+                    }
+                    Text(
+                        text = "${if (isRu) "СТАВКА: " else "BET: "} $betAmt 🪙",
+                        color = PureWhite,
+                        fontFamily = FontFamily.Monospace,
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                    IconButton(onClick = { if (betAmt + 10 <= userCoins) { betAmt += 10; viewModel.vibrate(10) } }) {
+                        Icon(Icons.Default.Add, contentDescription = null, tint = PureWhite)
+                    }
+                }
+                Spacer(modifier = Modifier.height(8.dp))
+                Button(
+                    onClick = { startPoker() },
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(4.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = PureWhite, contentColor = PureBlack)
+                ) {
+                    Text(if (isRu) "НАЧАТЬ РАЗДАЧУ" else "START MATCH", fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold)
+                }
+            } else {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Button(
+                        onClick = { foldPoker() },
+                        modifier = Modifier.weight(1f),
+                        shape = RoundedCornerShape(4.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = CardGray, contentColor = PureWhite),
+                        border = BorderStroke(1.dp, BorderGray)
+                    ) {
+                        Text(if (isRu) "ФОЛД" else "FOLD", fontFamily = FontFamily.Monospace)
+                    }
+                    Button(
+                        onClick = { nextTurn() },
+                        modifier = Modifier.weight(1f),
+                        shape = RoundedCornerShape(4.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = CardGray, contentColor = PureWhite),
+                        border = BorderStroke(1.dp, BorderGray)
+                    ) {
+                        Text(
+                            text = if (gameStage == 3) {
+                                if (isRu) "РАСКРЫТЬ" else "SHOWDOWN"
+                            } else {
+                                if (isRu) "ЧЕК" else "CHECK"
+                            }, 
+                            fontFamily = FontFamily.Monospace
+                        )
+                    }
+                    Button(
+                        onClick = { raisePoker() },
+                        modifier = Modifier.weight(1f),
+                        shape = RoundedCornerShape(4.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = PureWhite, contentColor = PureBlack)
+                    ) {
+                        Text(if (isRu) "БЕТ" else "RAISE", fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold)
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun ReadyCard(card: String) {
+    Box(
+        modifier = Modifier
+            .size(width = 40.dp, height = 58.dp)
+            .background(PureBlack)
+            .border(1.dp, PureWhite, RoundedCornerShape(4.dp)),
+        contentAlignment = Alignment.Center
+    ) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            modifier = Modifier.padding(2.dp)
+        ) {
+            Text(card.take(card.length - 1), color = PureWhite, fontSize = 11.sp, fontFamily = FontFamily.Monospace)
+            Text(card.last().toString(), color = PureWhite, fontSize = 14.sp)
+        }
+    }
+}
+
+
+// ==========================================
+// 3. DURAK GAME WITH TERM BOT IMPLEMENTATION
+// ==========================================
+@Composable
+fun DurakGame(viewModel: SocialViewModel, userCoins: Int, isRu: Boolean) {
+    val scope = rememberCoroutineScope()
+    var betVal by remember { mutableStateOf(15) }
+    var inDurak by remember { mutableStateOf(false) }
+    
+    val playerHand = remember { mutableStateListOf<String>() }
+    val botHand = remember { mutableStateListOf<String>() }
+    
+    var trumpCard by remember { mutableStateOf("") }
+    var trumpSuit by remember { mutableStateOf("") }
+    var remainingCardsCount by remember { mutableStateOf(36) }
+    var durakText by remember { mutableStateOf("") }
+    
+    // Board active attacks/covers
+    val activeAttackCards = remember { mutableStateListOf<String>() }
+    val activeDefendCards = remember { mutableStateListOf<String>() }
+    var isPlayerAttacker by remember { mutableStateOf(true) }
+
+    val suits = listOf("♠", "♣", "♥", "♦")
+    val ranks = listOf("6", "7", "8", "9", "10", "J", "Q", "K", "A")
+    val deck = remember { mutableStateListOf<String>() }
+
+    fun getCardValue(card: String): Int {
+        val r = card.dropLast(1)
+        return ranks.indexOf(r)
+    }
+
+    fun createAndShuffleDeck() {
+        deck.clear()
+        for (suit in suits) {
+            for (rank in ranks) {
+                deck.add(rank + suit)
+            }
+        }
+        deck.shuffle()
+    }
+
+    fun dealHandsAndTrump() {
+        playerHand.clear()
+        botHand.clear()
+        repeat(6) {
+            if (deck.isNotEmpty()) playerHand.add(deck.removeAt(0))
+            if (deck.isNotEmpty()) botHand.add(deck.removeAt(0))
+        }
+        if (deck.isNotEmpty()) {
+            trumpCard = deck.last()
+            trumpSuit = trumpCard.last().toString()
+        }
+        remainingCardsCount = deck.size
+    }
+
+    fun startDurak() {
+        if (userCoins < betVal) {
+            durakText = if (isRu) "НЕДОСТАТОЧНО СРЕДСТВ" else "NOT ENGIN COINS"
+            return
+        }
+        viewModel.updateCoins(userCoins - betVal)
+        viewModel.vibrate(40)
+        
+        createAndShuffleDeck()
+        dealHandsAndTrump()
+        
+        activeAttackCards.clear()
+        activeDefendCards.clear()
+        
+        isPlayerAttacker = true
+        inDurak = true
+        durakText = if (isRu) "Твой ход! Выбери карту из доступных внизу для атаки." else "It's your turn. Select a card from below to hit the bot."
+    }
+
+    fun refillsHands() {
+        while (playerHand.size < 6 && deck.isNotEmpty()) {
+            playerHand.add(deck.removeAt(0))
+        }
+        while (botHand.size < 6 && deck.isNotEmpty()) {
+            botHand.add(deck.removeAt(0))
+        }
+        remainingCardsCount = deck.size
+    }
+
+    fun botDefenseOrAttack() {
+        scope.launch {
+            delay(1000)
+            if (isPlayerAttacker) {
+                // Player attacked, bot must defend
+                val attackingCard = activeAttackCards.last()
+                val attackingSuit = attackingCard.last().toString()
+                val attackingPower = getCardValue(attackingCard)
+                
+                // Bot searches for valid defense item
+                val defenseCandidates = botHand.filter { card ->
+                    val s = card.last().toString()
+                    val power = getCardValue(card)
+                    
+                    if (s == attackingSuit) {
+                        power > attackingPower
+                    } else {
+                        s == trumpSuit && attackingSuit != trumpSuit
+                    }
+                }.sortedBy { card ->
+                    // Prefer smaller card values and non-trumps
+                    val isT = card.last().toString() == trumpSuit
+                    val score = getCardValue(card) + if (isT) 100 else 0
+                    score
+                }
+
+                if (defenseCandidates.isNotEmpty()) {
+                    val defCard = defenseCandidates.first()
+                    botHand.remove(defCard)
+                    activeDefendCards.add(defCard)
+                    viewModel.vibrate(15)
+                    durakText = if (isRu) "Бот отбился картой: $defCard. Ты можешь подкинуть!" else "Bot defended with: $defCard. Throw more or finish round!"
+                } else {
+                    // Bot takes the cards
+                    durakText = if (isRu) "Бот не смог отбиться и берет карты!" else "Bot can't defend and takes cards!"
+                    botHand.addAll(activeAttackCards)
+                    botHand.addAll(activeDefendCards)
+                    activeAttackCards.clear()
+                    activeDefendCards.clear()
+                    viewModel.vibrate(25)
+                    refillsHands()
+                }
+            } else {
+                // Bot attacks Player
+                val attackCandidates = botHand.sortedBy { card ->
+                    val isT = card.last().toString() == trumpSuit
+                    getCardValue(card) + if (isT) 100 else 0
+                }
+                
+                if (attackCandidates.isNotEmpty()) {
+                    val attackCard = attackCandidates.first()
+                    botHand.remove(attackCard)
+                    activeAttackCards.add(attackCard)
+                    viewModel.vibrate(15)
+                    durakText = if (isRu) "Бот пошел картой: $attackCard. Отбейся!" else "Bot attacks with: $attackCard. Defend!"
+                }
+            }
+        }
+    }
+
+    fun playerDefend(defCard: String) {
+        if (activeAttackCards.isEmpty()) return
+        val attCard = activeAttackCards.first()
+        val attSuit = attCard.last().toString()
+        val attPower = getCardValue(attCard)
+        
+        val defSuit = defCard.last().toString()
+        val defPower = getCardValue(defCard)
+
+        val isValid = if (defSuit == attSuit) {
+            defPower > attPower
+        } else {
+            defSuit == trumpSuit && attSuit != trumpSuit
+        }
+
+        if (isValid) {
+            playerHand.remove(defCard)
+            activeDefendCards.add(defCard)
+            viewModel.vibrate(20)
+            
+            // Round complete
+            scope.launch {
+                delay(800)
+                durakText = if (isRu) "БИТО! Начало нового раунда." else "BEATEN! Starting next turn."
+                activeAttackCards.clear()
+                activeDefendCards.clear()
+                refillsHands()
+                isPlayerAttacker = true
+                durakText = if (isRu) "Новый раунд. Твой ход!" else "New round. It is your turn!"
+            }
+        } else {
+            durakText = if (isRu) "Нельзя побить карту $attCard этой картой!" else "Invalid defense against $attCard!"
+        }
+    }
+
+    fun playerAttack(card: String) {
+        playerHand.remove(card)
+        activeAttackCards.add(card)
+        viewModel.vibrate(20)
+        botDefenseOrAttack()
+    }
+
+    fun finishTurn() {
+        // Player completes attacking session or defends
+        if (isPlayerAttacker) {
+            durakText = if (isRu) "Бита объявлена!" else "Beaten called!"
+            activeAttackCards.clear()
+            activeDefendCards.clear()
+            refillsHands()
+            isPlayerAttacker = false
+            botDefenseOrAttack()
+        } else {
+            // Player couldn't defend, takes cards
+            playerHand.addAll(activeAttackCards)
+            playerHand.addAll(activeDefendCards)
+            activeAttackCards.clear()
+            activeDefendCards.clear()
+            refillsHands()
+            durakText = if (isRu) "Ты взял карты. Ход бота!" else "You took cards. Bot plays!"
+            isPlayerAttacker = false
+            botDefenseOrAttack()
+        }
+    }
+
+    // Check game condition
+    if (inDurak && playerHand.isEmpty() && deck.isEmpty()) {
+        inDurak = false
+        durakText = if (isRu) "👑 ПОЗДРАВЛЯЕМ! ТЫ ВЫИГРАЛ $betVal МОНЕТ!" else "👑 CONGRATULATIONS! YOU BEAT THE BOT AND WON $betVal COINS!"
+        viewModel.updateCoins(userCoins + betVal * 2)
+        viewModel.vibrate(200)
+    } else if (inDurak && botHand.isEmpty() && deck.isEmpty()) {
+        inDurak = false
+        durakText = if (isRu) "💀 ТЫ ДУРАК! БОТ ОДЕРАЖАЛ ПОБЕДУ." else "💀 GAME OVER. BOT ESCAPED DURAK, YOU PLAYED FOOL."
+        viewModel.vibrate(100)
+    }
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(16.dp),
+        verticalArrangement = Arrangement.SpaceBetween,
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        // Opponent status
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Text(
+                "${if (isRu) "БОТ-ИИ (КАРТ: " else "CYBER-BOT CARDS: "}${botHand.size})",
+                color = TextGray,
+                fontFamily = FontFamily.Monospace,
+                fontSize = 11.sp
+            )
+            Spacer(modifier = Modifier.height(6.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                repeat(botHand.size) {
+                    Box(
+                        modifier = Modifier
+                            .size(24.dp, 36.dp)
+                            .background(CardGray)
+                            .border(1.dp, AccentGray, RoundedCornerShape(2.dp))
+                    )
+                }
+            }
+        }
+
+        // Table board / Trump Card
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                // Trump field
+                if (trumpCard.isNotEmpty()) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text(
+                            if (isRu) "КОЗЫРЬ" else "TRUMP",
+                            color = TextGray,
+                            fontSize = 9.sp,
+                            fontFamily = FontFamily.Monospace
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        ReadyCard(trumpCard)
+                    }
+                }
+                
+                // Active board field
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text(
+                        "${if (isRu) "КОЛОДА: " else "DECK: "}$remainingCardsCount",
+                        color = TextGray,
+                        fontSize = 11.sp,
+                        fontFamily = FontFamily.Monospace
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        activeAttackCards.forEachIndexed { index, att ->
+                            Box {
+                                PlayingCardView(att)
+                                if (activeDefendCards.size > index) {
+                                    Box(modifier = Modifier.padding(top = 15.dp, start = 10.dp)) {
+                                        PlayingCardView(activeDefendCards[index])
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            Spacer(modifier = Modifier.height(10.dp))
+            Text(
+                text = durakText,
+                color = PureWhite,
+                fontFamily = FontFamily.Monospace,
+                fontSize = 11.sp,
+                textAlign = TextAlign.Center,
+                lineHeight = 15.sp,
+                modifier = Modifier.padding(horizontal = 8.dp)
+            )
+        }
+
+        // Player Actions / Hand Cards
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Text(
+                if (isRu) "ТВОИ КАРТЫ (КЛИКНИ ДЛЯ ХОДА/ОТБИТИЯ)" else "YOUR HAND (CLICK CARD TO PLAY)",
+                color = TextGray,
+                fontFamily = FontFamily.Monospace,
+                fontSize = 10.sp
+            )
+            Spacer(modifier = Modifier.height(6.dp))
+            // Auto horizontal scroll if cards overflow
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .horizontalScroll(rememberScrollState()),
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                playerHand.forEach { card ->
+                    Surface(
+                        onClick = {
+                            if (inDurak) {
+                                if (isPlayerAttacker) {
+                                    // Make sure we attack correctly
+                                    if (activeAttackCards.isEmpty() || activeAttackCards.size == activeDefendCards.size) {
+                                        playerAttack(card)
+                                    }
+                                } else {
+                                    // Defend
+                                    playerDefend(card)
+                                }
+                            }
+                        },
+                        color = Color.Transparent
+                    ) {
+                        PlayingCardView(card)
+                    }
+                }
+            }
+        }
+
+        // Global control
+        Column(modifier = Modifier.fillMaxWidth()) {
+            if (!inDurak) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceEvenly,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    IconButton(onClick = { if (betVal > 5) { betVal -= 5; viewModel.vibrate(10) } }) {
+                        Icon(Icons.Default.Remove, contentDescription = null, tint = PureWhite)
+                    }
+                    Text(
+                        text = "${if (isRu) "СТАВКА: " else "BET: "}$betVal 🪙",
+                        color = PureWhite,
+                        fontFamily = FontFamily.Monospace,
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                    IconButton(onClick = { if (betVal + 5 <= userCoins) { betVal += 5; viewModel.vibrate(10) } }) {
+                        Icon(Icons.Default.Add, contentDescription = null, tint = PureWhite)
+                    }
+                }
+                Spacer(modifier = Modifier.height(6.dp))
+                Button(
+                    onClick = { startDurak() },
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(4.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = PureWhite, contentColor = PureBlack)
+                ) {
+                    Text(if (isRu) "РАЗДАТЬ ДУРАКА" else "START EXPEDITION", fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold)
+                }
+            } else {
+                Button(
+                    onClick = { finishTurn() },
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(4.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = CardGray, contentColor = PureWhite),
+                    border = BorderStroke(1.dp, BorderGray)
+                ) {
+                    Text(
+                        text = if (isPlayerAttacker) {
+                            if (isRu) "ЗАВЕРШИТЬ ХОД (БИТА)" else "COMPLETE TURN (BEAT)"
+                        } else {
+                            if (isRu) "ПОДВЕСТИ ХОД (ВЗЯТЬ КАРТЫ)" else "TAKE CARDS"
+                        }, 
+                        fontFamily = FontFamily.Monospace
+                    )
+                }
+            }
+        }
+    }
+}
+
+
+// ==========================================
+// 4. SYNAPTIC HORSE RACING GAME
+// ==========================================
+data class HorseRunner(
+    val name: String,
+    val payoutMulti: Double,
+    var progress: Float, // 0.0 to 100.0
+    val speedFactor: Float
+)
+
+@Composable
+fun HorseRacingGame(viewModel: SocialViewModel, userCoins: Int, isRu: Boolean) {
+    val scope = rememberCoroutineScope()
+    var betAmount by remember { mutableStateOf(20) }
+    var selectedHorseIdx by remember { mutableStateOf(0) }
+    var inRace by remember { mutableStateOf(false) }
+    
+    val horses = remember {
+        mutableStateListOf(
+            HorseRunner("🐎 COAL_DUST (FAV)", 1.8, 0f, 1.05f),
+            HorseRunner("🐎 TECH_STRIKE", 3.0, 0f, 0.98f),
+            HorseRunner("🐎 ALPHA_CYPHER", 4.5, 0f, 0.92f),
+            HorseRunner("🐎 DARK_HORIZON", 8.0, 0f, 0.78f)
+        )
+    }
+
+    var raceStatusText by remember { mutableStateOf("") }
+
+    fun startRace() {
+        if (userCoins < betAmount) {
+            raceStatusText = if (isRu) "НЕДОСТАТОЧНО СРЕДСТВ" else "NOT ENOUGH DEPOSITS"
+            return
+        }
+        viewModel.updateCoins(userCoins - betAmount)
+        viewModel.vibrate(50)
+        
+        // Reset progresses
+        horses.forEach { h -> h.progress = 0f }
+        inRace = true
+        raceStatusText = if (isRu) "ИНТЕЛЛЕКТУАЛЬНЫЕ КОНИ ВЫШЛИ НА ТРЕК..." else "CYBER-STEEDS LAUNCHED ON THE NEURAL TRAIL..."
+
+        scope.launch {
+            while (horses.all { h -> h.progress < 100f }) {
+                delay(120)
+                // Random haptic ticks
+                if (Random.nextInt(5) == 1) viewModel.vibrate(8)
+                
+                // Advance horses
+                horses.forEachIndexed { index, runner ->
+                    val move = Random.nextFloat() * 4.5f * runner.speedFactor
+                    horses[index] = runner.copy(progress = (runner.progress + move).coerceAtMost(100f))
+                }
+            }
+            
+            // Declare winner
+            val winnerIndex = horses.indexOfMaxBy { it.progress }
+            val winningHorse = horses[winnerIndex]
+            
+            inRace = false
+            if (winnerIndex == selectedHorseIdx) {
+                val winEarnings = (betAmount * winningHorse.payoutMulti).toInt()
+                raceStatusText = if (isRu) "🎁 ТВОЙ СКАКУН ПРИБЕЖАЛ ПЕРВЫМ! Ваша выплата: $winEarnings монет!" 
+                                   else "🎁 YOUR HORSE CROSSED THE LINE FIRST! Claimed: $winEarnings coins!"
+                viewModel.updateCoins(userCoins + winEarnings)
+                viewModel.vibrate(180)
+            } else {
+                raceStatusText = if (isRu) "ПОРАЖЕНИЕ. Первым приехал скакун ${winningHorse.name}. Попробуй снова!" 
+                                   else "DEFEAT. The victor was ${winningHorse.name}. Recalibrate your stakes!"
+                viewModel.vibrate(80)
+            }
+        }
+    }
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(16.dp),
+        verticalArrangement = Arrangement.SpaceBetween,
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Column(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Text(
+                if (isRu) "ТЕКУЩИЕ ЗАБЕГИ И КОЭФФИЦИЕНТЫ" else "TELEMETRY CURVES & RATINGS",
+                fontFamily = FontFamily.Monospace,
+                fontSize = 11.sp,
+                color = TextGray
+            )
+            Spacer(modifier = Modifier.height(16.dp))
+            
+            // Race Track UI
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(DeepGray)
+                    .border(1.dp, BorderGray)
+                    .padding(12.dp)
+            ) {
+                horses.forEachIndexed { index, runner ->
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = runner.name,
+                            color = if (selectedHorseIdx == index) PureWhite else TextGray,
+                            fontSize = 11.sp,
+                            fontWeight = if (selectedHorseIdx == index) FontWeight.Bold else FontWeight.Normal,
+                            fontFamily = FontFamily.Monospace,
+                            modifier = Modifier.width(135.dp)
+                        )
+                        Box(
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(1.5.dp)
+                                .background(BorderGray)
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxHeight()
+                                    .fillMaxWidth(runner.progress / 100f)
+                                    .background(PureWhite)
+                            )
+                        }
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text(
+                            text = "${runner.progress.toInt()}%",
+                            color = PureWhite,
+                            fontFamily = FontFamily.Monospace,
+                            fontSize = 10.sp
+                        )
+                    }
+                }
+            }
+        }
+
+        Text(
+            text = raceStatusText,
+            color = PureWhite,
+            fontFamily = FontFamily.Monospace,
+            fontSize = 11.sp,
+            textAlign = TextAlign.Center,
+            modifier = Modifier.padding(12.dp)
+        )
+
+        // Select Horse
+        Column(modifier = Modifier.fillMaxWidth()) {
+            if (!inRace) {
+                Text(
+                    text = if (isRu) "ВЫБЕРИ СКАКУНА ДЛЯ СТАВКИ:" else "CHOOSE CYBER STEED TO STAKE:",
+                    color = TextGray,
+                    fontSize = 10.sp,
+                    fontFamily = FontFamily.Monospace,
+                    modifier = Modifier.padding(bottom = 6.dp)
+                )
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .horizontalScroll(rememberScrollState()),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    horses.forEachIndexed { idx, runner ->
+                        Surface(
+                            onClick = { selectedHorseIdx = idx; viewModel.vibrate(20) },
+                            border = BorderStroke(1.dp, if (selectedHorseIdx == idx) PureWhite else BorderGray),
+                            color = if (selectedHorseIdx == idx) DeepGray else Color.Transparent,
+                            shape = RoundedCornerShape(4.dp)
+                        ) {
+                            Text(
+                                text = "${runner.name}\n[x${runner.payoutMulti}]",
+                                color = PureWhite,
+                                fontSize = 11.sp,
+                                fontFamily = FontFamily.Monospace,
+                                modifier = Modifier.padding(8.dp)
+                            )
+                        }
+                    }
+                }
+                
+                Spacer(modifier = Modifier.height(16.dp))
+                // Bet slider / controls
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceEvenly,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    IconButton(onClick = { if (betAmount > 10) { betAmount -= 10; viewModel.vibrate(10) } }) {
+                        Icon(Icons.Default.Remove, contentDescription = null, tint = PureWhite)
+                    }
+                    Text(
+                        text = "${if (isRu) "СТАВКА: " else "BET: "}$betAmount 🪙",
+                        color = PureWhite,
+                        fontFamily = FontFamily.Monospace,
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                    IconButton(onClick = { if (betAmount + 10 <= userCoins) { betAmount += 10; viewModel.vibrate(10) } }) {
+                        Icon(Icons.Default.Add, contentDescription = null, tint = PureWhite)
+                    }
+                }
+                Spacer(modifier = Modifier.height(10.dp))
+                Button(
+                    onClick = { startRace() },
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(4.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = PureWhite, contentColor = PureBlack)
+                ) {
+                    Text(if (isRu) "ЗАПУСТИТЬ ТЕЛЕМЕТРИЮ ЗАБЕГА" else "START NEURAL TELEMETRY", fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold)
+                }
+            } else {
+                CircularProgressIndicator(
+                    color = PureWhite,
+                    strokeWidth = 2.dp,
+                    modifier = Modifier
+                        .align(Alignment.CenterHorizontally)
+                        .size(32.dp)
+                )
+            }
+        }
+    }
+}
+
+inline fun <T> List<T>.indexOfMaxBy(selector: (T) -> Float): Int {
+    if (isEmpty()) return -1
+    var maxIndex = 0
+    var maxValue = selector(first())
+    for (i in 1 until size) {
+        val value = selector(this[i])
+        if (value > maxValue) {
+            maxIndex = i
+            maxValue = value
+        }
+    }
+    return maxIndex
+}
+
+
+// ==========================================
+// 5. MONOCHROME ROULETTE GAME IMPLEMENTATION
+// ==========================================
+@Composable
+fun RouletteGame(viewModel: SocialViewModel, userCoins: Int, isRu: Boolean) {
+    val scope = rememberCoroutineScope()
+    var betAmount by remember { mutableStateOf(10) }
+    var inSpin by remember { mutableStateOf(false) }
+
+    // Selected bet type: "white" (equivalent of red), "black", "even", "odd", "zero"
+    var betType by remember { mutableStateOf("white") }
+    
+    var lastSpinNumber by remember { mutableStateOf<Int?>(null) }
+    var rouletteStatusText by remember { mutableStateOf("") }
+    var wheelPointerAng by remember { mutableStateOf(0f) }
+
+    fun startRouletteSpin() {
+        if (userCoins < betAmount) {
+            rouletteStatusText = if (isRu) "НЕДОСТАТОЧНО СРЕДСТВ" else "NOT ENOUGH BANK"
+            return
+        }
+        viewModel.updateCoins(userCoins - betAmount)
+        viewModel.vibrate(40)
+        
+        inSpin = true
+        rouletteStatusText = if (isRu) "КОЛЕСО РУЛЕТКИ ЗАПУЩЕНО..." else "ROULETTE ROTATOR ENGAGED..."
+
+        scope.launch {
+            // Fake animation delays
+            repeat(15) { i ->
+                wheelPointerAng += 24f
+                viewModel.vibrate(10)
+                delay(60 + (i * 20).toLong())
+            }
+            
+            val winningNumber = Random.nextInt(37)
+            lastSpinNumber = winningNumber
+            val winningColor = when {
+                winningNumber == 0 -> "zero"
+                winningNumber % 2 == 1 -> "white" // Let white represent red
+                else -> "black"
+            }
+            
+            val isEven = winningNumber != 0 && winningNumber % 2 == 0
+            val isOdd = winningNumber % 2 == 1
+
+            var won = false
+            var payoutMultiplier = 0
+            
+            when (betType) {
+                "white" -> {
+                    if (winningColor == "white") {
+                        won = true
+                        payoutMultiplier = 2
+                    }
+                }
+                "black" -> {
+                    if (winningColor == "black") {
+                        won = true
+                        payoutMultiplier = 2
+                    }
+                }
+                "even" -> {
+                    if (isEven) {
+                        won = true
+                        payoutMultiplier = 2
+                    }
+                }
+                "odd" -> {
+                    if (isOdd) {
+                        won = true
+                        payoutMultiplier = 2
+                    }
+                }
+                "zero" -> {
+                    if (winningNumber == 0) {
+                        won = true
+                        payoutMultiplier = 36
+                    }
+                }
+            }
+
+            inSpin = false
+            if (won) {
+                val winnings = betAmount * payoutMultiplier
+                rouletteStatusText = if (isRu) "🎉 ВЫПАЛО ЧИСЛО $winningNumber! Победитель получил $winnings монет." 
+                                   else "🎉 HIT FIELD $winningNumber! Claimed payout of $winnings coins."
+                viewModel.updateCoins(userCoins + winnings)
+                viewModel.vibrate(180)
+            } else {
+                rouletteStatusText = if (isRu) "ПОТЕРИ. Выпало число $winningNumber (${if (winningColor == "white") "БЕЛОЕ" else if (winningColor == "black") "ЧЕРНОЕ" else "ЗЕРО"}). Попробуй еще раз!" 
+                                   else "DEBIT EFFECT. Rolled $winningNumber (${winningColor.uppercase()}). Rotate again!"
+                viewModel.vibrate(80)
+            }
+        }
+    }
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(16.dp),
+        verticalArrangement = Arrangement.SpaceBetween,
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Text(
+                if (isRu) "ШИФРОВАННЫЙ ЦЕНТРИФУЖНЫЙ ДИСК" else "ROTATING MONOCHROME DISK",
+                color = TextGray,
+                fontFamily = FontFamily.Monospace,
+                fontSize = 11.sp
+            )
+            Spacer(modifier = Modifier.height(24.dp))
+            
+            // Visual simulated spin wheel
+            Box(
+                modifier = Modifier
+                    .size(140.dp)
+                    .background(PureBlack)
+                    .border(2.dp, PureWhite, CircleShape),
+                contentAlignment = Alignment.Center
+            ) {
+                // Outer circle fields
+                Text(
+                    text = lastSpinNumber?.toString() ?: "🎡",
+                    fontSize = 32.sp,
+                    color = PureWhite,
+                    fontWeight = FontWeight.Bold,
+                    fontFamily = FontFamily.Monospace
+                )
+            }
+        }
+
+        Text(
+            text = rouletteStatusText,
+            color = PureWhite,
+            fontSize = 11.sp,
+            fontFamily = FontFamily.Monospace,
+            textAlign = TextAlign.Center,
+            lineHeight = 15.sp,
+            modifier = Modifier.padding(12.dp)
+        )
+
+        // Select Bet Type
+        Column(modifier = Modifier.fillMaxWidth()) {
+            if (!inSpin) {
+                Text(
+                    text = if (isRu) "ВЫБЕРИТЕ СЕКТОР СТАВКИ:" else "SELECT A STAKE SECTOR:",
+                    color = TextGray,
+                    fontSize = 10.sp,
+                    fontFamily = FontFamily.Monospace,
+                    modifier = Modifier.padding(bottom = 6.dp)
+                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    val sectors = listOf("white", "black", "even", "odd", "zero")
+                    sectors.forEach { sector ->
+                        val text = when(sector) {
+                            "white" -> if (isRu) "БЕЛЫЕ (2х)" else "WHITE (2x)"
+                            "black" -> if (isRu) "ЧЕРНЫЕ (2х)" else "BLACK (2x)"
+                            "even" -> if (isRu) "ЧЕТ (2х)" else "EVEN (2x)"
+                            "odd" -> if (isRu) "НЕЧЕТ (2х)" else "ODD (2x)"
+                            "zero" -> if (isRu) "ЗЕРО (36х)" else "ZERO (36x)"
+                            else -> sector
+                        }
+                        
+                        Surface(
+                            onClick = { betType = sector; viewModel.vibrate(20) },
+                            modifier = Modifier.weight(1f),
+                            border = BorderStroke(1.dp, if (betType == sector) PureWhite else BorderGray),
+                            color = if (betType == sector) DeepGray else Color.Transparent,
+                            shape = RoundedCornerShape(4.dp)
+                        ) {
+                            Text(
+                                text = text,
+                                color = PureWhite,
+                                fontSize = 9.sp,
+                                fontFamily = FontFamily.Monospace,
+                                textAlign = TextAlign.Center,
+                                modifier = Modifier.padding(vertical = 10.dp)
+                            )
+                        }
+                    }
+                }
+                Spacer(modifier = Modifier.height(16.dp))
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceEvenly,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    IconButton(onClick = { if (betAmount > 5) { betAmount -= 5; viewModel.vibrate(10) } }) {
+                        Icon(Icons.Default.Remove, contentDescription = null, tint = PureWhite)
+                    }
+                    Text(
+                        text = "${if (isRu) "СТАВКА: " else "BET: "}$betAmount 🪙",
+                        color = PureWhite,
+                        fontFamily = FontFamily.Monospace,
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                    IconButton(onClick = { if (betAmount + 5 <= userCoins) { betAmount += 5; viewModel.vibrate(10) } }) {
+                        Icon(Icons.Default.Add, contentDescription = null, tint = PureWhite)
+                    }
+                }
+                Spacer(modifier = Modifier.height(8.dp))
+                Button(
+                    onClick = { startRouletteSpin() },
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(4.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = PureWhite, contentColor = PureBlack)
+                ) {
+                    Text(if (isRu) "СПУСТИТЬ КУРОК КРУТИЛКИ" else "ENGAGE SPIN TRIGGER", fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold)
+                }
+            } else {
+                CircularProgressIndicator(
+                    color = PureWhite,
+                    strokeWidth = 2.dp,
+                    modifier = Modifier
+                        .align(Alignment.CenterHorizontally)
+                        .size(32.dp)
+                )
+            }
+        }
+    }
+}
+
+
+// ==========================================
+// 6. SLOT MACHINE GAME IMPLEMENTATION
+// ==========================================
+@Composable
+fun SlotsGame(viewModel: SocialViewModel, userCoins: Int, isRu: Boolean) {
+    val scope = rememberCoroutineScope()
+    var betSlots by remember { mutableStateOf(10) }
+    var rolling by remember { mutableStateOf(false) }
+
+    val reelSymbols = listOf("🪙", "🤖", "💎", "💀", "⚠️", "🦾", "🎰")
+    var reel1 by remember { mutableStateOf("🎰") }
+    var reel2 by remember { mutableStateOf("🎰") }
+    var reel3 by remember { mutableStateOf("🎰") }
+
+    var slotsStatusText by remember { mutableStateOf("") }
+
+    fun processSlots() {
+        if (userCoins < betSlots) {
+            slotsStatusText = if (isRu) "НЕДОСТАТОЧНО СРЕДСТВ" else "NOT ENOUGH DEPOSITS"
+            return
+        }
+        viewModel.updateCoins(userCoins - betSlots)
+        viewModel.vibrate(50)
+        rolling = true
+        slotsStatusText = if (isRu) "БАРАБАНЫ ЗАПУЩЕНЫ..." else "CYPHER ROLLS DEPLOYED..."
+
+        scope.launch {
+            repeat(12) { i ->
+                reel1 = reelSymbols.random()
+                reel2 = reelSymbols.random()
+                reel3 = reelSymbols.random()
+                viewModel.vibrate(10)
+                delay(50 + (i * 20).toLong())
+            }
+            
+            reel1 = reelSymbols.random()
+            reel2 = reelSymbols.random()
+            reel3 = reelSymbols.random()
+            rolling = false
+
+            // Compute winnings
+            var multiplier = 0
+            if (reel1 == reel2 && reel2 == reel3) {
+                multiplier = when (reel1) {
+                    "💎" -> 50
+                    "🤖" -> 25
+                    "🪙" -> 15
+                    else -> 10
+                }
+            } else if (reel1 == reel2 || reel2 == reel3 || reel1 == reel3) {
+                multiplier = 2
+            }
+
+            if (multiplier > 0) {
+                val matchCoins = betSlots * multiplier
+                slotsStatusText = if (isRu) "🚀 ПОЛНОЕ СОВПАДЕНИЕ! MULTIPLIER x$multiplier! ВЫИГРАНО $matchCoins МОНЕТ!" 
+                                   else "🚀 MATCH! POT x$multiplier! WON $matchCoins COINS!"
+                viewModel.updateCoins(userCoins + matchCoins)
+                viewModel.vibrate(180)
+            } else {
+                slotsStatusText = if (isRu) "ПРОМАХ. Потеряно $betSlots монет. Крути еще раз!" 
+                                   else "NO ALIGNMENTS. Lost $betSlots coins. Keep spinning!"
+                viewModel.vibrate(80)
+            }
+        }
+    }
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(16.dp),
+        verticalArrangement = Arrangement.SpaceBetween,
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Text(
+                if (isRu) "МАТРИЧНЫЙ ТРИПЛЕТНЫЙ РЕЕСТР" else "MATRIX REEL INDEX TRIO",
+                color = TextGray,
+                fontFamily = FontFamily.Monospace,
+                fontSize = 11.sp
+            )
+            Spacer(modifier = Modifier.height(32.dp))
+            
+            // Visual Slots Reels
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(16.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                SlotReelBox(reel1)
+                SlotReelBox(reel2)
+                SlotReelBox(reel3)
+            }
+        }
+
+        Text(
+            text = slotsStatusText,
+            color = PureWhite,
+            fontSize = 11.sp,
+            fontFamily = FontFamily.Monospace,
+            textAlign = TextAlign.Center,
+            lineHeight = 15.sp,
+            modifier = Modifier.padding(12.dp)
+        )
+
+        // Bet and spin controls
+        Column(modifier = Modifier.fillMaxWidth()) {
+            if (!rolling) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceEvenly,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    IconButton(onClick = { if (betSlots > 5) { betSlots -= 5; viewModel.vibrate(10) } }) {
+                        Icon(Icons.Default.Remove, contentDescription = null, tint = PureWhite)
+                    }
+                    Text(
+                        text = "${if (isRu) "СТАВКА: " else "BET: "}$betSlots 🪙",
+                        color = PureWhite,
+                        fontFamily = FontFamily.Monospace,
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                    IconButton(onClick = { if (betSlots + 5 <= userCoins) { betSlots += 5; viewModel.vibrate(10) } }) {
+                        Icon(Icons.Default.Add, contentDescription = null, tint = PureWhite)
+                    }
+                }
+                Spacer(modifier = Modifier.height(12.dp))
+                Button(
+                    onClick = { processSlots() },
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(4.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = PureWhite, contentColor = PureBlack)
+                ) {
+                    Text(if (isRu) "ДЁРНУТЬ РЫЧАГ nOG-SLOT" else "PULL CYBER LEVER", fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold)
+                }
+            } else {
+                CircularProgressIndicator(
+                    color = PureWhite,
+                    strokeWidth = 2.dp,
+                    modifier = Modifier
+                        .align(Alignment.CenterHorizontally)
+                        .size(32.dp)
+                )
+            }
+        }
+    }
+}
+
+@Composable
+fun SlotReelBox(symbol: String) {
+    Box(
+        modifier = Modifier
+            .size(width = 68.dp, height = 90.dp)
+            .background(PureBlack)
+            .border(2.dp, PureWhite, RoundedCornerShape(4.dp)),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(symbol, fontSize = 36.sp)
+    }
+}

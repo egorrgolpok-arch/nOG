@@ -37,53 +37,53 @@ class TamagotchiWorker(
 
         // Threshold checks for notifications
         if (newState.isDead && !state.isDead) { // Just died
-            val title = if (isRu) "Питомец погиб 💀" else "Pet Deceased 💀"
+            val title = if (isRu) "Питомец ПОГИБ... Или нет?! 💀" else "Your pet PERISHED... Or did it?! 💀"
             val causeRu = when (newState.deathReason) {
-                "disease" -> "болезни (${newState.deathDiseaseName ?: "квантовая инфекция"})"
-                "neglect" -> "истощения и отсутствия ухода"
-                else -> "старости"
+                "disease" -> "цифровой чумы (${newState.deathDiseaseName ?: "квантовый вирус"})"
+                "neglect" -> "полного игнора и недостатка твоей любви"
+                else -> "древней старости динозавра"
             }
             val causeEn = when (newState.deathReason) {
-                "disease" -> "disease (${newState.deathDiseaseName ?: "unknown mutation"})"
-                "neglect" -> "neglect & lack of care"
-                else -> "old age"
+                "disease" -> "digital plague (${newState.deathDiseaseName ?: "cyber infection"})"
+                "neglect" -> "absolute neglect and severe lack of your love"
+                else -> "becoming a low-poly fossil from old age"
             }
             val text = if (isRu) {
-                "Ваш питомец ${newState.petName} скончался от $causeRu."
+                "Твой питомец ${newState.petName} откинул лапки от $causeRu! Забеги в игру посмотреть на призрака!"
             } else {
-                "Your pet ${newState.petName} has passed away due to $causeEn."
+                "Your pet ${newState.petName} went offline forever due to $causeEn! Click to witness the spirit!"
             }
             sendPushAndInApp(title, text)
         } else if (newState.isSick && !state.isSick) { // Just got sick
-            val title = if (isRu) "Питомец заболел! ⚠️" else "Pet is Sick! ⚠️"
+            val title = if (isRu) "🚨 КРИТИЧЕСКАЯ МУТАЦИЯ У ПИТОМЦА!" else "🚨 MONSTER MUTATION DETECTED!"
             val text = if (isRu) {
-                "Ваш питомец ${newState.petName} нуждается во врачебной помощи."
+                "${newState.petName} подцепил квантовую заразу и превращается в крипера. Требуется срочная сыворотка!"
             } else {
-                "Your pet ${newState.petName} needs medical attention."
+                "${newState.petName} caught cyber-measles and is turning into a toxic mutation! Cure asap!"
             }
             sendPushAndInApp(title, text)
         } else if (newState.hunger < 20f && state.hunger >= 20f) {
-            val title = if (isRu) "Питомец голоден! 🍽️" else "Pet is Hungry! 🍽️"
+            val title = if (isRu) "🍽️ ОН ЖРЁТ ТВОЙ БАЛАНС!" else "🍽️ SECURING YOUR COIN BALANCE!"
             val text = if (isRu) {
-                "Покормите ${newState.petName}, пока он не умер с голоду."
+                "${newState.petName} настолько голоден, что начинает жевать файлы твоего кошелька! Покорми его скорее!"
             } else {
-                "Feed ${newState.petName} before it starves."
+                "${newState.petName} is so starved that it is literally eating your coin database files! Feed it!"
             }
             sendPushAndInApp(title, text)
         } else if (newState.hygiene < 20f && state.hygiene >= 20f) {
-            val title = if (isRu) "Запахло грязью! 🧼" else "Pet is Dirty! 🧼"
+            val title = if (isRu) "🧼 Вонь пробивает твой экран!" else "🧼 Smells like burnt silicon!"
             val text = if (isRu) {
-                "Нужно искупать ${newState.petName}."
+                "От ${newState.petName} несет хуже, чем из серверной после майнинга. Время устроить банный день!"
             } else {
-                "${newState.petName} needs to be washed."
+                "${newState.petName} smells worse than a dusty bitcoin mining rig. Shower the low-poly beast!"
             }
             sendPushAndInApp(title, text)
         } else if (newState.mood < 20f && state.mood >= 20f) {
-            val title = if (isRu) "Питомец грустит! 💔" else "Pet is Depressed! 💔"
+            val title = if (isRu) "💔 План побега питомца готов!" else "💔 Escape protocol initiated!"
             val text = if (isRu) {
-                "Проведите немного времени с ${newState.petName}."
+                "${newState.petName} в глубокой депрессии и пакует чемоданы из-за твоего игнора. Обними беднягу!"
             } else {
-                "Spend some time with ${newState.petName}."
+                "${newState.petName} has drafted an escape plan due to severe loneliness. Intercept it with a hug!"
             }
             sendPushAndInApp(title, text)
         }

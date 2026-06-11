@@ -155,6 +155,9 @@ fun FeedScreen(
                         androidx.compose.ui.viewinterop.AndroidView(
                             factory = { ctx ->
                                 android.widget.VideoView(ctx).apply {
+                                    if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+                                        setAudioFocusRequest(android.media.AudioManager.AUDIOFOCUS_NONE)
+                                    }
                                     setVideoURI(android.net.Uri.parse(zoomImageUrl))
                                     val mc = android.widget.MediaController(ctx)
                                     mc.setAnchorView(this)
@@ -222,6 +225,60 @@ fun FeedScreen(
                     )
                 }
         ) {
+            // --- TOP GLOBAL STATUS METABAR (Coins + Consecutive Streak indicator 🔥) ---
+            val userCoinsTotal by viewModel.userCoins.collectAsState()
+            val loginStreakVal by viewModel.loginStreak.collectAsState()
+            
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(PureBlack)
+                    .border(1.dp, BorderGray)
+                    .padding(horizontal = 16.dp, vertical = 12.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Text(
+                    text = if (lang == "RU") "📡 СЕТЕВОЙ УЗЕЛ: nOG_NODE_01" else "📡 NETWORK HOST: nOG_NODE_01",
+                    color = TextGray,
+                    fontSize = 10.sp,
+                    fontFamily = FontFamily.Monospace,
+                    fontWeight = FontWeight.Bold
+                )
+                
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier
+                            .background(DeepGray, RoundedCornerShape(12.dp))
+                            .border(1.dp, PureWhite, RoundedCornerShape(12.dp))
+                            .padding(horizontal = 8.dp, vertical = 4.dp)
+                    ) {
+                        Text(
+                            text = "🔥 $loginStreakVal " + (if (lang == "RU") "ДН" else "DAYS"),
+                            color = PureWhite,
+                            fontSize = 9.sp,
+                            fontFamily = FontFamily.Monospace,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                    
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "🪙 $userCoinsTotal",
+                            color = PureWhite,
+                            fontSize = 11.sp,
+                            fontFamily = FontFamily.Monospace,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                }
+            }
             
             // --- Live Activity Stream Ticker ---
             Row(
@@ -447,6 +504,25 @@ fun FeedScreen(
                 horizontalAlignment = Alignment.End,
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
+                // --- Casino Screen Redirect FAB ---
+                FloatingActionButton(
+                    onClick = { 
+                        viewModel.vibrate(40)
+                        viewModel.navigateTo(Screen.Casino) 
+                    },
+                    containerColor = PureWhite,
+                    contentColor = PureBlack,
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier
+                        .border(1.5.dp, PureWhite, RoundedCornerShape(12.dp))
+                        .testTag("casino_quick_fab")
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.Casino,
+                        contentDescription = if (lang == "RU") "Казино" else "Casino"
+                    )
+                }
+
                 // --- Avatar Decorations Shop FAB (Worn Styles Shop Button) ---
                 FloatingActionButton(
                     onClick = { showDecorationShopDialog = true },
@@ -753,11 +829,53 @@ fun PostItem(
 
             Spacer(modifier = Modifier.height(12.dp))
 
-            // --- Post Content Text ---
+            // --- Post Content Text with Show More ("Ещё") Option ---
+            val canExpand = remember(post.content) {
+                post.content.length > 100 || post.content.contains(" - ") || post.content.contains(" — ")
+            }
+            var isExpanded by remember { mutableStateOf(false) }
+
+            val displayText = remember(post.content, isExpanded) {
+                if (!canExpand || isExpanded) {
+                    post.content
+                } else {
+                    // Collapsed state: extract the title or first part of content
+                    if (post.content.startsWith("News:") && post.content.contains(" - ")) {
+                        post.content.substringBefore(" - ")
+                    } else if (post.content.startsWith("Source:") && post.content.contains(". ")) {
+                        post.content.substringBefore(". ")
+                    } else if (post.content.contains(" — ")) {
+                        post.content.substringBefore(" — ")
+                    } else if (post.content.contains(" - ")) {
+                        post.content.substringBefore(" - ")
+                    } else {
+                        post.content.take(100) + "..."
+                    }
+                }
+            }
+
             LinkifyText(
-                text = post.content,
+                text = displayText,
                 modifier = Modifier.fillMaxWidth()
             )
+
+            if (canExpand) {
+                Spacer(modifier = Modifier.height(4.dp))
+                androidx.compose.material3.Text(
+                    text = if (isExpanded) {
+                        if (lang == "RU") "[СВЕРНУТЬ]" else "[COLLAPSE]"
+                    } else {
+                        if (lang == "RU") "[ЕЩЁ...]" else "[MORE...]"
+                    },
+                    color = Color(0xFF64B5F6),
+                    fontFamily = FontFamily.Monospace,
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier
+                        .clickable { isExpanded = !isExpanded }
+                        .padding(vertical = 4.dp)
+                )
+            }
 
             val extractedUrl = remember(post.content) {
                 val regex = Regex("(https?://[^\\s]+)")
@@ -907,6 +1025,9 @@ fun PostItem(
                         androidx.compose.ui.viewinterop.AndroidView(
                             factory = { ctx ->
                                 android.widget.VideoView(ctx).apply {
+                                    if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+                                        setAudioFocusRequest(android.media.AudioManager.AUDIOFOCUS_NONE)
+                                    }
                                     setVideoURI(android.net.Uri.parse(post.mediaUrl))
                                     val mc = android.widget.MediaController(ctx)
                                     mc.setAnchorView(this)

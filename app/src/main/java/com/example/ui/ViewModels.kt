@@ -22,6 +22,7 @@ sealed interface Screen {
     object Community : Screen
     object Notifications : Screen
     object Analytics : Screen
+    object Casino : Screen
     object Profile : Screen
 }
 
@@ -36,23 +37,28 @@ class SocialViewModel(application: Application) : AndroidViewModel(application) 
     private val TAG = "SocialViewModel"
     private val repository = SocialRepository(application, viewModelScope)
 
+    private val cachedVibrator: Vibrator? = try {
+        val context = application
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            val vibratorManager = context.getSystemService(Context.VIBRATOR_MANAGER_SERVICE) as? VibratorManager
+            vibratorManager?.defaultVibrator
+        } else {
+            @Suppress("DEPRECATION")
+            context.getSystemService(Context.VIBRATOR_SERVICE) as? Vibrator
+        }
+    } catch (e: Exception) {
+        null
+    }
+
     fun vibrate(milliseconds: Long = 50, amplitude: Int = VibrationEffect.DEFAULT_AMPLITUDE) {
         if (_isSilentMode.value) return
         try {
-            val context = getApplication<Application>()
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                val vibratorManager = context.getSystemService(Context.VIBRATOR_MANAGER_SERVICE) as? VibratorManager
-                val vibrator = vibratorManager?.defaultVibrator
-                vibrator?.vibrate(VibrationEffect.createOneShot(milliseconds, amplitude))
+            val vibrator = cachedVibrator ?: return
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                vibrator.vibrate(VibrationEffect.createOneShot(milliseconds, amplitude))
             } else {
                 @Suppress("DEPRECATION")
-                val vibrator = context.getSystemService(Context.VIBRATOR_SERVICE) as? Vibrator
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                    vibrator?.vibrate(VibrationEffect.createOneShot(milliseconds, amplitude))
-                } else {
-                    @Suppress("DEPRECATION")
-                    vibrator?.vibrate(milliseconds)
-                }
+                vibrator.vibrate(milliseconds)
             }
         } catch (e: Exception) {
             // Safe fallback if vibration permission or hardware device is missing/disabled
@@ -191,6 +197,10 @@ class SocialViewModel(application: Application) : AndroidViewModel(application) 
     // --- Persistent User Coins (Coins System) ---
     private val _userCoins = MutableStateFlow<Int>(100)
     val userCoins: StateFlow<Int> = _userCoins.asStateFlow()
+
+    // --- Login Streak State ---
+    private val _loginStreak = MutableStateFlow<Int>(1)
+    val loginStreak: StateFlow<Int> = _loginStreak.asStateFlow()
 
     private val _feedViews = MutableStateFlow<Int>(0)
     val feedViews: StateFlow<Int> = _feedViews.asStateFlow()
@@ -418,6 +428,44 @@ class SocialViewModel(application: Application) : AndroidViewModel(application) 
         val prefs = application.getSharedPreferences("nog_prefs", Context.MODE_PRIVATE)
         val savedLang = prefs.getString("selected_lang", "RU") ?: "RU"
         _selectedLanguage.value = savedLang
+
+        // Calculate consecutive day login streak
+        val lastStreakDate = prefs.getString("last_streak_date", "") ?: ""
+        val currentStreak = prefs.getInt("login_streak", 0)
+        
+        val sdf = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US)
+        val todayStr = sdf.format(java.util.Date())
+        
+        var finalStreak = currentStreak
+        if (lastStreakDate.isEmpty()) {
+            finalStreak = 1
+            prefs.edit().putString("last_streak_date", todayStr).putInt("login_streak", 1).apply()
+        } else if (lastStreakDate != todayStr) {
+            try {
+                val dToday = sdf.parse(todayStr)
+                val dLast = sdf.parse(lastStreakDate)
+                if (dToday != null && dLast != null) {
+                    val diffMs = dToday.time - dLast.time
+                    val diffDays = diffMs / (1000 * 60 * 60 * 24)
+                    if (diffDays == 1L) {
+                        finalStreak = currentStreak + 1
+                        val coinsReward = 10 * finalStreak
+                        val currentCoins = prefs.getInt("user_coins2", 100)
+                        prefs.edit()
+                            .putInt("user_coins2", currentCoins + coinsReward)
+                            .apply()
+                        _userCoins.value = currentCoins + coinsReward
+                    } else if (diffDays > 1L) {
+                        // Reset streak if missed a day
+                        finalStreak = 1
+                    }
+                }
+            } catch (e: Exception) {
+                finalStreak = 1
+            }
+            prefs.edit().putString("last_streak_date", todayStr).putInt("login_streak", finalStreak).apply()
+        }
+        _loginStreak.value = finalStreak
 
         // Load last community view time
         _lastCommunityViewTime.value = prefs.getLong("last_community_view", 0L)

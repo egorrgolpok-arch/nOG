@@ -35,14 +35,14 @@ object CooldownNotifier {
             val tamaState = TamagotchiManager.loadState(context)
             val tamaPrefs = context.getSharedPreferences("nog_tamagotchi_prefs3", Context.MODE_PRIVATE)
             val notifiedIncubator = tamaPrefs.getBoolean("notified_incubator", false)
-            if (!tamaState.hasPet && tamaState.cooldownUntil > 0L) {
+             if (!tamaState.hasPet && tamaState.cooldownUntil > 0L) {
                 if (System.currentTimeMillis() >= tamaState.cooldownUntil) {
                     if (!notifiedIncubator) {
                         sendPushAndDatabase(
                             context = context,
                             db = db,
-                            title = if (isRu) "Инкубатор готов! ⚡" else "Incubator ready! ⚡",
-                            message = if (isRu) "Ограничение на запуск нового питомца истекло. Начните инкубацию!" else "The incubator cooldown has completed. You can start a new pet!"
+                            title = if (isRu) "🧬 ИНКУБАТОР ЖДЕТ ГЕНОВ ГИГАЧАДА!" else "🧬 INCUBATOR BREATHES LIFE!",
+                            message = if (isRu) "Кулдаун на синтез новой жизни спал. Заходи выращивать альфа-доминанта!" else "Cooldown on synthetic bio-fusion completed. Synthesize your next unit right now!"
                         )
                         tamaPrefs.edit().putBoolean("notified_incubator", true).apply()
                     }
@@ -63,8 +63,8 @@ object CooldownNotifier {
                         sendPushAndDatabase(
                             context = context,
                             db = db,
-                            title = if (isRu) "Пора покормить! 🍽️" else "Feeding time! 🍽️",
-                            message = if (isRu) "Ваш питомец ${tamaState.petName} снова проголодался и готов к приему пищи." else "Your pet ${tamaState.petName} is ready to be fed again."
+                            title = if (isRu) "🍽️ КОРМЛЕНИЕ ПИТОНА ПО ПЛАНУ!" else "🍽️ FUEL RESERVES CRITICAL!",
+                            message = if (isRu) "Калорийность ${tamaState.petName} упала ниже плинтуса. Занеси пайку своему мелкому сожителю!" else "The energy grid of ${tamaState.petName} is failing! Inject nutritional payloads immediately!"
                         )
                         tamaPrefs.edit().putBoolean("notified_feed", true).apply()
                     }
@@ -87,8 +87,8 @@ object CooldownNotifier {
                         sendPushAndDatabase(
                             context = context,
                             db = db,
-                            title = if (isRu) "Flappy Bot готов! 🎮" else "Flappy Bot is ready! 🎮",
-                            message = if (isRu) "5 минут истекло. Запускайте Flappy Bot и бейте рекорды!" else "5-minute cooldown is over. Launch Flappy Bot and set your new high scores!"
+                            title = if (isRu) "🎮 БОТ РЖЕТ НАД ТВОИМ РЕКОРДОМ!" else "🎮 BOT IS MOCKING YOUR HIGHSCORE!",
+                            message = if (isRu) "Кулдаун Flappy Bot прошел. Заходи доказать этой груде металла, кто здесь батя!" else "Flappy engine cooled down. Connect to prove this scrap metal frame who holds the root access!"
                         )
                         flappyPrefs.edit().putBoolean("notified_flappy", true).apply()
                     }

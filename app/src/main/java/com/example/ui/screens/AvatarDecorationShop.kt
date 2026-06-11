@@ -2189,6 +2189,18 @@ fun CaseOpenerDialog(
 
                 // Carousel Spinner Block
                 if (spinItems.isNotEmpty()) {
+                    val lazyListState = androidx.compose.foundation.lazy.rememberLazyListState()
+                    val localDensity = androidx.compose.ui.platform.LocalDensity.current
+                    
+                    androidx.compose.runtime.LaunchedEffect(spinOffset.value) {
+                        val floatVal = spinOffset.value
+                        val itemIndex = floatVal.toInt()
+                        val fraction = floatVal - itemIndex
+                        val itemWidthPx = with(localDensity) { 100.dp.toPx() }
+                        val offsetPx = (fraction * itemWidthPx).toInt()
+                        lazyListState.scrollToItem(itemIndex, offsetPx)
+                    }
+
                     BoxWithConstraints(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -2200,15 +2212,19 @@ fun CaseOpenerDialog(
                         val halfWidth = maxWidth / 2
                         val halfCardWidth = 50.dp
                         
-                        Row(
+                        androidx.compose.foundation.lazy.LazyRow(
+                            state = lazyListState,
                             modifier = Modifier
-                                .wrapContentWidth(unbounded = true)
-                                .graphicsLayer {
-                                    translationX = (halfWidth - halfCardWidth - (spinOffset.value * 100f).dp).toPx()
-                                }
-                                .align(Alignment.CenterStart)
+                                .fillMaxWidth()
+                                .align(Alignment.CenterStart),
+                            contentPadding = androidx.compose.foundation.layout.PaddingValues(
+                                start = halfWidth - halfCardWidth,
+                                end = halfWidth - halfCardWidth
+                            ),
+                            userScrollEnabled = false
                         ) {
-                            spinItems.forEach { item ->
+                            items(spinItems.size) { index ->
+                                val item = spinItems[index]
                                 CaseItemCard(item = item, lang = lang)
                             }
                         }

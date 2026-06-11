@@ -52,8 +52,11 @@ import com.example.ui.theme.*
 import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
 import androidx.work.ExistingPeriodicWorkPolicy
+import androidx.work.OneTimeWorkRequestBuilder
+import androidx.work.workDataOf
 import java.util.concurrent.TimeUnit
 import com.example.workers.TamagotchiWorker
+import com.example.workers.RetentionWorker
 
 class MainActivity : ComponentActivity() {
     private val viewModel: SocialViewModel by viewModels()
@@ -61,11 +64,57 @@ class MainActivity : ComponentActivity() {
     override fun onStart() {
         super.onStart()
         AppLifecycleTracker.isAppInForeground = true
+        try {
+            WorkManager.getInstance(applicationContext).cancelAllWorkByTag("RetentionWork")
+        } catch (e: Exception) {
+            // Gracefully ignore if WorkManager initialization states differ
+        }
     }
 
     override fun onStop() {
         super.onStop()
         AppLifecycleTracker.isAppInForeground = false
+        try {
+            val workManager = WorkManager.getInstance(applicationContext)
+            
+            // 1. Immediate Retention Notification (0 minutes)
+            val immediateRequest = OneTimeWorkRequestBuilder<RetentionWorker>()
+                .addTag("RetentionWork")
+                .setInputData(workDataOf("RETENTION_TYPE" to "IMMEDIATE"))
+                .build()
+
+            // 2. 10 Minutes Delayed Notification
+            val tenMinRequest = OneTimeWorkRequestBuilder<RetentionWorker>()
+                .setInitialDelay(10, TimeUnit.MINUTES)
+                .addTag("RetentionWork")
+                .setInputData(workDataOf("RETENTION_TYPE" to "10_MIN"))
+                .build()
+
+            // 3. 40 Minutes Delayed Notification
+            val fortyMinRequest = OneTimeWorkRequestBuilder<RetentionWorker>()
+                .setInitialDelay(40, TimeUnit.MINUTES)
+                .addTag("RetentionWork")
+                .setInputData(workDataOf("RETENTION_TYPE" to "40_MIN"))
+                .build()
+
+            // 4. Every 2 hours (Recurring Notification)
+            val periodicRequest = PeriodicWorkRequestBuilder<RetentionWorker>(2, TimeUnit.HOURS)
+                .setInitialDelay(2, TimeUnit.HOURS)
+                .addTag("RetentionWork")
+                .setInputData(workDataOf("RETENTION_TYPE" to "RECURRING_2H"))
+                .build()
+
+            workManager.enqueue(immediateRequest)
+            workManager.enqueue(tenMinRequest)
+            workManager.enqueue(fortyMinRequest)
+            workManager.enqueueUniquePeriodicWork(
+                "RetentionPeriodicWork",
+                ExistingPeriodicWorkPolicy.REPLACE,
+                periodicRequest
+            )
+        } catch (e: Exception) {
+            // Gracefully ignore any work failures
+        }
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -277,6 +326,33 @@ class MainActivity : ComponentActivity() {
                                 )
                             )
 
+                            // Casino Item
+                            NavigationBarItem(
+                                selected = currentScreen is Screen.Casino,
+                                onClick = { viewModel.navigateTo(Screen.Casino) },
+                                icon = {
+                                    Icon(
+                                        imageVector = if (currentScreen is Screen.Casino) Icons.Filled.Casino else Icons.Outlined.Casino,
+                                        contentDescription = if (lang == "RU") "Казино" else "Casino"
+                                    )
+                                },
+                                label = {
+                                    Text(
+                                        if (lang == "RU") "Казино" else "Casino",
+                                        fontFamily = FontFamily.Monospace,
+                                        fontSize = 10.sp,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                },
+                                colors = NavigationBarItemDefaults.colors(
+                                    selectedIconColor = PureBlack,
+                                    selectedTextColor = PureWhite,
+                                    indicatorColor = PureWhite,
+                                    unselectedIconColor = TextGray,
+                                    unselectedTextColor = TextGray
+                                )
+                            )
+
                             // Profile Customizer Settings
                             NavigationBarItem(
                                 selected = currentScreen is Screen.Profile,
@@ -320,6 +396,7 @@ class MainActivity : ComponentActivity() {
                             is Screen.Community -> CommunityScreen(viewModel = viewModel, innerPadding = PaddingValues(0.dp))
                             is Screen.Notifications -> NotificationsScreen(viewModel = viewModel, innerPadding = PaddingValues(0.dp))
                             is Screen.Analytics -> AnalyticsScreen(viewModel = viewModel, innerPadding = PaddingValues(0.dp))
+                            is Screen.Casino -> com.example.ui.screens.CasinoScreen(viewModel = viewModel, innerPadding = PaddingValues(0.dp))
                             is Screen.Profile -> ProfileScreen(viewModel = viewModel, innerPadding = PaddingValues(0.dp))
                         }
                     }
