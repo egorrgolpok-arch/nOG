@@ -10,6 +10,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Groups
 import androidx.compose.material.icons.filled.AccountCircle
@@ -78,6 +79,7 @@ fun CommunityScreen(viewModel: SocialViewModel, innerPadding: PaddingValues) {
     var showPokerGame by remember { mutableStateOf(false) }
     var showMatch3Game by remember { mutableStateOf(false) }
     var showFlappyBotGame by remember { mutableStateOf(false) }
+    var showDurakGame by remember { mutableStateOf(false) }
     val context = androidx.compose.ui.platform.LocalContext.current
     
     val imagePickerLauncher = rememberLauncherForActivityResult(
@@ -215,6 +217,22 @@ fun CommunityScreen(viewModel: SocialViewModel, innerPadding: PaddingValues) {
                             contentAlignment = Alignment.Center
                         ) {
                             Text("⬡⬡", color = StarkWhite, fontSize = 12.sp, fontWeight = FontWeight.Bold, fontFamily = FontFamily.Monospace)
+                        }
+
+                        // Durak Game
+                        Box(
+                            modifier = Modifier
+                                .size(36.dp)
+                                .clip(RoundedCornerShape(4.dp))
+                                .background(PureBlack)
+                                .border(1.dp, AlertYellow, RoundedCornerShape(4.dp))
+                                .clickable {
+                                    viewModel.vibrate(25)
+                                    showDurakGame = true
+                                },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text("♣♠", color = AlertYellow, fontSize = 12.sp, fontWeight = FontWeight.Bold, fontFamily = FontFamily.Monospace)
                         }
                     }
                 }
@@ -542,6 +560,10 @@ fun CommunityScreen(viewModel: SocialViewModel, innerPadding: PaddingValues) {
             currentUser = currentUser,
             onDismiss = { showFlappyBotGame = false }
         )
+    }
+
+    if (showDurakGame) {
+        DurakDialog(onDismiss = { showDurakGame = false }, lang = lang, viewModel = viewModel)
     }
 }
 
@@ -3344,6 +3366,63 @@ fun Match3Dialog(onDismiss: () -> Unit, lang: String, viewModel: SocialViewModel
                     // Additional spacing under buttons to explicitly raise them from absolute bottom glass edge
                     Spacer(modifier = Modifier.height(26.dp))
                 }
+            }
+        }
+    }
+}
+
+@OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
+@Composable
+fun DurakDialog(onDismiss: () -> Unit, lang: String, viewModel: SocialViewModel) {
+    androidx.compose.ui.window.Dialog(
+        onDismissRequest = onDismiss,
+        properties = androidx.compose.ui.window.DialogProperties(usePlatformDefaultWidth = false)
+    ) {
+        Surface(
+            modifier = Modifier.fillMaxSize().background(PureBlack),
+            color = PureBlack
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(top = 10.dp)
+                    .navigationBarsPadding(),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                // Header with Back button
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    IconButton(onClick = { 
+                        viewModel.vibrate(25)
+                        onDismiss() 
+                    }) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = "Back",
+                            tint = PureWhite
+                        )
+                    }
+                    Text(
+                        text = if (lang == "RU") "♣️ ДУРАК (СМЕЖНЫЕ СЕТИ)" else "♣️ COGNITIVE DURAK",
+                        fontFamily = FontFamily.Monospace,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 15.sp,
+                        color = PureWhite
+                    )
+                    Spacer(modifier = Modifier.size(48.dp)) // layout placeholder
+                }
+                
+                // Host the DurakGameComponent in NON-casino mode (isCasinoMode = false)
+                DurakGameComponent(
+                    viewModel = viewModel,
+                    userCoins = 0, // Not connected to coins
+                    isRu = lang == "RU",
+                    isCasinoMode = false,
+                    onDismiss = onDismiss
+                )
             }
         }
     }

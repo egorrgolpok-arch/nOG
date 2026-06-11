@@ -1048,8 +1048,13 @@ fun AvatarDecorationShopDialog(
 
                     1 -> { // Owned items list
                         val ownedList = remember(purchasableOwnedListTrigger(purchasedIds, allDecorations)) {
-                            allDecorations.filter { purchasedIds.contains(it.id) && viewModel.isDecorationOwnedValid(it.id) } +
-                            exclusiveList.filter { purchasedIds.contains(it.id) && viewModel.isDecorationOwnedValid(it.id) }
+                            purchasedIds.filter { viewModel.isDecorationOwnedValid(it) }.map { id ->
+                                if (id in 201..210) {
+                                    exclusiveList.find { it.id == id } ?: DecorationGenerator.generateDecoration(id, lang)
+                                } else {
+                                    allDecorations.find { it.id == id } ?: DecorationGenerator.generateDecoration(id, lang)
+                                }
+                            }
                         }
 
                         if (ownedList.isEmpty()) {

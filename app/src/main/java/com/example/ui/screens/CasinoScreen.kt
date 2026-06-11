@@ -22,6 +22,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.ui.SocialViewModel
+import com.example.ui.theme.AlertYellow
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlin.random.Random
@@ -912,394 +913,12 @@ fun ReadyCard(card: String) {
 // ==========================================
 @Composable
 fun DurakGame(viewModel: SocialViewModel, userCoins: Int, isRu: Boolean) {
-    val scope = rememberCoroutineScope()
-    var betVal by remember { mutableStateOf(15) }
-    var inDurak by remember { mutableStateOf(false) }
-    
-    val playerHand = remember { mutableStateListOf<String>() }
-    val botHand = remember { mutableStateListOf<String>() }
-    
-    var trumpCard by remember { mutableStateOf("") }
-    var trumpSuit by remember { mutableStateOf("") }
-    var remainingCardsCount by remember { mutableStateOf(36) }
-    var durakText by remember { mutableStateOf("") }
-    
-    // Board active attacks/covers
-    val activeAttackCards = remember { mutableStateListOf<String>() }
-    val activeDefendCards = remember { mutableStateListOf<String>() }
-    var isPlayerAttacker by remember { mutableStateOf(true) }
-
-    val suits = listOf("♠", "♣", "♥", "♦")
-    val ranks = listOf("6", "7", "8", "9", "10", "J", "Q", "K", "A")
-    val deck = remember { mutableStateListOf<String>() }
-
-    fun getCardValue(card: String): Int {
-        val r = card.dropLast(1)
-        return ranks.indexOf(r)
-    }
-
-    fun createAndShuffleDeck() {
-        deck.clear()
-        for (suit in suits) {
-            for (rank in ranks) {
-                deck.add(rank + suit)
-            }
-        }
-        deck.shuffle()
-    }
-
-    fun dealHandsAndTrump() {
-        playerHand.clear()
-        botHand.clear()
-        repeat(6) {
-            if (deck.isNotEmpty()) playerHand.add(deck.removeAt(0))
-            if (deck.isNotEmpty()) botHand.add(deck.removeAt(0))
-        }
-        if (deck.isNotEmpty()) {
-            trumpCard = deck.last()
-            trumpSuit = trumpCard.last().toString()
-        }
-        remainingCardsCount = deck.size
-    }
-
-    fun startDurak() {
-        if (userCoins < betVal) {
-            durakText = if (isRu) "НЕДОСТАТОЧНО СРЕДСТВ" else "NOT ENGIN COINS"
-            return
-        }
-        viewModel.updateCoins(userCoins - betVal)
-        viewModel.vibrate(40)
-        
-        createAndShuffleDeck()
-        dealHandsAndTrump()
-        
-        activeAttackCards.clear()
-        activeDefendCards.clear()
-        
-        isPlayerAttacker = true
-        inDurak = true
-        durakText = if (isRu) "Твой ход! Выбери карту из доступных внизу для атаки." else "It's your turn. Select a card from below to hit the bot."
-    }
-
-    fun refillsHands() {
-        while (playerHand.size < 6 && deck.isNotEmpty()) {
-            playerHand.add(deck.removeAt(0))
-        }
-        while (botHand.size < 6 && deck.isNotEmpty()) {
-            botHand.add(deck.removeAt(0))
-        }
-        remainingCardsCount = deck.size
-    }
-
-    fun botDefenseOrAttack() {
-        scope.launch {
-            delay(1000)
-            if (isPlayerAttacker) {
-                // Player attacked, bot must defend
-                val attackingCard = activeAttackCards.last()
-                val attackingSuit = attackingCard.last().toString()
-                val attackingPower = getCardValue(attackingCard)
-                
-                // Bot searches for valid defense item
-                val defenseCandidates = botHand.filter { card ->
-                    val s = card.last().toString()
-                    val power = getCardValue(card)
-                    
-                    if (s == attackingSuit) {
-                        power > attackingPower
-                    } else {
-                        s == trumpSuit && attackingSuit != trumpSuit
-                    }
-                }.sortedBy { card ->
-                    // Prefer smaller card values and non-trumps
-                    val isT = card.last().toString() == trumpSuit
-                    val score = getCardValue(card) + if (isT) 100 else 0
-                    score
-                }
-
-                if (defenseCandidates.isNotEmpty()) {
-                    val defCard = defenseCandidates.first()
-                    botHand.remove(defCard)
-                    activeDefendCards.add(defCard)
-                    viewModel.vibrate(15)
-                    durakText = if (isRu) "Бот отбился картой: $defCard. Ты можешь подкинуть!" else "Bot defended with: $defCard. Throw more or finish round!"
-                } else {
-                    // Bot takes the cards
-                    durakText = if (isRu) "Бот не смог отбиться и берет карты!" else "Bot can't defend and takes cards!"
-                    botHand.addAll(activeAttackCards)
-                    botHand.addAll(activeDefendCards)
-                    activeAttackCards.clear()
-                    activeDefendCards.clear()
-                    viewModel.vibrate(25)
-                    refillsHands()
-                }
-            } else {
-                // Bot attacks Player
-                val attackCandidates = botHand.sortedBy { card ->
-                    val isT = card.last().toString() == trumpSuit
-                    getCardValue(card) + if (isT) 100 else 0
-                }
-                
-                if (attackCandidates.isNotEmpty()) {
-                    val attackCard = attackCandidates.first()
-                    botHand.remove(attackCard)
-                    activeAttackCards.add(attackCard)
-                    viewModel.vibrate(15)
-                    durakText = if (isRu) "Бот пошел картой: $attackCard. Отбейся!" else "Bot attacks with: $attackCard. Defend!"
-                }
-            }
-        }
-    }
-
-    fun playerDefend(defCard: String) {
-        if (activeAttackCards.isEmpty()) return
-        val attCard = activeAttackCards.first()
-        val attSuit = attCard.last().toString()
-        val attPower = getCardValue(attCard)
-        
-        val defSuit = defCard.last().toString()
-        val defPower = getCardValue(defCard)
-
-        val isValid = if (defSuit == attSuit) {
-            defPower > attPower
-        } else {
-            defSuit == trumpSuit && attSuit != trumpSuit
-        }
-
-        if (isValid) {
-            playerHand.remove(defCard)
-            activeDefendCards.add(defCard)
-            viewModel.vibrate(20)
-            
-            // Round complete
-            scope.launch {
-                delay(800)
-                durakText = if (isRu) "БИТО! Начало нового раунда." else "BEATEN! Starting next turn."
-                activeAttackCards.clear()
-                activeDefendCards.clear()
-                refillsHands()
-                isPlayerAttacker = true
-                durakText = if (isRu) "Новый раунд. Твой ход!" else "New round. It is your turn!"
-            }
-        } else {
-            durakText = if (isRu) "Нельзя побить карту $attCard этой картой!" else "Invalid defense against $attCard!"
-        }
-    }
-
-    fun playerAttack(card: String) {
-        playerHand.remove(card)
-        activeAttackCards.add(card)
-        viewModel.vibrate(20)
-        botDefenseOrAttack()
-    }
-
-    fun finishTurn() {
-        // Player completes attacking session or defends
-        if (isPlayerAttacker) {
-            durakText = if (isRu) "Бита объявлена!" else "Beaten called!"
-            activeAttackCards.clear()
-            activeDefendCards.clear()
-            refillsHands()
-            isPlayerAttacker = false
-            botDefenseOrAttack()
-        } else {
-            // Player couldn't defend, takes cards
-            playerHand.addAll(activeAttackCards)
-            playerHand.addAll(activeDefendCards)
-            activeAttackCards.clear()
-            activeDefendCards.clear()
-            refillsHands()
-            durakText = if (isRu) "Ты взял карты. Ход бота!" else "You took cards. Bot plays!"
-            isPlayerAttacker = false
-            botDefenseOrAttack()
-        }
-    }
-
-    // Check game condition
-    if (inDurak && playerHand.isEmpty() && deck.isEmpty()) {
-        inDurak = false
-        durakText = if (isRu) "👑 ПОЗДРАВЛЯЕМ! ТЫ ВЫИГРАЛ $betVal МОНЕТ!" else "👑 CONGRATULATIONS! YOU BEAT THE BOT AND WON $betVal COINS!"
-        viewModel.updateCoins(userCoins + betVal * 2)
-        viewModel.vibrate(200)
-    } else if (inDurak && botHand.isEmpty() && deck.isEmpty()) {
-        inDurak = false
-        durakText = if (isRu) "💀 ТЫ ДУРАК! БОТ ОДЕРАЖАЛ ПОБЕДУ." else "💀 GAME OVER. BOT ESCAPED DURAK, YOU PLAYED FOOL."
-        viewModel.vibrate(100)
-    }
-
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(16.dp),
-        verticalArrangement = Arrangement.SpaceBetween,
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
-        // Opponent status
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Text(
-                "${if (isRu) "БОТ-ИИ (КАРТ: " else "CYBER-BOT CARDS: "}${botHand.size})",
-                color = TextGray,
-                fontFamily = FontFamily.Monospace,
-                fontSize = 11.sp
-            )
-            Spacer(modifier = Modifier.height(6.dp))
-            Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                repeat(botHand.size) {
-                    Box(
-                        modifier = Modifier
-                            .size(24.dp, 36.dp)
-                            .background(CardGray)
-                            .border(1.dp, AccentGray, RoundedCornerShape(2.dp))
-                    )
-                }
-            }
-        }
-
-        // Table board / Trump Card
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(16.dp)
-            ) {
-                // Trump field
-                if (trumpCard.isNotEmpty()) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text(
-                            if (isRu) "КОЗЫРЬ" else "TRUMP",
-                            color = TextGray,
-                            fontSize = 9.sp,
-                            fontFamily = FontFamily.Monospace
-                        )
-                        Spacer(modifier = Modifier.height(4.dp))
-                        ReadyCard(trumpCard)
-                    }
-                }
-                
-                // Active board field
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text(
-                        "${if (isRu) "КОЛОДА: " else "DECK: "}$remainingCardsCount",
-                        color = TextGray,
-                        fontSize = 11.sp,
-                        fontFamily = FontFamily.Monospace
-                    )
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        activeAttackCards.forEachIndexed { index, att ->
-                            Box {
-                                PlayingCardView(att)
-                                if (activeDefendCards.size > index) {
-                                    Box(modifier = Modifier.padding(top = 15.dp, start = 10.dp)) {
-                                        PlayingCardView(activeDefendCards[index])
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-            Spacer(modifier = Modifier.height(10.dp))
-            Text(
-                text = durakText,
-                color = PureWhite,
-                fontFamily = FontFamily.Monospace,
-                fontSize = 11.sp,
-                textAlign = TextAlign.Center,
-                lineHeight = 15.sp,
-                modifier = Modifier.padding(horizontal = 8.dp)
-            )
-        }
-
-        // Player Actions / Hand Cards
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Text(
-                if (isRu) "ТВОИ КАРТЫ (КЛИКНИ ДЛЯ ХОДА/ОТБИТИЯ)" else "YOUR HAND (CLICK CARD TO PLAY)",
-                color = TextGray,
-                fontFamily = FontFamily.Monospace,
-                fontSize = 10.sp
-            )
-            Spacer(modifier = Modifier.height(6.dp))
-            // Auto horizontal scroll if cards overflow
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .horizontalScroll(rememberScrollState()),
-                horizontalArrangement = Arrangement.spacedBy(6.dp)
-            ) {
-                playerHand.forEach { card ->
-                    Surface(
-                        onClick = {
-                            if (inDurak) {
-                                if (isPlayerAttacker) {
-                                    // Make sure we attack correctly
-                                    if (activeAttackCards.isEmpty() || activeAttackCards.size == activeDefendCards.size) {
-                                        playerAttack(card)
-                                    }
-                                } else {
-                                    // Defend
-                                    playerDefend(card)
-                                }
-                            }
-                        },
-                        color = Color.Transparent
-                    ) {
-                        PlayingCardView(card)
-                    }
-                }
-            }
-        }
-
-        // Global control
-        Column(modifier = Modifier.fillMaxWidth()) {
-            if (!inDurak) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceEvenly,
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    IconButton(onClick = { if (betVal > 5) { betVal -= 5; viewModel.vibrate(10) } }) {
-                        Icon(Icons.Default.Remove, contentDescription = null, tint = PureWhite)
-                    }
-                    Text(
-                        text = "${if (isRu) "СТАВКА: " else "BET: "}$betVal 🪙",
-                        color = PureWhite,
-                        fontFamily = FontFamily.Monospace,
-                        fontSize = 13.sp,
-                        fontWeight = FontWeight.Bold
-                    )
-                    IconButton(onClick = { if (betVal + 5 <= userCoins) { betVal += 5; viewModel.vibrate(10) } }) {
-                        Icon(Icons.Default.Add, contentDescription = null, tint = PureWhite)
-                    }
-                }
-                Spacer(modifier = Modifier.height(6.dp))
-                Button(
-                    onClick = { startDurak() },
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(4.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = PureWhite, contentColor = PureBlack)
-                ) {
-                    Text(if (isRu) "РАЗДАТЬ ДУРАКА" else "START EXPEDITION", fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold)
-                }
-            } else {
-                Button(
-                    onClick = { finishTurn() },
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(4.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = CardGray, contentColor = PureWhite),
-                    border = BorderStroke(1.dp, BorderGray)
-                ) {
-                    Text(
-                        text = if (isPlayerAttacker) {
-                            if (isRu) "ЗАВЕРШИТЬ ХОД (БИТА)" else "COMPLETE TURN (BEAT)"
-                        } else {
-                            if (isRu) "ПОДВЕСТИ ХОД (ВЗЯТЬ КАРТЫ)" else "TAKE CARDS"
-                        }, 
-                        fontFamily = FontFamily.Monospace
-                    )
-                }
-            }
-        }
-    }
+    DurakGameComponent(
+        viewModel = viewModel,
+        userCoins = userCoins,
+        isRu = isRu,
+        isCasinoMode = true
+    )
 }
 
 
@@ -1308,25 +927,87 @@ fun DurakGame(viewModel: SocialViewModel, userCoins: Int, isRu: Boolean) {
 // ==========================================
 data class HorseRunner(
     val name: String,
+    val avatarUrl: String?,
+    val decorationId: Int?,
     val payoutMulti: Double,
     var progress: Float, // 0.0 to 100.0
     val speedFactor: Float
 )
 
+fun generateRandomHorses(allUsers: List<com.example.data.UserEntity>, isRu: Boolean): List<HorseRunner> {
+    val aiBots = allUsers.filter { it.isAi && it.id != "user" }
+    val selectedBots = if (aiBots.size >= 4) {
+        aiBots.shuffled().take(4)
+    } else {
+        val fallbackList = mutableListOf<com.example.data.UserEntity>()
+        fallbackList.addAll(aiBots)
+        val defaultAvatars = listOf(
+            "https://api.dicebear.com/7.x/bottts/svg?seed=CoalDust",
+            "https://api.dicebear.com/7.x/bottts/svg?seed=TechStrike",
+            "https://api.dicebear.com/7.x/bottts/svg?seed=AlphaCypher",
+            "https://api.dicebear.com/7.x/bottts/svg?seed=DarkHorizon"
+        )
+        val defaultNames = if (isRu) {
+            listOf("КаменныйУзел", "РобоКрикун", "КиберВсадник", "ЛогикЯдра")
+        } else {
+            listOf("StoneNode", "RoboShouter", "CyberRider", "CoreLogician")
+        }
+        val defaultHandles = listOf("@stone_node", "@shouter", "@cyber_rider", "@core_logic")
+        for (i in 0 until 4) {
+            fallbackList.add(
+                com.example.data.UserEntity(
+                    id = "bot_fallback_$i",
+                    username = defaultNames[i % defaultNames.size],
+                    handle = defaultHandles[i % defaultHandles.size],
+                    avatarUrl = defaultAvatars[i % defaultAvatars.size],
+                    bio = "Suborbital racer",
+                    isAi = true,
+                    followersCount = 100,
+                    followingCount = 100,
+                    trustScore = 95
+                )
+            )
+        }
+        fallbackList.shuffled().take(4)
+    }
+
+    val multis = listOf(1.8, 3.0, 4.5, 8.0)
+    val speeds = listOf(1.05f, 0.98f, 0.92f, 0.78f)
+    
+    return selectedBots.mapIndexed { idx, bot ->
+        val hasDec = kotlin.random.Random.nextFloat() < 0.85f
+        val randomDecId = if (hasDec) {
+            if (kotlin.random.Random.nextFloat() < 0.25f) kotlin.random.Random.nextInt(201, 211) else kotlin.random.Random.nextInt(1, 201)
+        } else {
+            null
+        }
+        val suffix = if (idx == 0) " (FAV)" else ""
+        HorseRunner(
+            name = "${bot.username} / ${bot.handle}$suffix",
+            avatarUrl = bot.avatarUrl,
+            decorationId = randomDecId,
+            payoutMulti = multis[idx],
+            progress = 0f,
+            speedFactor = speeds[idx]
+        )
+    }
+}
+
 @Composable
 fun HorseRacingGame(viewModel: SocialViewModel, userCoins: Int, isRu: Boolean) {
+    val allUsers by viewModel.allUsers.collectAsState(initial = emptyList())
     val scope = rememberCoroutineScope()
     var betAmount by remember { mutableStateOf(20) }
     var selectedHorseIdx by remember { mutableStateOf(0) }
     var inRace by remember { mutableStateOf(false) }
     
-    val horses = remember {
-        mutableStateListOf(
-            HorseRunner("🐎 COAL_DUST (FAV)", 1.8, 0f, 1.05f),
-            HorseRunner("🐎 TECH_STRIKE", 3.0, 0f, 0.98f),
-            HorseRunner("🐎 ALPHA_CYPHER", 4.5, 0f, 0.92f),
-            HorseRunner("🐎 DARK_HORIZON", 8.0, 0f, 0.78f)
-        )
+    val horses = remember { mutableStateListOf<HorseRunner>() }
+    
+    LaunchedEffect(allUsers) {
+        if (allUsers.isNotEmpty() && horses.isEmpty()) {
+            horses.clear()
+            horses.addAll(generateRandomHorses(allUsers, isRu))
+        }
     }
 
     var raceStatusText by remember { mutableStateOf("") }
@@ -1395,7 +1076,6 @@ fun HorseRacingGame(viewModel: SocialViewModel, userCoins: Int, isRu: Boolean) {
             )
             Spacer(modifier = Modifier.height(16.dp))
             
-            // Race Track UI
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -1407,34 +1087,47 @@ fun HorseRacingGame(viewModel: SocialViewModel, userCoins: Int, isRu: Boolean) {
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(vertical = 4.dp),
+                            .padding(vertical = 4.dp)
+                            .clickable(enabled = !inRace) { selectedHorseIdx = index; viewModel.vibrate(20) }
+                            .background(if (selectedHorseIdx == index) Color(0xFF151515) else Color.Transparent)
+                            .padding(horizontal = 6.dp, vertical = 2.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
+                        // Styled Avatar with decoration as requested!
+                        com.example.ui.screens.AvatarWithDecoration(
+                            avatarUrl = runner.avatarUrl,
+                            decorationId = runner.decorationId,
+                            sizeDp = 28,
+                            borderWidthDp = 1
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
                         Text(
                             text = runner.name,
                             color = if (selectedHorseIdx == index) PureWhite else TextGray,
-                            fontSize = 11.sp,
+                            fontSize = 10.sp,
                             fontWeight = if (selectedHorseIdx == index) FontWeight.Bold else FontWeight.Normal,
                             fontFamily = FontFamily.Monospace,
-                            modifier = Modifier.width(135.dp)
+                            modifier = Modifier.width(130.dp),
+                            maxLines = 1,
+                            overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
                         )
                         Box(
                             modifier = Modifier
                                 .weight(1f)
-                                .height(1.5.dp)
+                                .height(2.dp)
                                 .background(BorderGray)
                         ) {
                             Box(
                                 modifier = Modifier
                                     .fillMaxHeight()
                                     .fillMaxWidth(runner.progress / 100f)
-                                    .background(PureWhite)
+                                    .background(if (selectedHorseIdx == index) AlertYellow else PureWhite)
                             )
                         }
                         Spacer(modifier = Modifier.width(4.dp))
                         Text(
                             text = "${runner.progress.toInt()}%",
-                            color = PureWhite,
+                            color = if (selectedHorseIdx == index) AlertYellow else PureWhite,
                             fontFamily = FontFamily.Monospace,
                             fontSize = 10.sp
                         )
@@ -1455,13 +1148,30 @@ fun HorseRacingGame(viewModel: SocialViewModel, userCoins: Int, isRu: Boolean) {
         // Select Horse
         Column(modifier = Modifier.fillMaxWidth()) {
             if (!inRace) {
-                Text(
-                    text = if (isRu) "ВЫБЕРИ СКАКУНА ДЛЯ СТАВКИ:" else "CHOOSE CYBER STEED TO STAKE:",
-                    color = TextGray,
-                    fontSize = 10.sp,
-                    fontFamily = FontFamily.Monospace,
-                    modifier = Modifier.padding(bottom = 6.dp)
-                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = if (isRu) "ВЫБЕРИ СКАКУНА ДЛЯ СТАВКИ:" else "CHOOSE CYBER STEED TO STAKE:",
+                        color = TextGray,
+                        fontSize = 10.sp,
+                        fontFamily = FontFamily.Monospace
+                    )
+                    Text(
+                        text = if (isRu) "🔄 ОБНОВИТЬ КАНДИДАТОВ" else "🔄 SWAP COMPETITORS",
+                        color = AlertYellow,
+                        fontSize = 10.sp,
+                        fontFamily = FontFamily.Monospace,
+                        modifier = Modifier.clickable {
+                            viewModel.vibrate(30)
+                            horses.clear()
+                            horses.addAll(generateRandomHorses(allUsers, isRu))
+                        }
+                    )
+                }
+                Spacer(modifier = Modifier.height(6.dp))
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -1475,8 +1185,9 @@ fun HorseRacingGame(viewModel: SocialViewModel, userCoins: Int, isRu: Boolean) {
                             color = if (selectedHorseIdx == idx) DeepGray else Color.Transparent,
                             shape = RoundedCornerShape(4.dp)
                         ) {
+                            val displayName = runner.name.substringBefore(" / ")
                             Text(
-                                text = "${runner.name}\n[x${runner.payoutMulti}]",
+                                text = "$displayName\n[x${runner.payoutMulti}]",
                                 color = PureWhite,
                                 fontSize = 11.sp,
                                 fontFamily = FontFamily.Monospace,

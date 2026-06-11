@@ -510,11 +510,11 @@ fun FeedScreen(
                         viewModel.vibrate(40)
                         viewModel.navigateTo(Screen.Casino) 
                     },
-                    containerColor = PureWhite,
+                    containerColor = AlertYellow,
                     contentColor = PureBlack,
                     shape = RoundedCornerShape(12.dp),
                     modifier = Modifier
-                        .border(1.5.dp, PureWhite, RoundedCornerShape(12.dp))
+                        .border(2.dp, PureBlack, RoundedCornerShape(12.dp))
                         .testTag("casino_quick_fab")
                 ) {
                     Icon(

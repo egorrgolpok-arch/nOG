@@ -14,7 +14,14 @@ import java.io.StringReader
 import kotlin.random.Random
 
 data class NewsSource(val name: String, val url: String, val trustScore: Int, val isRu: Boolean)
-data class NewsItem(val sourceName: String, val title: String, val description: String, val url: String, val trustScore: Int)
+data class NewsItem(
+    val sourceName: String, 
+    val title: String, 
+    val description: String, 
+    val url: String, 
+    val trustScore: Int,
+    val fullContent: String? = null
+)
 
 object NewsFetcher {
     private const val TAG = "NewsFetcher"
@@ -22,6 +29,53 @@ object NewsFetcher {
         .connectTimeout(15, java.util.concurrent.TimeUnit.SECONDS)
         .readTimeout(15, java.util.concurrent.TimeUnit.SECONDS)
         .build()
+
+    // Scrapes the full article from the news web page
+    suspend fun fetchFullArticleContent(url: String): String = withContext(Dispatchers.IO) {
+        if (url.isEmpty() || url.startsWith("https://news.google.com") || url.contains("localhost") || url.endsWith("/1")) {
+            return@withContext ""
+        }
+        try {
+            val request = Request.Builder()
+                .url(url)
+                .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36")
+                .build()
+            client.newCall(request).execute().use { response ->
+                if (!response.isSuccessful) return@withContext ""
+                val html = response.body?.string() ?: return@withContext ""
+                
+                val paragraphs = mutableListOf<String>()
+                val regex = Regex("<p[^>]*>(.*?)</p>", RegexOption.DOT_MATCHES_ALL)
+                val matches = regex.findAll(html)
+                for (match in matches) {
+                    val pContent = match.groups[1]?.value?.trim() ?: continue
+                    val cleanText = decodeHtmlEntities(pContent)
+                        .replace(Regex("<[^>]*>"), "")
+                        .trim()
+                    if (cleanText.length > 30 && !cleanText.contains("copyright", ignoreCase = true) && !cleanText.contains("subscribe", ignoreCase = true)) {
+                        paragraphs.add(cleanText)
+                    }
+                }
+                
+                if (paragraphs.isNotEmpty()) {
+                    paragraphs.joinToString("\n\n")
+                } else {
+                    val bodyRegex = Regex("<body[^>]*>(.*?)</body>", RegexOption.DOT_MATCHES_ALL)
+                    val bodyMatch = bodyRegex.find(html)?.groups?.get(1)?.value ?: html
+                    val cleanBody = decodeHtmlEntities(bodyMatch)
+                        .replace(Regex("<script[^>]*>.*?</script>", RegexOption.DOT_MATCHES_ALL), "")
+                        .replace(Regex("<style[^>]*>.*?</style>", RegexOption.DOT_MATCHES_ALL), "")
+                        .replace(Regex("<[^>]*>"), "")
+                        .replace(Regex("\\s+"), " ")
+                        .trim()
+                    if (cleanBody.length > 200) cleanBody.take(1500) else ""
+                }
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "Failed to scrape full article from $url: ${e.message}")
+            ""
+        }
+    }
 
     private val sources = listOf(
         NewsSource("BBC News", "https://feeds.bbci.co.uk/news/rss.xml", 95, false),
@@ -163,10 +217,18 @@ object NewsFetcher {
                             val xmlBody = response.body?.string()
                             if (response.isSuccessful && !xmlBody.isNullOrEmpty()) {
                                 val trimmedBody = xmlBody.trim()
-                                if (trimmedBody.startsWith("<rss") || trimmedBody.startsWith("<feed") || trimmedBody.contains("<?xml")) {
+                                val parsed = if (trimmedBody.startsWith("<rss") || trimmedBody.startsWith("<feed") || trimmedBody.contains("<?xml")) {
                                     parseRss(xmlBody, source).take(5)
                                 } else {
                                     emptyList()
+                                }
+                                parsed.map { item ->
+                                    val full = try {
+                                        fetchFullArticleContent(item.url)
+                                    } catch (e: Exception) {
+                                        ""
+                                    }
+                                    if (full.isNotEmpty()) item.copy(fullContent = full) else item
                                 }
                             } else {
                                 emptyList()

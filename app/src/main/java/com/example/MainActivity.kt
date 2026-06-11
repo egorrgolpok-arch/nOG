@@ -326,32 +326,7 @@ class MainActivity : ComponentActivity() {
                                 )
                             )
 
-                            // Casino Item
-                            NavigationBarItem(
-                                selected = currentScreen is Screen.Casino,
-                                onClick = { viewModel.navigateTo(Screen.Casino) },
-                                icon = {
-                                    Icon(
-                                        imageVector = if (currentScreen is Screen.Casino) Icons.Filled.Casino else Icons.Outlined.Casino,
-                                        contentDescription = if (lang == "RU") "Казино" else "Casino"
-                                    )
-                                },
-                                label = {
-                                    Text(
-                                        if (lang == "RU") "Казино" else "Casino",
-                                        fontFamily = FontFamily.Monospace,
-                                        fontSize = 10.sp,
-                                        fontWeight = FontWeight.Bold
-                                    )
-                                },
-                                colors = NavigationBarItemDefaults.colors(
-                                    selectedIconColor = PureBlack,
-                                    selectedTextColor = PureWhite,
-                                    indicatorColor = PureWhite,
-                                    unselectedIconColor = TextGray,
-                                    unselectedTextColor = TextGray
-                                )
-                            )
+
 
                             // Profile Customizer Settings
                             NavigationBarItem(

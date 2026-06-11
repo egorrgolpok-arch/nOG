@@ -50,7 +50,10 @@ class SocialRepository(private val context: Context, private val scope: Coroutin
         val lang = getSelectedLanguage()
         // Use the high-fidelity RSS fetcher to get real-world news as requested!
         val realNews = NewsFetcher.fetchLatestNews(lang)
-        if (realNews.isNotEmpty()) return@withContext realNews.map { "News: ${it.title} - ${it.description} (Source: ${it.sourceName}, Trust: ${it.trustScore})" }
+        if (realNews.isNotEmpty()) return@withContext realNews.map { 
+            val contentBody = if (!it.fullContent.isNullOrBlank()) it.fullContent else it.description
+            "Source: ${it.sourceName} — ${it.title}\n\n$contentBody\n\n(Trust: ${it.trustScore}%)"
+        }
 
         // Fallback or secondary source
         val urls = listOf("https://nog1.tilda.ws/nogshop", "https://nog1.tilda.ws")
@@ -881,7 +884,10 @@ class SocialRepository(private val context: Context, private val scope: Coroutin
         if (newsCache.isEmpty()) {
             val fetched = NewsFetcher.fetchLatestNews(lang)
             if (fetched.isNotEmpty()) {
-                newsCache.addAll(fetched.map { "Source: ${it.sourceName} (Trust: ${it.trustScore}). ${it.title} - ${it.description}" })
+                newsCache.addAll(fetched.map { 
+                    val body = if (!it.fullContent.isNullOrBlank()) it.fullContent else it.description
+                    "Source: ${it.sourceName} — ${it.title}\n\n$body\n\n(Trust: ${it.trustScore}%)"
+                })
             }
         }
         return if (newsCache.isNotEmpty()) {
