@@ -78,6 +78,7 @@ object NewsFetcher {
     }
 
     private val sources = listOf(
+        // === FOREIGN / ENGLISH SOURCES (50 COMPLETELY UNIQUE) ===
         NewsSource("BBC News", "https://feeds.bbci.co.uk/news/rss.xml", 95, false),
         NewsSource("NYT World", "https://rss.nytimes.com/services/xml/rss/nyt/World.xml", 90, false),
         NewsSource("NYT Tech", "https://rss.nytimes.com/services/xml/rss/nyt/Technology.xml", 90, false),
@@ -95,14 +96,13 @@ object NewsFetcher {
         NewsSource("Kotaku", "https://kotaku.com/rss", 82, false),
         NewsSource("Eurogamer", "https://www.eurogamer.net/feed", 85, false),
         NewsSource("PC Gamer", "https://www.pcgamer.com/rss", 86, false),
-        NewsSource("Game Informer", "https://news.google.com/rss/search?q=Game+Informer&hl=en-US", 80, false),
         NewsSource("Polygon", "https://www.polygon.com/rss/index.xml", 88, false),
         NewsSource("Rock Paper Shotgun", "https://www.rockpapershotgun.com/feed", 85, false),
         NewsSource("VG247", "https://www.vg247.com/feed", 85, false),
-        NewsSource("Gamasutra/GameDeveloper", "https://www.gamedeveloper.com/rss.xml", 90, false),
+        NewsSource("GameDeveloper", "https://www.gamedeveloper.com/rss.xml", 90, false),
         NewsSource("Science Daily", "https://www.sciencedaily.com/rss/all.xml", 90, false),
         NewsSource("Space.com", "https://www.space.com/feeds/science.xml", 85, false),
-        NewsSource("Nature", "https://www.nature.com/nature.rss", 98, false),
+        NewsSource("Nature Journal", "https://www.nature.com/nature.rss", 98, false),
         NewsSource("TechCrunch", "https://techcrunch.com/feed/", 90, false),
         NewsSource("The Verge", "https://www.theverge.com/rss/index.xml", 88, false),
         NewsSource("Ars Technica", "https://feeds.arstechnica.com/arstechnica/index", 95, false),
@@ -116,25 +116,36 @@ object NewsFetcher {
         NewsSource("Phys.org Physics", "https://phys.org/rss-feed/", 91, false),
         NewsSource("ScienceNews", "https://www.sciencenews.org/feed", 93, false),
         NewsSource("Scientific American", "https://www.scientificamerican.com/feed/", 94, false),
-        NewsSource("Astronomy", "https://astronomy.com/rss.xml", 89, false),
-        NewsSource("X.com / Twitter Tech", "https://news.google.com/rss/search?q=X+tech+trends+Twitter&hl=en-US", 78, false),
+        NewsSource("Astronomy Mag", "https://astronomy.com/rss.xml", 89, false),
+        NewsSource("MotorTrend", "https://news.google.com/rss/search?q=cars+automotive+news+when:24h&hl=en-US", 90, false),
+        NewsSource("True Crime Daily", "https://news.google.com/rss/search?q=true+crime+murder+mystery+when:24h&hl=en-US", 85, false),
+        NewsSource("Fortnite News", "https://news.google.com/rss/search?q=Fortnite+game+when:24h&hl=en-US", 88, false),
+        NewsSource("CS2 Valve", "https://news.google.com/rss/search?q=Counter-Strike+2+Valve+patch+when:24h&hl=en-US", 90, false),
+        NewsSource("Dota 2 Valve", "https://news.google.com/rss/search?q=Dota+2+patch+when:24h&hl=en-US", 90, false),
+        NewsSource("League of Legends Web", "https://news.google.com/rss/search?q=League+of+Legends+patch+lolesports+when:24h&hl=en-US", 90, false),
+        NewsSource("The Hacker News", "https://feeds.feedburner.com/TheHackersNews", 95, false),
+        NewsSource("The Register", "https://www.theregister.com/headlines.rss", 90, false),
+        NewsSource("Phoronix Linux", "https://www.phoronix.com/phoronix-rss.php", 92, false),
+        NewsSource("Slashdot", "https://rss.slashdot.org/Slashdot/slashdotMain", 88, false),
+        NewsSource("Gizchina", "https://www.gizchina.com/feed/", 84, false),
+        NewsSource("Android Central", "https://www.androidcentral.com/feed", 87, false),
 
-        // RU Additions
+        // === RUSSIAN / CYRILLIC SOURCES (50 COMPLETELY UNIQUE) ===
         NewsSource("Lenta.ru", "https://lenta.ru/rss", 70, true),
         NewsSource("Pikabu (Stories)", "https://news.google.com/rss/search?q=when:24h+allinurl:pikabu.ru+история&hl=ru", 80, true),
-        NewsSource("Cooking/Recipes (RU)", "https://news.google.com/rss/search?q=рецепты+кулинария&hl=ru", 75, true),
+        NewsSource("Рецепты Кулинария", "https://news.google.com/rss/search?q=рецепты+кулинария&hl=ru", 75, true),
         NewsSource("Lenta Tech", "https://lenta.ru/rss/news", 75, true),
-        NewsSource("Habr", "https://habr.com/ru/rss/all/all/", 92, true),
-        NewsSource("Geektimes/Habr", "https://habr.com/ru/rss/hub/geektimes/all/", 92, true),
+        NewsSource("Habr All", "https://habr.com/ru/rss/all/all/", 92, true),
+        NewsSource("Habr Geektimes", "https://habr.com/ru/rss/hub/geektimes/all/", 92, true),
         NewsSource("Vedomosti", "https://www.vedomosti.ru/rss/issue", 85, true),
         NewsSource("StopGame", "https://stopgame.ru/rss/new/news", 80, true),
-        NewsSource("DTF", "https://dtf.ru/rss/all", 88, true),
+        NewsSource("DTF RU", "https://dtf.ru/rss/all", 88, true),
         NewsSource("Igromania", "https://www.igromania.ru/rss/news.xml", 85, true),
         NewsSource("Kanobu", "https://kanobu.ru/rss/", 80, true),
         NewsSource("PlayGround.ru", "https://www.playground.ru/rss", 80, true),
         NewsSource("VGTimes", "https://vgtimes.ru/rss/", 78, true),
-        NewsSource("RIA", "https://ria.ru/export/rss2/archive/index.xml", 75, true),
-        NewsSource("Lifehacker RU", "https://lifehacker.ru/feed/", 80, true),
+        NewsSource("RIA Новости", "https://ria.ru/export/rss2/archive/index.xml", 75, true),
+        NewsSource("Лайфхакер", "https://lifehacker.ru/feed/", 80, true),
         NewsSource("iXBT.com", "https://www.ixbt.com/export/news.rss", 85, true),
         NewsSource("CyberSport RU", "https://www.cybersport.ru/rss/all", 85, true),
         NewsSource("Championat", "https://www.championat.com/rss/news/", 80, true),
@@ -145,63 +156,31 @@ object NewsFetcher {
         NewsSource("Rozetked", "https://rozetked.me/rss", 85, true),
         NewsSource("Wylsacom", "https://wylsa.com/feed/", 82, true),
         NewsSource("Droider", "https://droider.ru/feed/", 83, true),
-        NewsSource("Meduza", "https://news.google.com/rss/search?q=when:24h+allinurl:meduza.io&hl=ru", 85, true),
-        NewsSource("TASS", "https://tass.ru/rss/v2.xml", 80, true),
-
-        // --- Cars / Автомобили ---
-        NewsSource("MotorTrend", "https://news.google.com/rss/search?q=cars+automotive+news+when:24h&hl=en-US", 90, false),
-        NewsSource("За Рулем", "https://news.google.com/rss/search?q=автомобили+машины+when:24h&hl=ru", 85, true),
-        NewsSource("Auto.ru", "https://news.google.com/rss/search?q=автоновости+тест-драйв&hl=ru", 85, true),
-        
-        // --- Science / Наука ---
-        NewsSource("ScienceDaily All", "https://www.sciencedaily.com/rss/all.xml", 94, false),
-        NewsSource("Naked Science", "https://news.google.com/rss/search?q=naked+science+наука+when:24h&hl=ru", 90, true),
+        NewsSource("Meduza.io", "https://news.google.com/rss/search?q=when:24h+allinurl:meduza.io&hl=ru", 85, true),
+        NewsSource("ТАСС", "https://tass.ru/rss/v2.xml", 80, true),
+        NewsSource("За Рулем (Авто)", "https://news.google.com/rss/search?q=автомобили+машины+when:24h&hl=ru", 85, true),
+        NewsSource("Auto.ru Новости", "https://news.google.com/rss/search?q=автоновости+тест-драйв&hl=ru", 85, true),
+        NewsSource("Naked Science RU", "https://news.google.com/rss/search?q=naked+science+наука+when:24h&hl=ru", 90, true),
         NewsSource("Элементы.ру", "https://elementy.ru/rss/news", 92, true),
-
-        // --- True Story / Тру Стори ---
-        NewsSource("Reddit TrueOffMyChest", "https://www.reddit.com/r/TrueOffMyChest/top/.rss", 80, false),
-        NewsSource("Пикабу Моя История", "https://news.google.com/rss/search?q=pikabu+мои+истории+when:24h&hl=ru", 80, true),
-        NewsSource("Подслушано", "https://news.google.com/rss/search?q=подслушано+истории&hl=ru", 75, true),
-
-        // --- True Crime / Тру Крайм ---
-        NewsSource("True Crime Daily", "https://news.google.com/rss/search?q=true+crime+murder+mystery+when:24h&hl=en-US", 85, false),
-        NewsSource("Криминальная Россия", "https://news.google.com/rss/search?q=расследование+криминал+дело+when:24h&hl=ru", 80, true),
-        
-        // --- Games (Fortnite, CS2, Dota 2, League of Legends) ---
-        NewsSource("Fortnite News", "https://news.google.com/rss/search?q=Fortnite+game+when:24h&hl=en-US", 88, false),
-        NewsSource("Fortnite RU", "https://news.google.com/rss/search?q=Fortnite+игра+новости&hl=ru", 80, true),
-        
-        NewsSource("CS2 Valve", "https://news.google.com/rss/search?q=Counter-Strike+2+Valve+patch+when:24h&hl=en-US", 90, false),
-        NewsSource("CS2 RU", "https://news.google.com/rss/search?q=CS2+кс2+патч+турнир&hl=ru", 85, true),
-        
-        NewsSource("Dota 2 Valve", "https://news.google.com/rss/search?q=Dota+2+patch+when:24h&hl=en-US", 90, false),
-        NewsSource("Dota 2 RU", "https://news.google.com/rss/search?q=Dota2+дота+патч+турнир&hl=ru", 85, true),
-        
-        NewsSource("League of Legends Web", "https://news.google.com/rss/search?q=League+of+Legends+patch+lolesports+when:24h&hl=en-US", 90, false),
-        NewsSource("League of Legends RU", "https://news.google.com/rss/search?q=Лига+Легенд+лол+новости&hl=ru", 85, true),
-        
-        // --- Added High-Fidelity Information Feeds ---
-        NewsSource("The Hacker News", "https://feeds.feedburner.com/TheHackersNews", 95, false),
-        NewsSource("The Register", "https://www.theregister.com/headlines.rss", 90, false),
-        NewsSource("Phoronix (Linux)", "https://www.phoronix.com/phoronix-rss.php", 92, false),
-        NewsSource("Slashdot", "https://rss.slashdot.org/Slashdot/slashdotMain", 88, false),
+        NewsSource("Мои Истории (Пикабу)", "https://news.google.com/rss/search?q=pikabu+мои+истории+when:24h&hl=ru", 80, true),
+        NewsSource("Подслушано Истории", "https://news.google.com/rss/search?q=подслушано+истории&hl=ru", 75, true),
+        NewsSource("Криминал Расследования", "https://news.google.com/rss/search?q=расследование+криминал+дело+when:24h&hl=ru", 80, true),
+        NewsSource("Fortnite RU Новости", "https://news.google.com/rss/search?q=Fortnite+игра+новости&hl=ru", 80, true),
+        NewsSource("CS2 RU Лобби", "https://news.google.com/rss/search?q=CS2+кс2+патч+турнир&hl=ru", 85, true),
+        NewsSource("Dota 2 RU Новости", "https://news.google.com/rss/search?q=Dota2+дота+патч+турнир&hl=ru", 85, true),
+        NewsSource("Лига Легенд RU", "https://news.google.com/rss/search?q=Лига+Легенд+лол+новости&hl=ru", 85, true),
         NewsSource("3DNews RU", "https://3dnews.ru/news/rss/", 88, true),
         NewsSource("Overclockers RU", "https://www.overclockers.ru/rss/all.xml", 85, true),
         NewsSource("ServerNews RU", "https://servernews.ru/news/rss", 90, true),
-        NewsSource("IXBT Games", "https://ixbt.games/export/news.rss", 85, true),
-        NewsSource("Gizchina", "https://www.gizchina.com/feed/", 84, false),
-        NewsSource("Neowin", "https://www.neowin.net/news/rss/", 86, false),
-        NewsSource("Android Central", "https://www.androidcentral.com/feed", 87, false),
+        NewsSource("iXBT Games", "https://ixbt.games/export/news.rss", 85, true),
         NewsSource("Коммерсантъ", "https://www.kommersant.ru/RSS/news.xml", 87, true),
-        NewsSource("Труд", "https://news.google.com/rss/search?q=газета+труд+истории&hl=ru", 76, true),
+        NewsSource("Газета Труд", "https://news.google.com/rss/search?q=газета+труд+истории&hl=ru", 76, true),
         NewsSource("Аргументы и Факты", "https://aif.ru/rss/news.php", 80, true),
-        NewsSource("Известия", "https://iz.ru/xml/rss/all.xml", 82, true),
+        NewsSource("Известия Новости", "https://iz.ru/xml/rss/all.xml", 82, true),
         NewsSource("Газета.Ru", "https://www.gazeta.ru/export/rss/social_more.xml", 80, true),
         NewsSource("Московский Комсомолец", "https://www.mk.ru/rss/index.xml", 75, true),
-        NewsSource("Компьютерра", "https://news.google.com/rss/search?q=computerra+компьютерра&hl=ru", 83, true),
-        NewsSource("Хабр Научпоп", "https://habr.com/ru/rss/hub/scientific_pop/all/", 92, true),
-        NewsSource("Популярная Механика", "https://news.google.com/rss/search?q=популярная+механика&hl=ru", 82, true),
-        NewsSource("TechInsider", "https://news.google.com/rss/search?q=TechInsider+техно&hl=ru", 84, true)
+        NewsSource("Компьютерра Новости", "https://news.google.com/rss/search?q=computerra+компьютерра&hl=ru", 83, true),
+        NewsSource("Хабр Научпоп", "https://habr.com/ru/rss/hub/scientific_pop/all/", 92, true)
     )
 
     private val cachedNews = java.util.concurrent.ConcurrentHashMap<String, List<NewsItem>>()

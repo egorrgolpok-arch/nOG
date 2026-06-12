@@ -253,34 +253,47 @@ fun AvatarWithDecoration(
 
         // Draw custom decoration if active
         if (decorationId != null && decorationId > 0) {
-            val infiniteTransition = rememberInfiniteTransition()
+            val infiniteTransition = rememberInfiniteTransition(label = "avatar_dec")
             
-            // Animation values for visual richness
+            // Standard small avatars only run ONE smooth rotation to save battery & prevent lag!
+            val isSmall = sizeDp <= 56
+            
             val angleRotation by infiniteTransition.animateFloat(
                 initialValue = 0f,
                 targetValue = 360f,
                 animationSpec = infiniteRepeatable(
-                    animation = tween(4000, easing = LinearEasing)
-                )
+                    animation = tween(if (isSmall) 6000 else 4000, easing = LinearEasing)
+                ),
+                label = "rot"
             )
 
-            val scalePulse by infiniteTransition.animateFloat(
-                initialValue = 0.96f,
-                targetValue = 1.04f,
-                animationSpec = infiniteRepeatable(
-                    animation = tween(1200, easing = FastOutSlowInEasing),
-                    repeatMode = RepeatMode.Reverse
+            val scalePulse by if (isSmall) {
+                remember { mutableStateOf(100f / 100f) }
+            } else {
+                infiniteTransition.animateFloat(
+                    initialValue = 0.96f,
+                    targetValue = 1.04f,
+                    animationSpec = infiniteRepeatable(
+                        animation = tween(1200, easing = FastOutSlowInEasing),
+                        repeatMode = RepeatMode.Reverse
+                    ),
+                    label = "scale"
                 )
-            )
+            }
 
-            val breatheAlpha by infiniteTransition.animateFloat(
-                initialValue = 0.6f,
-                targetValue = 1.0f,
-                animationSpec = infiniteRepeatable(
-                    animation = tween(1000, easing = LinearEasing),
-                    repeatMode = RepeatMode.Reverse
+            val breatheAlpha by if (isSmall) {
+                remember { mutableStateOf(0.9f) }
+            } else {
+                infiniteTransition.animateFloat(
+                    initialValue = 0.6f,
+                    targetValue = 1.0f,
+                    animationSpec = infiniteRepeatable(
+                        animation = tween(1000, easing = LinearEasing),
+                        repeatMode = RepeatMode.Reverse
+                    ),
+                    label = "alpha"
                 )
-            )
+            }
 
             Canvas(
                 modifier = Modifier

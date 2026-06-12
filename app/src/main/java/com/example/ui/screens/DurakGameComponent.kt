@@ -104,6 +104,7 @@ fun DurakGameComponent(
     
     // Re-roll lobby bots with random name, avatar & decorations as requested!
     fun rollLobbyBots() {
+        if (inDurak) return
         lobbyBots.clear()
         val aiBots = allUsers.filter { it.isAi && it.id != "user" }
         val shuffledBots = if (aiBots.size >= opponentCount) {
@@ -260,7 +261,7 @@ fun DurakGameComponent(
     ): String {
         if (cards.size == 1) return cards[0]
         
-        val activeDiff = difficulty
+        val activeDiff = if (isCasinoMode) "Hard" else difficulty
         val nonTrumps = cards.filter { !it.endsWith(trump) }
         
         return when (activeDiff) {
@@ -958,238 +959,246 @@ fun DurakGameComponent(
             Column(
                 modifier = Modifier
                     .fillMaxSize()
-                    .verticalScroll(rememberScrollState())
-                    .padding(8.dp),
-                verticalArrangement = Arrangement.spacedBy(6.dp)
+                    .padding(6.dp)
             ) {
-                // Top opponents row representation
+                // Scrollable Board Area
                 Column(
                     modifier = Modifier
-                        .fillMaxWidth()
-                        .background(CardGray, RoundedCornerShape(4.dp))
-                        .border(1.dp, BorderGray, RoundedCornerShape(4.dp))
-                        .padding(8.dp)
+                        .weight(1f)
+                        .verticalScroll(rememberScrollState()),
+                    verticalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
-                    Text(
-                        text = if (isRu) "СОПЕРНИКИ В ОТСЕКЕ:" else "CURRENT ACTIVE OPPONENTS:",
-                        color = AccentGray,
-                        fontFamily = FontFamily.Monospace,
-                        fontSize = 9.sp,
-                        fontWeight = FontWeight.Bold
-                    )
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Row(
+                    // Top opponents row representation
+                    Column(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .horizontalScroll(rememberScrollState()),
-                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                            .background(CardGray, RoundedCornerShape(4.dp))
+                            .border(1.dp, BorderGray, RoundedCornerShape(4.dp))
+                            .padding(8.dp)
                     ) {
-                        players.filter { !it.isHuman }.forEach { bot ->
-                            val isAtt = bot.id == currentAttackerId
-                            val isDef = bot.id == currentDefenderId
-                            
-                            val outline = if (isAtt) Color(0xFFFF5D5D) else if (isDef) AlertYellow else BorderGray
-                            val bg = if (isAtt) Color(0x22FF5D5D) else if (isDef) Color(0x22FFD60A) else DeepGray
-                            
-                            Row(
-                                modifier = Modifier
-                                    .border(1.dp, outline, RoundedCornerShape(4.dp))
-                                    .background(bg)
-                                    .padding(6.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                AvatarWithDecoration(
-                                    avatarUrl = bot.avatarUrl,
-                                    decorationId = bot.decorationId,
-                                    sizeDp = 26,
-                                    borderWidthDp = 1
-                                )
-                                Spacer(modifier = Modifier.width(6.dp))
-                                Column {
-                                    Row(verticalAlignment = Alignment.CenterVertically) {
-                                        Text(
-                                            text = bot.name,
-                                            color = PureWhite,
-                                            fontSize = 9.sp,
-                                            fontFamily = FontFamily.Monospace,
-                                            fontWeight = FontWeight.Bold,
-                                            maxLines = 1,
-                                            overflow = TextOverflow.Ellipsis,
-                                            modifier = Modifier.widthIn(max = 75.dp)
-                                        )
-                                        if (bot.isOut) {
-                                            Text(
-                                                text = " 🏆 #${bot.place}",
-                                                color = AlertYellow,
-                                                fontSize = 9.sp,
-                                                fontWeight = FontWeight.Bold,
-                                                fontFamily = FontFamily.Monospace
-                                            )
-                                        }
-                                    }
-                                    
-                                    if (bot.isOut) {
-                                        Text(
-                                            text = if (isRu) "ВЫШЕЛ" else "OUT",
-                                            color = TextGray,
-                                            fontSize = 8.sp,
-                                            fontFamily = FontFamily.Monospace
-                                        )
-                                    } else {
+                        Text(
+                            text = if (isRu) "СОПЕРНИКИ В ОТСЕКЕ:" else "CURRENT ACTIVE OPPONENTS:",
+                            color = AccentGray,
+                            fontFamily = FontFamily.Monospace,
+                            fontSize = 9.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .horizontalScroll(rememberScrollState()),
+                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            players.filter { !it.isHuman }.forEach { bot ->
+                                val isAtt = bot.id == currentAttackerId
+                                val isDef = bot.id == currentDefenderId
+                                
+                                val outline = if (isAtt) Color(0xFFFF5D5D) else if (isDef) AlertYellow else BorderGray
+                                val bg = if (isAtt) Color(0x22FF5D5D) else if (isDef) Color(0x22FFD60A) else DeepGray
+                                
+                                Row(
+                                    modifier = Modifier
+                                        .border(1.dp, outline, RoundedCornerShape(4.dp))
+                                        .background(bg)
+                                        .padding(6.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    AvatarWithDecoration(
+                                        avatarUrl = bot.avatarUrl,
+                                        decorationId = bot.decorationId,
+                                        sizeDp = 26,
+                                        borderWidthDp = 1
+                                    )
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Column {
                                         Row(verticalAlignment = Alignment.CenterVertically) {
                                             Text(
-                                                text = "🎴 x${bot.cards.size}",
-                                                color = AlertYellow,
+                                                text = bot.name,
+                                                color = PureWhite,
                                                 fontSize = 9.sp,
                                                 fontFamily = FontFamily.Monospace,
-                                                fontWeight = FontWeight.Bold
+                                                fontWeight = FontWeight.Bold,
+                                                maxLines = 1,
+                                                overflow = TextOverflow.Ellipsis,
+                                                modifier = Modifier.widthIn(max = 75.dp)
                                             )
-                                            Spacer(modifier = Modifier.width(4.dp))
+                                            if (bot.isOut) {
+                                                Text(
+                                                    text = " 🏆 #${bot.place}",
+                                                    color = AlertYellow,
+                                                    fontSize = 9.sp,
+                                                    fontWeight = FontWeight.Bold,
+                                                    fontFamily = FontFamily.Monospace
+                                                )
+                                            }
+                                        }
+                                        
+                                        if (bot.isOut) {
                                             Text(
-                                                text = if (isAtt) "⚔️" else if (isDef) "🎯" else "🛡️",
-                                                fontSize = 9.sp
+                                                text = if (isRu) "ВЫШЕЛ" else "OUT",
+                                                color = TextGray,
+                                                fontSize = 8.sp,
+                                                fontFamily = FontFamily.Monospace
                                             )
+                                        } else {
+                                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                                Text(
+                                                    text = "🎴 x${bot.cards.size}",
+                                                    color = AlertYellow,
+                                                    fontSize = 9.sp,
+                                                    fontFamily = FontFamily.Monospace,
+                                                    fontWeight = FontWeight.Bold
+                                                )
+                                                Spacer(modifier = Modifier.width(4.dp))
+                                                Text(
+                                                    text = if (isAtt) "⚔️" else if (isDef) "🎯" else "🛡️",
+                                                    fontSize = 9.sp
+                                                )
+                                            }
                                         }
                                     }
                                 }
                             }
                         }
                     }
-                }
-                
-                // Game log feed (Console scroll)
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(35.dp)
-                        .padding(horizontal = 4.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(
-                        text = durakText,
-                        color = PureWhite,
-                        fontSize = 11.sp,
-                        fontFamily = FontFamily.Monospace,
-                        textAlign = TextAlign.Center,
-                        lineHeight = 14.sp
-                    )
-                }
-                
-                // Main Desk playing field
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(130.dp)
-                        .background(DeepGray, RoundedCornerShape(4.dp))
-                        .border(1.dp, BorderGray, RoundedCornerShape(4.dp))
-                        .padding(8.dp),
-                    horizontalArrangement = Arrangement.Center,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    // Trump on leftover deck
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        modifier = Modifier.padding(end = 16.dp)
-                    ) {
-                        Text(
-                            text = if (isRu) "КОЗЫРЬ" else "TRUMP",
-                            color = TextGray,
-                            fontSize = 8.sp,
-                            fontFamily = FontFamily.Monospace
-                        )
-                        Spacer(modifier = Modifier.height(3.dp))
-                        DurakReadyCard(trumpCard)
-                        Spacer(modifier = Modifier.height(4.dp))
-                        Text(
-                            text = "🧬 $remainingCardsCount ${if (isRu) "карт" else "left"}",
-                            color = AccentGray,
-                            fontSize = 9.sp,
-                            fontFamily = FontFamily.Monospace
-                        )
-                    }
                     
-                    // Live covered and uncovered active table cards
-                    Row(
+                    // Game log feed (Console scroll)
+                    Box(
                         modifier = Modifier
-                            .weight(1f)
-                            .horizontalScroll(rememberScrollState()),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        activeAttackCards.forEachIndexed { i, att ->
-                            Box(
-                                modifier = Modifier.size(width = 54.dp, height = 75.dp)
-                            ) {
-                                DurakPlayingCardView(att)
-                                if (activeDefendCards.size > i) {
-                                    Box(
-                                        modifier = Modifier.offset(x = 10.dp, y = 14.dp)
-                                    ) {
-                                        DurakPlayingCardView(activeDefendCards[i])
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-                
-                // Your hands controller
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 4.dp)
-                ) {
-                    val humanState = players.find { it.isHuman }
-                    val currentHand = humanState?.cards ?: emptyList()
-                    val amIAttacker = currentAttackerId == "player"
-                    val amIDefender = currentDefenderId == "player"
-                    
-                    Row(
-                        modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
+                            .fillMaxWidth()
+                            .height(35.dp)
+                            .padding(horizontal = 4.dp),
+                        contentAlignment = Alignment.Center
                     ) {
                         Text(
-                            text = if (isRu) "ТВОЙ АККУМУЛЯТОР КАРТ (${currentHand.size}):" 
-                                   else "YOUR HAND CARD POOL (${currentHand.size}):",
-                            color = AccentGray,
-                            fontSize = 9.sp,
-                            fontFamily = FontFamily.Monospace
-                        )
-                        Text(
-                            text = if (amIAttacker) "⚔️ АТАКА" else if (amIDefender) "🎯 ЗАЩИТА" else "🛡️ В ОЖИДАНИИ",
-                            color = if (amIAttacker) Color(0xFFFF5D5D) else if (amIDefender) AlertYellow else TextGray,
-                            fontSize = 9.sp,
-                            fontWeight = FontWeight.Bold,
-                            fontFamily = FontFamily.Monospace
+                            text = durakText,
+                            color = PureWhite,
+                            fontSize = 11.sp,
+                            fontFamily = FontFamily.Monospace,
+                            textAlign = TextAlign.Center,
+                            lineHeight = 14.sp
                         )
                     }
-                    Spacer(modifier = Modifier.height(2.dp))
                     
+                    // Main Desk playing field
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .horizontalScroll(rememberScrollState())
-                            .padding(vertical = 4.dp),
-                        horizontalArrangement = Arrangement.spacedBy(5.dp)
+                            .height(115.dp)
+                            .background(DeepGray, RoundedCornerShape(4.dp))
+                            .border(1.dp, BorderGray, RoundedCornerShape(4.dp))
+                            .padding(6.dp),
+                        horizontalArrangement = Arrangement.Center,
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        currentHand.forEach { card ->
-                            Box(
-                                modifier = Modifier.clickable {
-                                    if (amIAttacker) {
-                                        playerAttack(card)
-                                    } else if (amIDefender) {
-                                        playerDefend(card)
+                        // Trump on leftover deck
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            modifier = Modifier.padding(end = 16.dp)
+                        ) {
+                            Text(
+                                text = if (isRu) "КОЗЫРЬ" else "TRUMP",
+                                color = TextGray,
+                                fontSize = 8.sp,
+                                fontFamily = FontFamily.Monospace
+                            )
+                            Spacer(modifier = Modifier.height(3.dp))
+                            DurakReadyCard(trumpCard)
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text(
+                                text = "🧬 $remainingCardsCount ${if (isRu) "карт" else "left"}",
+                                color = AccentGray,
+                                fontSize = 9.sp,
+                                fontFamily = FontFamily.Monospace
+                            )
+                        }
+                        
+                        // Live covered and uncovered active table cards
+                        Row(
+                            modifier = Modifier
+                                .weight(1f)
+                                .horizontalScroll(rememberScrollState()),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            activeAttackCards.forEachIndexed { i, att ->
+                                Box(
+                                    modifier = Modifier.size(width = 54.dp, height = 75.dp)
+                                ) {
+                                    DurakPlayingCardView(att)
+                                    if (activeDefendCards.size > i) {
+                                        Box(
+                                            modifier = Modifier.offset(x = 10.dp, y = 14.dp)
+                                        ) {
+                                            DurakPlayingCardView(activeDefendCards[i])
+                                        }
                                     }
                                 }
-                            ) {
-                                DurakPlayingCardView(card)
+                            }
+                        }
+                    }
+                    
+                    // Your hands controller
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 4.dp)
+                    ) {
+                        val humanState = players.find { it.isHuman }
+                        val currentHand = humanState?.cards ?: emptyList()
+                        val amIAttacker = currentAttackerId == "player"
+                        val amIDefender = currentDefenderId == "player"
+                        
+                        Row(
+                            modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = if (isRu) "ТВОЙ АККУМУЛЯТОР КАРТ (${currentHand.size}):" 
+                                       else "YOUR HAND CARD POOL (${currentHand.size}):",
+                                color = AccentGray,
+                                fontSize = 9.sp,
+                                fontFamily = FontFamily.Monospace
+                            )
+                            Text(
+                                text = if (amIAttacker) "⚔️ АТАКА" else if (amIDefender) "🎯 ЗАЩИТА" else "🛡️ В ОЖИДАНИИ",
+                                color = if (amIAttacker) Color(0xFFFF5D5D) else if (amIDefender) AlertYellow else TextGray,
+                                fontSize = 9.sp,
+                                fontWeight = FontWeight.Bold,
+                                fontFamily = FontFamily.Monospace
+                            )
+                        }
+                        Spacer(modifier = Modifier.height(2.dp))
+                        
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .horizontalScroll(rememberScrollState())
+                                .padding(vertical = 4.dp),
+                            horizontalArrangement = Arrangement.spacedBy(5.dp)
+                        ) {
+                            currentHand.forEach { card ->
+                                Box(
+                                    modifier = Modifier.clickable {
+                                        if (amIAttacker) {
+                                            playerAttack(card)
+                                        } else if (amIDefender) {
+                                            playerDefend(card)
+                                        }
+                                    }
+                                ) {
+                                    DurakPlayingCardView(card)
+                                }
                             }
                         }
                     }
                 }
                 
-                // Quick global triggers
+                Spacer(modifier = Modifier.height(4.dp))
+                
+                // Docked Controls at the bottom of the screen (Request 4)
                 Row(
                     modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
                     horizontalArrangement = Arrangement.spacedBy(8.dp)

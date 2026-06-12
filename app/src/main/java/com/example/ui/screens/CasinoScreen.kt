@@ -24,6 +24,8 @@ import androidx.compose.ui.unit.sp
 import com.example.ui.SocialViewModel
 import com.example.ui.theme.AlertYellow
 import com.example.ui.theme.AlertGreen
+import com.example.ui.theme.AlertRed
+import com.example.ui.theme.StarkWhite
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlin.random.Random
@@ -1160,17 +1162,27 @@ fun HorseRacingGame(viewModel: SocialViewModel, userCoins: Int, isRu: Boolean) {
                         fontSize = 10.sp,
                         fontFamily = FontFamily.Monospace
                     )
-                    Text(
-                        text = if (isRu) "🔄 ОБНОВИТЬ КАНДИДАТОВ" else "🔄 SWAP COMPETITORS",
-                        color = AlertYellow,
-                        fontSize = 10.sp,
-                        fontFamily = FontFamily.Monospace,
-                        modifier = Modifier.clickable {
-                            viewModel.vibrate(30)
-                            horses.clear()
-                            horses.addAll(generateRandomHorses(allUsers, isRu))
-                        }
-                    )
+                    if (!inRace) {
+                        Text(
+                            text = if (isRu) "🔄 ОБНОВИТЬ КАНДИДАТОВ" else "🔄 SWAP COMPETITORS",
+                            color = AlertYellow,
+                            fontSize = 10.sp,
+                            fontFamily = FontFamily.Monospace,
+                            modifier = Modifier.clickable {
+                                viewModel.vibrate(30)
+                                horses.clear()
+                                horses.addAll(generateRandomHorses(allUsers, isRu))
+                            }
+                        )
+                    } else {
+                        Text(
+                            text = if (isRu) "⚡ ГОНКА ИДЕТ..." else "⚡ RACE IN PROGRESS...",
+                            color = AlertRed,
+                            fontSize = 10.sp,
+                            fontFamily = FontFamily.Monospace,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
                 }
                 Spacer(modifier = Modifier.height(6.dp))
                 Row(
@@ -1257,7 +1269,7 @@ inline fun <T> List<T>.indexOfMaxBy(selector: (T) -> Float): Int {
 
 
 // ==========================================
-// 5. MONOCHROME ROULETTE GAME IMPLEMENTATION
+// 5. HIGH-FIDELITY ROULETTE GAME IMPLEMENTATION
 // ==========================================
 @Composable
 fun RouletteGame(viewModel: SocialViewModel, userCoins: Int, isRu: Boolean) {
@@ -1265,12 +1277,16 @@ fun RouletteGame(viewModel: SocialViewModel, userCoins: Int, isRu: Boolean) {
     var betAmount by remember { mutableStateOf(10) }
     var inSpin by remember { mutableStateOf(false) }
 
-    // Selected bet type: "white", "black", "even", "odd", "zero" or "num_X" (specific number bet)
-    var betType by remember { mutableStateOf("white") }
+    // Authentic roulette red numbers set according to classic casino rules! (Request 5 / 6)
+    val rouletteRedNumbers = remember { setOf(1, 3, 5, 7, 9, 12, 14, 16, 18, 19, 21, 23, 25, 27, 30, 32, 34, 36) }
+
+    // Selected bet type: "red", "black", "even", "odd", "zero" or "num_X" (specific number bet)
+    var betType by remember { mutableStateOf("red") }
     
     var lastSpinNumber by remember { mutableStateOf<Int?>(null) }
     var rouletteStatusText by remember { mutableStateOf("") }
     var wheelPointerAng by remember { mutableStateOf(0f) }
+    var ballAngle by remember { mutableStateOf(0f) }
 
     fun startRouletteSpin() {
         if (userCoins < betAmount) {
@@ -1287,34 +1303,34 @@ fun RouletteGame(viewModel: SocialViewModel, userCoins: Int, isRu: Boolean) {
             val finalWinningNumber = Random.nextInt(37)
             
             // One segment of 37 is (360f / 37f).
-            // When angle is 0, number 0 is at 270 degrees.
-            // Clockwise: sector index i is at angle = i * (360 / 37)
-            // So if we rotate by targetAngle, sector i comes under pointing reference.
             val targetSegmentAngle = finalWinningNumber * (360f / 37f)
             // Final angle of the wheel:
             val finalWheelAngle = 360f - targetSegmentAngle + 270f
             // Let's spin 4 times completely + the final target angle:
             val totalRotation = 360f * 4f + finalWheelAngle
             
-            // Decelerating rotation animation
-            val steps = 80
+            // Decelerating rotation animation (Request 5)
+            val steps = 90
             for (step in 1..steps) {
                 val t = step.toFloat() / steps
                 val easing = 1f - (1f - t) * (1f - t) * (1f - t) // cubic ease out
                 wheelPointerAng = easing * totalRotation
+                // Ball spins 2x faster in the opposite direction for rich realistic simulation!
+                ballAngle = -easing * totalRotation * 2.1f
+                
                 if (step % 5 == 0) {
                     viewModel.vibrate(5)
                 }
-                delay(25)
+                delay(20)
             }
             
             // Wait a split second to finalize
-            delay(100)
+            delay(120)
             lastSpinNumber = finalWinningNumber
             
             val winningColor = when {
                 finalWinningNumber == 0 -> "zero"
-                finalWinningNumber % 2 == 1 -> "white"
+                rouletteRedNumbers.contains(finalWinningNumber) -> "red"
                 else -> "black"
             }
             
@@ -1332,8 +1348,8 @@ fun RouletteGame(viewModel: SocialViewModel, userCoins: Int, isRu: Boolean) {
                 }
             } else {
                 when (betType) {
-                    "white" -> {
-                        if (winningColor == "white") {
+                    "red" -> {
+                        if (winningColor == "red") {
                             won = true
                             payoutMultiplier = 2
                         }
@@ -1373,8 +1389,9 @@ fun RouletteGame(viewModel: SocialViewModel, userCoins: Int, isRu: Boolean) {
                 viewModel.updateCoins(userCoins + winnings)
                 viewModel.vibrate(180)
             } else {
-                rouletteStatusText = if (isRu) "ПОТЕРИ. Выпало число $finalWinningNumber (${if (winningColor == "white") "БЕЛОЕ" else if (winningColor == "black") "ЧЕРНОЕ" else "ЗЕРО"}). Попробуй еще раз!" 
-                                   else "DEBIT EFFECT. Rolled $finalWinningNumber (${winningColor.uppercase()}). Rotate again!"
+                val colText = if (winningColor == "red") (if (isRu) "КРАСНОЕ" else "RED") else if (winningColor == "black") (if (isRu) "ЧЕРНОЕ" else "BLACK") else "ZERO"
+                rouletteStatusText = if (isRu) "ПОТЕРИ. Выпало число $finalWinningNumber ($colText). Попробуй еще раз!" 
+                                   else "DEBIT EFFECT. Rolled $finalWinningNumber ($colText). Rotate again!"
                 viewModel.vibrate(80)
             }
         }
@@ -1390,14 +1407,14 @@ fun RouletteGame(viewModel: SocialViewModel, userCoins: Int, isRu: Boolean) {
     ) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             Text(
-                if (isRu) "ШИФРОВАННЫЙ ЦЕНТРИФУЖНЫЙ ДИСК" else "ROTATING MONOCHROME DISK",
+                if (isRu) "ЦВЕТНОЙ ЦЕНТРИФУЖНЫЙ ДИСК" else "ROTATING CLASSIC DISK",
                 color = TextGray,
                 fontFamily = FontFamily.Monospace,
                 fontSize = 11.sp
             )
             Spacer(modifier = Modifier.height(12.dp))
             
-            // Visual simulated spin wheel using Compose Canvas!
+            // Visual simulated spin wheel using Compose Canvas! (Request 5)
             Box(
                 modifier = Modifier
                     .size(170.dp)
@@ -1414,8 +1431,8 @@ fun RouletteGame(viewModel: SocialViewModel, userCoins: Int, isRu: Boolean) {
                         val startAngle = wheelPointerAng + i * sweep
                         val color = when {
                             i == 0 -> AlertGreen
-                            i % 2 == 1 -> PureWhite
-                            else -> CardGray
+                            rouletteRedNumbers.contains(i) -> Color(0xFFFF3B30) // Rich Red (Request 5)
+                            else -> CardGray // Rich Dark (Black)
                         }
                         
                         drawArc(
@@ -1426,6 +1443,17 @@ fun RouletteGame(viewModel: SocialViewModel, userCoins: Int, isRu: Boolean) {
                             size = androidx.compose.ui.geometry.Size(radius * 2, radius * 2),
                             topLeft = androidx.compose.ui.geometry.Offset(center - radius, center - radius)
                         )
+
+                        // Draw divider lines for extreme clear division (Request 5)
+                        val angleRad = Math.toRadians(startAngle.toDouble())
+                        val dX = center + radius * Math.cos(angleRad).toFloat()
+                        val dY = center + radius * Math.sin(angleRad).toFloat()
+                        drawLine(
+                            color = PureBlack,
+                            start = androidx.compose.ui.geometry.Offset(center, center),
+                            end = androidx.compose.ui.geometry.Offset(dX, dY),
+                            strokeWidth = 2f
+                        )
                     }
                     
                     // Draw a visual separator circle inside
@@ -1433,6 +1461,24 @@ fun RouletteGame(viewModel: SocialViewModel, userCoins: Int, isRu: Boolean) {
                         color = PureBlack,
                         radius = radius * 0.55f,
                         center = androidx.compose.ui.geometry.Offset(center, center)
+                    )
+
+                    // Draw the rotating/resting roulette marble ball (Request 5)
+                    val activeBallAngle = if (inSpin) ballAngle else 270f
+                    val ballDistance = radius * 0.72f
+                    val rads = Math.toRadians(activeBallAngle.toDouble())
+                    val ballX = center + (ballDistance * Math.cos(rads)).toFloat()
+                    val ballY = center + (ballDistance * Math.sin(rads)).toFloat()
+                    
+                    drawCircle(
+                        color = if (inSpin) StarkWhite else AlertYellow,
+                        radius = 9f,
+                        center = androidx.compose.ui.geometry.Offset(ballX, ballY)
+                    )
+                    drawCircle(
+                        color = PureWhite,
+                        radius = 5f,
+                        center = androidx.compose.ui.geometry.Offset(ballX, ballY)
                     )
                     
                     // Draw outer golden-style pointer arrow at the top pointing down
@@ -1469,23 +1515,23 @@ fun RouletteGame(viewModel: SocialViewModel, userCoins: Int, isRu: Boolean) {
                 }
             }
             
-            // Big Clear Winner color indicator badge
+            // Big Clear Winner color indicator badge (Request 5)
             if (lastSpinNumber != null) {
                 val winColor = when {
                     lastSpinNumber == 0 -> AlertGreen
-                    lastSpinNumber!! % 2 == 1 -> PureWhite
+                    rouletteRedNumbers.contains(lastSpinNumber!!) -> Color(0xFFFF3B30)
                     else -> PureBlack
                 }
                 val winColorText = when {
                     lastSpinNumber == 0 -> if (isRu) "ЗЕРО" else "ZERO"
-                    lastSpinNumber!! % 2 == 1 -> if (isRu) "БЕЛОЕ" else "WHITE"
+                    rouletteRedNumbers.contains(lastSpinNumber!!) -> if (isRu) "КРАСНОЕ" else "RED"
                     else -> if (isRu) "ЧЕРНОЕ" else "BLACK"
                 }
-                val winTextColor = if (lastSpinNumber!! % 2 == 1) PureBlack else PureWhite
+                val winTextColor = PureWhite
                 
                 Surface(
                     color = winColor,
-                    border = BorderStroke(1.dp, if (lastSpinNumber!! % 2 == 1) PureBlack else PureWhite),
+                    border = BorderStroke(2.dp, PureWhite),
                     shape = RoundedCornerShape(4.dp),
                     modifier = Modifier.padding(top = 8.dp)
                 ) {
@@ -1523,7 +1569,7 @@ fun RouletteGame(viewModel: SocialViewModel, userCoins: Int, isRu: Boolean) {
                         .padding(8.dp)
                 ) {
                     Text(
-                        text = if (isRu) "ИНТЕРАКТИВНОЕ ПОЛЕ СТАВОК (0-36) [36х]:" else "INTERACTIVE BETTING GRID (0-36) [36x]:",
+                        text = if (isRu) "ОРИГИНАЛЬНОЕ ПОЛЕ СТАВОК (0-36) [36х]:" else "ORIGINAL BETTING GRID (0-36) [36x]:",
                         color = TextGray,
                         fontSize = 10.sp,
                         fontFamily = FontFamily.Monospace,
@@ -1548,7 +1594,7 @@ fun RouletteGame(viewModel: SocialViewModel, userCoins: Int, isRu: Boolean) {
                     
                     Spacer(modifier = Modifier.height(6.dp))
                     
-                    // Compact 1-36 block with a grid
+                    // Compact 1-36 block with a grid using real colors
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -1563,9 +1609,9 @@ fun RouletteGame(viewModel: SocialViewModel, userCoins: Int, isRu: Boolean) {
                             ) {
                                 for (col in 1..3) {
                                     val num = row * 3 + col
-                                    val isWhiteNum = num % 2 == 1
-                                    val cellColor = if (isWhiteNum) CardGray else PureBlack
-                                    val cellBorderColor = if (isWhiteNum) PureWhite else BorderGray
+                                    val isRedNum = rouletteRedNumbers.contains(num)
+                                    val cellColor = if (isRedNum) Color(0xFFFF3B30) else PureBlack
+                                    val cellBorderColor = if (isRedNum) Color(0xFFFF8A80) else BorderGray
                                     val isSelected = betType == "num_$num"
                                     
                                     val finalColor = if (isSelected) AlertYellow else cellColor
@@ -1608,21 +1654,28 @@ fun RouletteGame(viewModel: SocialViewModel, userCoins: Int, isRu: Boolean) {
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
-                    val sectors = listOf("white", "black", "even", "odd")
+                    val sectors = listOf("red", "black", "even", "odd")
                     sectors.forEach { sector ->
                         val text = when(sector) {
-                            "white" -> if (isRu) "БЕЛЫЕ" else "WHITE"
+                            "red" -> if (isRu) "КРАСНЫЕ" else "RED"
                             "black" -> if (isRu) "ЧЕРНЫЕ" else "BLACK"
                             "even" -> if (isRu) "ЧЕТ" else "EVEN"
                             "odd" -> if (isRu) "НЕЧЕТ" else "ODD"
                             else -> sector
                         }
                         
+                        val sectorBg = when(sector) {
+                            "red" -> Color(0x33FF3B30)
+                            "black" -> Color(0x33FFFFFF)
+                            else -> Color.Transparent
+                        }
+                        val isSelected = betType == sector
+                        
                         Surface(
                             onClick = { betType = sector; viewModel.vibrate(20) },
                             modifier = Modifier.weight(1f),
-                            border = BorderStroke(1.dp, if (betType == sector) PureWhite else BorderGray),
-                            color = if (betType == sector) DeepGray else Color.Transparent,
+                            border = BorderStroke(1.dp, if (isSelected) PureWhite else BorderGray),
+                            color = if (isSelected) DeepGray else sectorBg,
                             shape = RoundedCornerShape(4.dp)
                         ) {
                             Text(

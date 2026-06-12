@@ -110,11 +110,12 @@ fun CommunityScreen(viewModel: SocialViewModel, innerPadding: PaddingValues) {
                 .fillMaxSize()
                 .background(PureBlack)
                 .padding(innerPadding)
-                .padding(16.dp)
         ) {
-            Column {
+            Column(
+                modifier = Modifier.fillMaxSize().padding(8.dp)
+            ) {
                 Row(
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
@@ -129,121 +130,191 @@ fun CommunityScreen(viewModel: SocialViewModel, innerPadding: PaddingValues) {
                             fontFamily = FontFamily.Monospace
                         )
                     }
+                }
+                
+                // Community games selection arranged beautifully in 2 rows (Request 1)
+                Column(
+                    modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    val isRu = lang == "RU"
                     
-                    Column(
-                        horizontalAlignment = Alignment.End,
-                        verticalArrangement = Arrangement.spacedBy(4.dp)
+                    // Row 1 (Flappy Bot, BlackJack, Chess)
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        // Row 1 (Flappy Bot, BlackJack, Chess)
-                        Row(
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                            verticalAlignment = Alignment.CenterVertically
+                        // Flappy Bot
+                        Box(
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(44.dp)
+                                .clip(RoundedCornerShape(4.dp))
+                                .background(DeepGray)
+                                .border(1.dp, AlertRed, RoundedCornerShape(4.dp))
+                                .clickable {
+                                    viewModel.vibrate(25)
+                                    showFlappyBotGame = true
+                                }
+                                .padding(horizontal = 4.dp),
+                            contentAlignment = Alignment.Center
                         ) {
-                            // Flappy Bot Game
-                            Box(
-                                modifier = Modifier
-                                    .size(36.dp)
-                                    .clip(RoundedCornerShape(4.dp))
-                                    .background(PureBlack)
-                                    .border(1.dp, AlertRed, RoundedCornerShape(4.dp))
-                                    .clickable {
-                                        viewModel.vibrate(25)
-                                        showFlappyBotGame = true
-                                    },
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Filled.SportsEsports,
-                                    contentDescription = "Flappy Bot Game",
-                                    tint = AlertRed,
-                                    modifier = Modifier.size(22.dp)
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(Icons.Filled.SportsEsports, contentDescription = null, tint = AlertRed, modifier = Modifier.size(16.dp))
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text(
+                                    text = if (isRu) "ФЛАППИ" else "FLAPPY",
+                                    color = PureWhite,
+                                    fontSize = 10.sp,
+                                    fontFamily = FontFamily.Monospace,
+                                    fontWeight = FontWeight.Bold
                                 )
-                            }
-
-                            // Blackjack (Upgraded to card suit representation to prevent duplicate icons)
-                            Box(
-                                modifier = Modifier
-                                    .size(36.dp)
-                                    .clip(RoundedCornerShape(4.dp))
-                                    .background(PureBlack)
-                                    .border(1.dp, AlertYellow, RoundedCornerShape(4.dp))
-                                    .clickable {
-                                        viewModel.vibrate(25)
-                                        showBlackJackGame = true
-                                    },
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Text("♠♥", color = AlertYellow, fontSize = 12.sp, fontWeight = FontWeight.Bold, fontFamily = FontFamily.Monospace)
-                            }
-
-                            // Chess Game
-                            Box(
-                                modifier = Modifier
-                                    .size(36.dp)
-                                    .clip(RoundedCornerShape(4.dp))
-                                    .background(PureBlack)
-                                    .border(1.dp, AlertGreen, RoundedCornerShape(4.dp))
-                                    .clickable {
-                                        viewModel.vibrate(25)
-                                        showChessGame = true
-                                    },
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Text("♟", color = AlertGreen, fontSize = 20.sp, fontWeight = FontWeight.Bold)
                             }
                         }
 
-                        // Row 2 (Poker, Match-3, Durak)
-                        Row(
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                            verticalAlignment = Alignment.CenterVertically
+                        // BlackJack
+                        Box(
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(44.dp)
+                                .clip(RoundedCornerShape(4.dp))
+                                .background(DeepGray)
+                                .border(1.dp, AlertYellow, RoundedCornerShape(4.dp))
+                                .clickable {
+                                    viewModel.vibrate(25)
+                                    showBlackJackGame = true
+                                }
+                                .padding(horizontal = 4.dp),
+                            contentAlignment = Alignment.Center
                         ) {
-                            // Poker Game
-                            Box(
-                                modifier = Modifier
-                                    .size(36.dp)
-                                    .clip(RoundedCornerShape(4.dp))
-                                    .background(PureBlack)
-                                    .border(1.dp, PureWhite, RoundedCornerShape(4.dp))
-                                    .clickable {
-                                        viewModel.vibrate(25)
-                                        showPokerGame = true
-                                    },
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Text("♦♣", color = PureWhite, fontSize = 12.sp, fontWeight = FontWeight.Bold, fontFamily = FontFamily.Monospace)
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text("♠♥", color = AlertYellow, fontSize = 11.sp, fontWeight = FontWeight.Bold, fontFamily = FontFamily.Monospace)
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text(
+                                    text = if (isRu) "БДЖЭК" else "BJACK",
+                                    color = PureWhite,
+                                    fontSize = 10.sp,
+                                    fontFamily = FontFamily.Monospace,
+                                    fontWeight = FontWeight.Bold
+                                )
                             }
+                        }
 
-                            // Match-3 Stack Game
-                            Box(
-                                modifier = Modifier
-                                    .size(36.dp)
-                                    .clip(RoundedCornerShape(4.dp))
-                                    .background(PureBlack)
-                                    .border(1.dp, StarkWhite, RoundedCornerShape(4.dp))
-                                    .clickable {
-                                        viewModel.vibrate(25)
-                                        showMatch3Game = true
-                                    },
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Text("⬡⬡", color = StarkWhite, fontSize = 12.sp, fontWeight = FontWeight.Bold, fontFamily = FontFamily.Monospace)
+                        // Chess
+                        Box(
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(44.dp)
+                                .clip(RoundedCornerShape(4.dp))
+                                .background(DeepGray)
+                                .border(1.dp, AlertGreen, RoundedCornerShape(4.dp))
+                                .clickable {
+                                    viewModel.vibrate(25)
+                                    showChessGame = true
+                                }
+                                .padding(horizontal = 4.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text("♟", color = AlertGreen, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text(
+                                    text = if (isRu) "CHESS" else "CHESS",
+                                    color = PureWhite,
+                                    fontSize = 10.sp,
+                                    fontFamily = FontFamily.Monospace,
+                                    fontWeight = FontWeight.Bold
+                                )
                             }
+                        }
+                    }
 
-                            // Durak Game
-                            Box(
-                                modifier = Modifier
-                                    .size(36.dp)
-                                    .clip(RoundedCornerShape(4.dp))
-                                    .background(PureBlack)
-                                    .border(1.dp, AlertYellow, RoundedCornerShape(4.dp))
-                                    .clickable {
-                                        viewModel.vibrate(25)
-                                        showDurakGame = true
-                                    },
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Text("♣♠", color = AlertYellow, fontSize = 12.sp, fontWeight = FontWeight.Bold, fontFamily = FontFamily.Monospace)
+                    // Row 2 (Poker, Match-3, Durak)
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        // Poker
+                        Box(
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(44.dp)
+                                .clip(RoundedCornerShape(4.dp))
+                                .background(DeepGray)
+                                .border(1.dp, PureWhite, RoundedCornerShape(4.dp))
+                                .clickable {
+                                    viewModel.vibrate(25)
+                                    showPokerGame = true
+                                }
+                                .padding(horizontal = 4.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text("♦♣", color = PureWhite, fontSize = 11.sp, fontWeight = FontWeight.Bold, fontFamily = FontFamily.Monospace)
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text(
+                                    text = if (isRu) "ПОКЕР" else "POKER",
+                                    color = PureWhite,
+                                    fontSize = 10.sp,
+                                    fontFamily = FontFamily.Monospace,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+                        }
+
+                        // Match-3
+                        Box(
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(44.dp)
+                                .clip(RoundedCornerShape(4.dp))
+                                .background(DeepGray)
+                                .border(1.dp, StarkWhite, RoundedCornerShape(4.dp))
+                                .clickable {
+                                    viewModel.vibrate(25)
+                                    showMatch3Game = true
+                                }
+                                .padding(horizontal = 4.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text("⬡⬡", color = StarkWhite, fontSize = 11.sp, fontWeight = FontWeight.Bold, fontFamily = FontFamily.Monospace)
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text(
+                                    text = if (isRu) "СТЕК" else "MATCH3",
+                                    color = PureWhite,
+                                    fontSize = 10.sp,
+                                    fontFamily = FontFamily.Monospace,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+                        }
+
+                        // Durak
+                        Box(
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(44.dp)
+                                .clip(RoundedCornerShape(4.dp))
+                                .background(DeepGray)
+                                .border(1.dp, AlertYellow, RoundedCornerShape(4.dp))
+                                .clickable {
+                                    viewModel.vibrate(25)
+                                    showDurakGame = true
+                                }
+                                .padding(horizontal = 4.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text("♣♠", color = AlertYellow, fontSize = 11.sp, fontWeight = FontWeight.Bold, fontFamily = FontFamily.Monospace)
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text(
+                                    text = if (isRu) "ДУРАК" else "DURAK",
+                                    color = PureWhite,
+                                    fontSize = 10.sp,
+                                    fontFamily = FontFamily.Monospace,
+                                    fontWeight = FontWeight.Bold
+                                )
                             }
                         }
                     }
