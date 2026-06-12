@@ -285,7 +285,17 @@ fun AvatarWithDecoration(
             Canvas(
                 modifier = Modifier
                     .size((sizeDp + 16).dp)
+                    .graphicsLayer {
+                        rotationZ = angleRotation
+                        scaleX = scalePulse
+                        scaleY = scalePulse
+                        alpha = breatheAlpha
+                    }
             ) {
+                val angleRotation = 0f
+                val scalePulse = 1f
+                val breatheAlpha = 1f
+
                 val centerOffset = Offset(size.width / 2f, size.height / 2f)
                 val avatarRadius = (sizeDp.dp.toPx()) / 2f
                 val decorRadius = avatarRadius + 4.dp.toPx()

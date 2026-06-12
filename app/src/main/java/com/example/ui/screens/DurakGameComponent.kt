@@ -65,7 +65,7 @@ fun DurakGameComponent(
     
     // Configurable state before game starts
     var opponentCount by remember { mutableStateOf(3) } // 1 to 5 bot opponents
-    var difficultyLevel by remember { mutableStateOf("Medium") } // "Easy", "Medium", "Hard"
+    var difficultyLevel by remember { mutableStateOf(if (isCasinoMode) "Hard" else "Medium") } // "Easy", "Medium", "Hard"
     var betAmount by remember { mutableStateOf(15) } // Casino mode bet
     
     // Game Active States
@@ -164,7 +164,7 @@ fun DurakGameComponent(
     
     // Auto re-roll lobby when opponentCount changes or when users are loaded
     LaunchedEffect(opponentCount, allUsers) {
-        if (allUsers.isNotEmpty()) {
+        if (allUsers.isNotEmpty() && !inDurak) {
             rollLobbyBots()
         }
     }
@@ -779,45 +779,47 @@ fun DurakGameComponent(
                     }
                 }
                 
-                Spacer(modifier = Modifier.height(10.dp))
                 
                 // Difficulty Settings
-                Text(
-                    text = if (isRu) "СЛОЖНОСТЬ ВЫЧИСЛЕНИЙ БОТОВ:" else "AI COGNITIVE COMPLEXITY:",
-                    color = AccentGray,
-                    fontFamily = FontFamily.Monospace,
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight.Bold,
-                    modifier = Modifier.fillMaxWidth()
-                )
-                Row(
-                    modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    val levels = listOf("Easy", "Medium", "Hard")
-                    val levelsRu = listOf("Легко", "Средно", "Сложно")
-                    
-                    levels.forEachIndexed { i, lev ->
-                        val isSel = difficultyLevel == lev
-                        Box(
-                            modifier = Modifier
-                                .weight(1f)
-                                .height(38.dp)
-                                .border(1.dp, if (isSel) AlertYellow else BorderGray, RoundedCornerShape(4.dp))
-                                .background(if (isSel) DeepGray else CardGray)
-                                .clickable {
-                                    viewModel.vibrate(15)
-                                    difficultyLevel = lev
-                                },
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text(
-                                if (isRu) levelsRu[i] else lev.uppercase(),
-                                color = if (isSel) AlertYellow else PureWhite,
-                                fontFamily = FontFamily.Monospace,
-                                fontSize = 11.sp,
-                                fontWeight = FontWeight.Bold
-                            )
+                if (!isCasinoMode) {
+                    Spacer(modifier = Modifier.height(10.dp))
+                    Text(
+                        text = if (isRu) "СЛОЖНОСТЬ ВЫЧИСЛЕНИЙ БОТОВ:" else "AI COGNITIVE COMPLEXITY:",
+                        color = AccentGray,
+                        fontFamily = FontFamily.Monospace,
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        val levels = listOf("Easy", "Medium", "Hard")
+                        val levelsRu = listOf("Легко", "Средно", "Сложно")
+                        
+                        levels.forEachIndexed { i, lev ->
+                            val isSel = difficultyLevel == lev
+                            Box(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .height(38.dp)
+                                    .border(1.dp, if (isSel) AlertYellow else BorderGray, RoundedCornerShape(4.dp))
+                                    .background(if (isSel) DeepGray else CardGray)
+                                    .clickable {
+                                        viewModel.vibrate(15)
+                                        difficultyLevel = lev
+                                    },
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    if (isRu) levelsRu[i] else lev.uppercase(),
+                                    color = if (isSel) AlertYellow else PureWhite,
+                                    fontFamily = FontFamily.Monospace,
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
                         }
                     }
                 }
@@ -954,8 +956,11 @@ fun DurakGameComponent(
             // ACTIVE BOARD PLAYING GAMEPLAY
             // =============================
             Column(
-                modifier = Modifier.fillMaxSize(),
-                verticalArrangement = Arrangement.SpaceBetween
+                modifier = Modifier
+                    .fillMaxSize()
+                    .verticalScroll(rememberScrollState())
+                    .padding(8.dp),
+                verticalArrangement = Arrangement.spacedBy(6.dp)
             ) {
                 // Top opponents row representation
                 Column(
@@ -1074,7 +1079,7 @@ fun DurakGameComponent(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .weight(1f)
+                        .height(130.dp)
                         .background(DeepGray, RoundedCornerShape(4.dp))
                         .border(1.dp, BorderGray, RoundedCornerShape(4.dp))
                         .padding(8.dp),

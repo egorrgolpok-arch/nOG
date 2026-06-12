@@ -130,109 +130,121 @@ fun CommunityScreen(viewModel: SocialViewModel, innerPadding: PaddingValues) {
                         )
                     }
                     
-                    Row(
-                        horizontalArrangement = Arrangement.spacedBy(10.dp),
-                        verticalAlignment = Alignment.CenterVertically
+                    Column(
+                        horizontalAlignment = Alignment.End,
+                        verticalArrangement = Arrangement.spacedBy(4.dp)
                     ) {
-                        // Flappy Bot Game
-                        Box(
-                            modifier = Modifier
-                                .size(36.dp)
-                                .clip(RoundedCornerShape(4.dp))
-                                .background(PureBlack)
-                                .border(1.dp, AlertRed, RoundedCornerShape(4.dp))
-                                .clickable {
-                                    viewModel.vibrate(25)
-                                    showFlappyBotGame = true
-                                },
-                            contentAlignment = Alignment.Center
+                        // Row 1 (Flappy Bot, BlackJack, Chess)
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Icon(
-                                imageVector = Icons.Filled.SportsEsports,
-                                contentDescription = "Flappy Bot Game",
-                                tint = AlertRed,
-                                modifier = Modifier.size(22.dp)
-                            )
+                            // Flappy Bot Game
+                            Box(
+                                modifier = Modifier
+                                    .size(36.dp)
+                                    .clip(RoundedCornerShape(4.dp))
+                                    .background(PureBlack)
+                                    .border(1.dp, AlertRed, RoundedCornerShape(4.dp))
+                                    .clickable {
+                                        viewModel.vibrate(25)
+                                        showFlappyBotGame = true
+                                    },
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Filled.SportsEsports,
+                                    contentDescription = "Flappy Bot Game",
+                                    tint = AlertRed,
+                                    modifier = Modifier.size(22.dp)
+                                )
+                            }
+
+                            // Blackjack (Upgraded to card suit representation to prevent duplicate icons)
+                            Box(
+                                modifier = Modifier
+                                    .size(36.dp)
+                                    .clip(RoundedCornerShape(4.dp))
+                                    .background(PureBlack)
+                                    .border(1.dp, AlertYellow, RoundedCornerShape(4.dp))
+                                    .clickable {
+                                        viewModel.vibrate(25)
+                                        showBlackJackGame = true
+                                    },
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text("♠♥", color = AlertYellow, fontSize = 12.sp, fontWeight = FontWeight.Bold, fontFamily = FontFamily.Monospace)
+                            }
+
+                            // Chess Game
+                            Box(
+                                modifier = Modifier
+                                    .size(36.dp)
+                                    .clip(RoundedCornerShape(4.dp))
+                                    .background(PureBlack)
+                                    .border(1.dp, AlertGreen, RoundedCornerShape(4.dp))
+                                    .clickable {
+                                        viewModel.vibrate(25)
+                                        showChessGame = true
+                                    },
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text("♟", color = AlertGreen, fontSize = 20.sp, fontWeight = FontWeight.Bold)
+                            }
                         }
 
-                        // Blackjack (Upgraded to card suit representation to prevent duplicate icons)
-                        Box(
-                            modifier = Modifier
-                                .size(36.dp)
-                                .clip(RoundedCornerShape(4.dp))
-                                .background(PureBlack)
-                                .border(1.dp, AlertYellow, RoundedCornerShape(4.dp))
-                                .clickable {
-                                    viewModel.vibrate(25)
-                                    showBlackJackGame = true
-                                },
-                            contentAlignment = Alignment.Center
+                        // Row 2 (Poker, Match-3, Durak)
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Text("♠♥", color = AlertYellow, fontSize = 12.sp, fontWeight = FontWeight.Bold, fontFamily = FontFamily.Monospace)
-                        }
+                            // Poker Game
+                            Box(
+                                modifier = Modifier
+                                    .size(36.dp)
+                                    .clip(RoundedCornerShape(4.dp))
+                                    .background(PureBlack)
+                                    .border(1.dp, PureWhite, RoundedCornerShape(4.dp))
+                                    .clickable {
+                                        viewModel.vibrate(25)
+                                        showPokerGame = true
+                                    },
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text("♦♣", color = PureWhite, fontSize = 12.sp, fontWeight = FontWeight.Bold, fontFamily = FontFamily.Monospace)
+                            }
 
-                        // Chess Game
-                        Box(
-                            modifier = Modifier
-                                .size(36.dp)
-                                .clip(RoundedCornerShape(4.dp))
-                                .background(PureBlack)
-                                .border(1.dp, AlertGreen, RoundedCornerShape(4.dp))
-                                .clickable {
-                                    viewModel.vibrate(25)
-                                    showChessGame = true
-                                },
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text("♟", color = AlertGreen, fontSize = 20.sp, fontWeight = FontWeight.Bold)
-                        }
+                            // Match-3 Stack Game
+                            Box(
+                                modifier = Modifier
+                                    .size(36.dp)
+                                    .clip(RoundedCornerShape(4.dp))
+                                    .background(PureBlack)
+                                    .border(1.dp, StarkWhite, RoundedCornerShape(4.dp))
+                                    .clickable {
+                                        viewModel.vibrate(25)
+                                        showMatch3Game = true
+                                    },
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text("⬡⬡", color = StarkWhite, fontSize = 12.sp, fontWeight = FontWeight.Bold, fontFamily = FontFamily.Monospace)
+                            }
 
-                        // Poker Game
-                        Box(
-                            modifier = Modifier
-                                .size(36.dp)
-                                .clip(RoundedCornerShape(4.dp))
-                                .background(PureBlack)
-                                .border(1.dp, PureWhite, RoundedCornerShape(4.dp))
-                                .clickable {
-                                    viewModel.vibrate(25)
-                                    showPokerGame = true
-                                },
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text("♦♣", color = PureWhite, fontSize = 12.sp, fontWeight = FontWeight.Bold, fontFamily = FontFamily.Monospace)
-                        }
-
-                        // Match-3 Stack Game
-                        Box(
-                            modifier = Modifier
-                                .size(36.dp)
-                                .clip(RoundedCornerShape(4.dp))
-                                .background(PureBlack)
-                                .border(1.dp, StarkWhite, RoundedCornerShape(4.dp))
-                                .clickable {
-                                    viewModel.vibrate(25)
-                                    showMatch3Game = true
-                                },
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text("⬡⬡", color = StarkWhite, fontSize = 12.sp, fontWeight = FontWeight.Bold, fontFamily = FontFamily.Monospace)
-                        }
-
-                        // Durak Game
-                        Box(
-                            modifier = Modifier
-                                .size(36.dp)
-                                .clip(RoundedCornerShape(4.dp))
-                                .background(PureBlack)
-                                .border(1.dp, AlertYellow, RoundedCornerShape(4.dp))
-                                .clickable {
-                                    viewModel.vibrate(25)
-                                    showDurakGame = true
-                                },
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text("♣♠", color = AlertYellow, fontSize = 12.sp, fontWeight = FontWeight.Bold, fontFamily = FontFamily.Monospace)
+                            // Durak Game
+                            Box(
+                                modifier = Modifier
+                                    .size(36.dp)
+                                    .clip(RoundedCornerShape(4.dp))
+                                    .background(PureBlack)
+                                    .border(1.dp, AlertYellow, RoundedCornerShape(4.dp))
+                                    .clickable {
+                                        viewModel.vibrate(25)
+                                        showDurakGame = true
+                                    },
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text("♣♠", color = AlertYellow, fontSize = 12.sp, fontWeight = FontWeight.Bold, fontFamily = FontFamily.Monospace)
+                            }
                         }
                     }
                 }

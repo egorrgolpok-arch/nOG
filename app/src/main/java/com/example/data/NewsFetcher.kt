@@ -188,7 +188,20 @@ object NewsFetcher {
         NewsSource("3DNews RU", "https://3dnews.ru/news/rss/", 88, true),
         NewsSource("Overclockers RU", "https://www.overclockers.ru/rss/all.xml", 85, true),
         NewsSource("ServerNews RU", "https://servernews.ru/news/rss", 90, true),
-        NewsSource("IXBT Games", "https://ixbt.games/export/news.rss", 85, true)
+        NewsSource("IXBT Games", "https://ixbt.games/export/news.rss", 85, true),
+        NewsSource("Gizchina", "https://www.gizchina.com/feed/", 84, false),
+        NewsSource("Neowin", "https://www.neowin.net/news/rss/", 86, false),
+        NewsSource("Android Central", "https://www.androidcentral.com/feed", 87, false),
+        NewsSource("Коммерсантъ", "https://www.kommersant.ru/RSS/news.xml", 87, true),
+        NewsSource("Труд", "https://news.google.com/rss/search?q=газета+труд+истории&hl=ru", 76, true),
+        NewsSource("Аргументы и Факты", "https://aif.ru/rss/news.php", 80, true),
+        NewsSource("Известия", "https://iz.ru/xml/rss/all.xml", 82, true),
+        NewsSource("Газета.Ru", "https://www.gazeta.ru/export/rss/social_more.xml", 80, true),
+        NewsSource("Московский Комсомолец", "https://www.mk.ru/rss/index.xml", 75, true),
+        NewsSource("Компьютерра", "https://news.google.com/rss/search?q=computerra+компьютерра&hl=ru", 83, true),
+        NewsSource("Хабр Научпоп", "https://habr.com/ru/rss/hub/scientific_pop/all/", 92, true),
+        NewsSource("Популярная Механика", "https://news.google.com/rss/search?q=популярная+механика&hl=ru", 82, true),
+        NewsSource("TechInsider", "https://news.google.com/rss/search?q=TechInsider+техно&hl=ru", 84, true)
     )
 
     private val cachedNews = java.util.concurrent.ConcurrentHashMap<String, List<NewsItem>>()
