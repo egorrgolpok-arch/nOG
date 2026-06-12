@@ -99,7 +99,8 @@ fun FeedScreen(
         if (lazyListState.isScrollInProgress) {
             viewModel.recordScrollTelemetry()
             while (true) {
-                kotlinx.coroutines.delay(1000)
+                val delayTime = if (viewModel.isLowEndDeviceMode.value) 8000L else 1000L
+                kotlinx.coroutines.delay(delayTime)
                 val state = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
                     com.example.ui.screens.TamagotchiManager.loadState(context)
                 }

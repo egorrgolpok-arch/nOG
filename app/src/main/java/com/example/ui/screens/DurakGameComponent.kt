@@ -62,6 +62,7 @@ fun DurakGameComponent(
 ) {
     val scope = rememberCoroutineScope()
     val allUsers by viewModel.allUsers.collectAsState(initial = emptyList())
+    val isLowEnd by viewModel.isLowEndDeviceMode.collectAsState()
     
     // Configurable state before game starts
     var opponentCount by remember { mutableStateOf(3) } // 1 to 5 bot opponents
@@ -296,21 +297,21 @@ fun DurakGameComponent(
     }
     
     // Automated simulation of Bot playing against Bot or other events
-    fun runBotTurnSimulation() {
+    suspend fun runBotTurnSimulation() {
         if (!inDurak) return
-        scope.launch {
-            delay(1200)
-            if (!inDurak) return@launch
-            
-            val att = players.find { it.id == currentAttackerId }
-            val def = players.find { it.id == currentDefenderId }
-            
-            if (att == null || def == null) return@launch
+        val customDelay = if (isLowEnd) 2200L else 1200L
+        delay(customDelay)
+        if (!inDurak) return
+        
+        val att = players.find { it.id == currentAttackerId }
+        val def = players.find { it.id == currentDefenderId }
+        
+        if (att == null || def == null) return
             
             if (!att.isHuman) {
                 // CASE: Bot attacks!
                 val botIdx = players.indexOfFirst { it.id == att.id }
-                if (botIdx == -1) return@launch
+                if (botIdx == -1) return
                 val hand = players[botIdx].cards
                 
                 val playable = if (activeAttackCards.isEmpty()) {
@@ -330,7 +331,7 @@ fun DurakGameComponent(
                     durakText = if (isRu) "${att.name} атакует картой $card!" else "${att.name} plays attack: $card!"
                     
                     // Trigger defense
-                    delay(1200)
+                    delay(customDelay)
                     if (def.isHuman) {
                         durakText = if (isRu) "${att.name} атаковал тебя картой $card! Защищайся козырем или картой той же масти старше." 
                                    else "${att.name} attacked you with $card! Defend or take cards."
@@ -360,7 +361,7 @@ fun DurakGameComponent(
                             durakText = if (isRu) "${def.name} защитился картой $defCard!" else "${def.name} defended with $defCard!"
                             
                             // Trigger next attack cycle from Bot or Bita
-                            delay(1200)
+                            delay(customDelay)
                             if (playable.size <= 1 || Random.nextFloat() < 0.35f) {
                                 // Bot calls Bita (beaten!)
                                 durakText = if (isRu) "Бита! Игроки добирают карты." else "Beaten! Refilling hands."
@@ -369,7 +370,12 @@ fun DurakGameComponent(
                                 refillHands()
                                 if (!checkForEndGame()) {
                                     // Defender becomes new attacker clockwise
-                                    val nextAttacker = currentDefenderId
+                                    val defenderState = players.find { it.id == currentDefenderId }
+                                    val nextAttacker = if (defenderState == null || defenderState.isOut) {
+                                        getNextActivePlayer(currentDefenderId)?.id ?: ""
+                                    } else {
+                                        currentDefenderId
+                                    }
                                     val nextDef = getNextActivePlayer(nextAttacker)
                                     currentAttackerId = nextAttacker
                                     currentDefenderId = nextDef?.id ?: ""
@@ -404,7 +410,12 @@ fun DurakGameComponent(
                     activeDefendCards.clear()
                     refillHands()
                     if (!checkForEndGame()) {
-                        val nextAttacker = currentDefenderId
+                        val defenderState = players.find { it.id == currentDefenderId }
+                        val nextAttacker = if (defenderState == null || defenderState.isOut) {
+                            getNextActivePlayer(currentDefenderId)?.id ?: ""
+                        } else {
+                            currentDefenderId
+                        }
                         val nextDef = getNextActivePlayer(nextAttacker)
                         currentAttackerId = nextAttacker
                         currentDefenderId = nextDef?.id ?: ""
@@ -459,7 +470,6 @@ fun DurakGameComponent(
                 }
             }
         }
-    }
     
     // Trigger automated simulations if active player/defender roles are bot-governed
     LaunchedEffect(currentAttackerId, currentDefenderId, activeAttackCards.size, activeDefendCards.size, inDurak) {
@@ -607,42 +617,6 @@ fun DurakGameComponent(
             viewModel.vibrate(20)
             
             durakText = if (isRu) "Ты отбился картой $card!" else "You successfully defended with $card!"
-            
-            // Check if further bot actions
-            scope.launch {
-                delay(1000)
-                // Bot can throw in card if they have the same rank
-                val attPlayer = players.find { it.id == currentAttackerId }
-                if (attPlayer != null && !attPlayer.isHuman) {
-                    val attIdx = players.indexOfFirst { it.id == attPlayer.id }
-                    val attHand = players[attIdx].cards
-                    val ranksOnTable = (activeAttackCards + activeDefendCards).map { it.dropLast(1) }
-                    val throwables = attHand.filter { it.dropLast(1) in ranksOnTable }
-                    
-                    if (throwables.isNotEmpty() && activeAttackCards.size < 6 && Random.nextFloat() < 0.65f) {
-                        val cardToThrow = selectCardByDifficulty(throwables, difficultyLevel, trumpSuit, isAttack = true)
-                        val updatedAttHand = attHand.toMutableList().apply { remove(cardToThrow) }
-                        players[attIdx] = players[attIdx].copy(cards = updatedAttHand)
-                        activeAttackCards.add(cardToThrow)
-                        viewModel.vibrate(15)
-                        durakText = if (isRu) "${attPlayer.name} подкинул карту $cardToThrow! Отбейся." 
-                                   else "${attPlayer.name} threw in $cardToThrow! Defend."
-                    } else {
-                        // Complete turn, player beat it
-                        durakText = if (isRu) "Бита! Ты успешно защитил свой раунд." else "Beaten! You covered the round."
-                        activeAttackCards.clear()
-                        activeDefendCards.clear()
-                        refillHands()
-                        if (!checkForEndGame()) {
-                            // defender becomes attacker
-                            val nextAtt = currentDefenderId
-                            val nextDef = getNextActivePlayer(nextAtt)
-                            currentAttackerId = nextAtt
-                            currentDefenderId = nextDef?.id ?: ""
-                        }
-                    }
-                }
-            }
         } else {
             viewModel.vibrate(40)
             durakText = if (isRu) "Нельзя отбиться картой $card против $targetAttack!" 

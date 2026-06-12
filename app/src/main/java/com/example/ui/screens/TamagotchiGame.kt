@@ -255,8 +255,9 @@ fun TamagotchiDialog(
 
         // Active ticking loop while the User is looking at the Tamagotchi
         while (true) {
-            delay(1000)
-            sittingTimeMs += 1000L
+            val delayTime = if (viewModel.isLowEndDeviceMode.value) 5000L else 1000L
+            delay(delayTime)
+            sittingTimeMs += delayTime
             val tickNow = System.currentTimeMillis()
             if (state.hasPet && !state.isDead) {
                 // Every second of active view increases mood slightly, and adds to treatment time if sick

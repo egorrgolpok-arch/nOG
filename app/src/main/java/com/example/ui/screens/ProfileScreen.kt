@@ -55,6 +55,7 @@ fun ProfileScreen(
     val likedPostIds by viewModel.likedPostIds.collectAsState()
     val followingIds by viewModel.currentUserFollowingIds.collectAsState()
     val isSilentMode by viewModel.isSilentMode.collectAsState()
+    val isLowEndDeviceMode by viewModel.isLowEndDeviceMode.collectAsState()
     val selectedPostForComments by viewModel.activePostIdForComments.collectAsState()
     val activeUserDecId by viewModel.activeDecorationId.collectAsState()
     val decorationExpiry by viewModel.decorationExpiry.collectAsState()
@@ -488,6 +489,43 @@ fun ProfileScreen(
                             Switch(
                                 checked = isSilentMode,
                                 onCheckedChange = { viewModel.toggleSilentMode(it) },
+                                colors = SwitchDefaults.colors(
+                                    checkedThumbColor = PureBlack,
+                                    checkedTrackColor = PureWhite,
+                                    uncheckedThumbColor = TextGray,
+                                    uncheckedTrackColor = DeepGray,
+                                    checkedBorderColor = PureWhite,
+                                    uncheckedBorderColor = BorderGray
+                                )
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.height(14.dp))
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = if (lang == "RU") "Режим слабых устройств" else "Low-end device mode",
+                                    color = PureWhite,
+                                    fontSize = 11.sp,
+                                    fontFamily = FontFamily.Monospace,
+                                    fontWeight = FontWeight.Bold
+                                )
+                                Text(
+                                    text = if (lang == "RU") "Замедляет фоновые симуляции для экономии ресурсов" else "Slows down simulations to preserve battery & CPU",
+                                    color = TextGray,
+                                    fontSize = 10.sp,
+                                    lineHeight = 13.sp
+                                )
+                            }
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Switch(
+                                checked = isLowEndDeviceMode,
+                                onCheckedChange = { viewModel.toggleLowEndDeviceMode(it) },
                                 colors = SwitchDefaults.colors(
                                     checkedThumbColor = PureBlack,
                                     checkedTrackColor = PureWhite,

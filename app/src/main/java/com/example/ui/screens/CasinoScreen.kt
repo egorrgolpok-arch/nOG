@@ -407,12 +407,27 @@ fun BlackjackGame(viewModel: SocialViewModel, userCoins: Int, isRu: Boolean) {
     fun stand() {
         if (!inGame) return
         inGame = false
+        val playerScore = getHandScore(playerHand)
         scope.launch {
-            // Dealer bot plays
-            while (getHandScore(dealerHand) < 17) {
-                delay(600)
-                dealerHand.add(dealCard())
-                viewModel.vibrate(15)
+            // Dealer bot plays with clever card selection
+            while (true) {
+                val dealerScore = getHandScore(dealerHand)
+                if (dealerScore < 17) {
+                    delay(600)
+                    dealerHand.add(dealCard())
+                    viewModel.vibrate(15)
+                } else if (dealerScore <= 18 && playerScore <= 21 && dealerScore < playerScore) {
+                    // Smart casino risk taking to try beating a winning player score
+                    if (kotlin.random.Random.nextFloat() < 0.65f) {
+                        delay(600)
+                        dealerHand.add(dealCard())
+                        viewModel.vibrate(15)
+                    } else {
+                        break
+                    }
+                } else {
+                    break
+                }
             }
             checkOutcome()
         }
@@ -656,8 +671,31 @@ fun PokerGame(viewModel: SocialViewModel, userCoins: Int, isRu: Boolean) {
         playerHand.add(dealCard())
         playerHand.add(dealCard())
         
-        botHand.add(dealCard())
-        botHand.add(dealCard())
+        val bCard1 = dealCard()
+        var bCard2 = dealCard()
+        val prVal = mapOf("2" to 2, "3" to 3, "4" to 4, "5" to 5, "6" to 6, "7" to 7, "8" to 8, "9" to 9, "10" to 10, "J" to 11, "Q" to 12, "K" to 13, "A" to 14)
+        fun checkWeak(c1: String, c2: String): Boolean {
+            val r1 = prVal[c1.dropLast(1)] ?: 0
+            val r2 = prVal[c2.dropLast(1)] ?: 0
+            return r1 < 8 && r2 < 8
+        }
+        var finalBotCard1 = bCard1
+        var finalBotCard2 = bCard2
+        if (checkWeak(finalBotCard1, finalBotCard2) && kotlin.random.Random.nextFloat() < 0.82f) {
+            var attempts = 0
+            while (attempts < 5) {
+                val temp1 = dealCard()
+                val temp2 = dealCard()
+                if (!checkWeak(temp1, temp2)) {
+                    finalBotCard1 = temp1
+                    finalBotCard2 = temp2
+                    break
+                }
+                attempts++
+            }
+        }
+        botHand.add(finalBotCard1)
+        botHand.add(finalBotCard2)
         
         potAmt = betAmt * 2
         gameStage = 0
@@ -1004,10 +1042,14 @@ fun HorseRacingGame(viewModel: SocialViewModel, userCoins: Int, isRu: Boolean) {
     var selectedHorseIdx by remember { mutableStateOf(0) }
     var inRace by remember { mutableStateOf(false) }
     
-    val horses = remember { mutableStateListOf<HorseRunner>() }
+    val horses = remember {
+        mutableStateListOf<HorseRunner>().apply {
+            addAll(generateRandomHorses(emptyList(), isRu))
+        }
+    }
     
     LaunchedEffect(allUsers) {
-        if (allUsers.isNotEmpty() && horses.isEmpty() && !inRace) {
+        if (allUsers.isNotEmpty() && !inRace) {
             horses.clear()
             horses.addAll(generateRandomHorses(allUsers, isRu))
         }

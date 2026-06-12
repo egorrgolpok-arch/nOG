@@ -184,6 +184,16 @@ class SocialViewModel(application: Application) : AndroidViewModel(application) 
         prefs.edit().putBoolean("silent_mode", enabled).apply()
     }
 
+    // --- Low-end Device Mode (Режим для слабых устройств) ---
+    private val _isLowEndDeviceMode = MutableStateFlow<Boolean>(false)
+    val isLowEndDeviceMode: StateFlow<Boolean> = _isLowEndDeviceMode.asStateFlow()
+
+    fun toggleLowEndDeviceMode(enabled: Boolean) {
+        _isLowEndDeviceMode.value = enabled
+        val prefs = getApplication<Application>().getSharedPreferences("nog_prefs", Context.MODE_PRIVATE)
+        prefs.edit().putBoolean("low_end_device_mode", enabled).apply()
+    }
+
     // --- Persistent Poker Balance ---
     private val _pokerBalance = MutableStateFlow<Int>(1000)
     val pokerBalance: StateFlow<Int> = _pokerBalance.asStateFlow()
@@ -491,6 +501,10 @@ class SocialViewModel(application: Application) : AndroidViewModel(application) 
         val savedSilent = prefs.getBoolean("silent_mode", false)
         _isSilentMode.value = savedSilent
 
+        // Load low-end device mode
+        val savedLowEnd = prefs.getBoolean("low_end_device_mode", false)
+        _isLowEndDeviceMode.value = savedLowEnd
+
         // Initialize basic database entries
         viewModelScope.launch(Dispatchers.IO) {
             repository.initDatabaseIfNeeded()
@@ -513,8 +527,9 @@ class SocialViewModel(application: Application) : AndroidViewModel(application) 
             val context = getApplication<Application>()
             var duoTickCount = 0
             while (true) {
-                // Faster tick (1.2s) to satisfy user requested speed optimization
-                delay(1200)
+                // Slower tick in low-end device mode to preserve CPU cycles
+                val tickDelay = if (_isLowEndDeviceMode.value) 8000L else 1200L
+                delay(tickDelay)
                 
                 // Continuous check for all active cooldowns
                 com.example.workers.CooldownNotifier.checkAndNotifyAllCooldowns(context)
@@ -539,7 +554,9 @@ class SocialViewModel(application: Application) : AndroidViewModel(application) 
         // Periodic Tick for Engagement: Likes/Comments
         viewModelScope.launch {
             while (true) {
-                delay(1500) 
+                // Slower tick in low-end device mode to prevent excessive SQLite state updates
+                val tickDelay = if (_isLowEndDeviceMode.value) 12000L else 1500L
+                delay(tickDelay) 
                 if (_isSimulating.value) {
                     try {
                         val posts = allRawPosts.value
