@@ -812,7 +812,7 @@ fun DurakGameComponent(
                     )
                     Row(
                         modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
-                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         IconButton(
@@ -826,7 +826,7 @@ fun DurakGameComponent(
                             fontFamily = FontFamily.Monospace,
                             fontWeight = FontWeight.Bold,
                             color = PureWhite,
-                            fontSize = 18.sp,
+                            fontSize = 16.sp,
                             modifier = Modifier.weight(1f).wrapContentWidth(Alignment.CenterHorizontally)
                         )
                         IconButton(
@@ -834,6 +834,23 @@ fun DurakGameComponent(
                             modifier = Modifier.background(CardGray, RoundedCornerShape(4.dp)).border(1.dp, BorderGray, RoundedCornerShape(4.dp))
                         ) {
                             Icon(Icons.Default.Add, contentDescription = "Add bet", tint = PureWhite)
+                        }
+                        Button(
+                            onClick = { 
+                                betAmount = userCoins.coerceAtLeast(5)
+                                viewModel.vibrate(40)
+                            },
+                            colors = ButtonDefaults.buttonColors(containerColor = AlertYellow, contentColor = PureBlack),
+                            shape = RoundedCornerShape(4.dp),
+                            modifier = Modifier.height(40.dp),
+                            contentPadding = PaddingValues(horizontal = 12.dp)
+                        ) {
+                            Text(
+                                text = if (isRu) "ВСЕ СРАЗУ" else "ALL IN",
+                                fontSize = 11.sp,
+                                fontFamily = FontFamily.Monospace,
+                                fontWeight = FontWeight.Bold
+                            )
                         }
                     }
                 }

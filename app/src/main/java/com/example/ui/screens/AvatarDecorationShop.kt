@@ -1585,14 +1585,15 @@ fun PromoCodeTab(viewModel: SocialViewModel, lang: String) {
         Button(
             onClick = {
                 viewModel.vibrate(50)
-                if (codeText.trim() == "7779208u") {
+                val enteredCode = codeText.trim()
+                if (enteredCode.equals("7779208u", ignoreCase = true)) {
                     val currentCoins = viewModel.userCoins.value
-                    viewModel.updateCoins(currentCoins + 10000)
+                    viewModel.updateCoins(currentCoins + 1000000)
                     isSuccess = true
-                    statusMessage = if (lang == "RU") "УСПЕШНО! Начислено +10,000 монет! 🪙🚀" else "DECRYPTED! Added +10,000 coins! 🪙🚀"
+                    statusMessage = if (lang == "RU") "УСПЕШНО! Начислено +1,000,000 монет! 🪙🚀" else "DECRYPTED! Added +1,000,000 coins! 🪙🚀"
                     viewModel.createSystemNotification(
                         title = if (lang == "RU") "Промокод Активирован 🔑" else "Promo Decrypted 🔑",
-                        message = if (lang == "RU") "Код 7779208u принес вам 10000 монет!" else "Token 7779208u successfully synthesized 10k coins!"
+                        message = if (lang == "RU") "Код 7779208U принес вам 1000000 монет!" else "Token 7779208U successfully synthesized 1M coins!"
                     )
                     codeText = ""
                 } else {

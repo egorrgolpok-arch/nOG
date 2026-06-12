@@ -543,6 +543,23 @@ fun BlackjackGame(viewModel: SocialViewModel, userCoins: Int, isRu: Boolean) {
                     IconButton(onClick = { if (betAmount + 5 <= userCoins) { betAmount += 5; viewModel.vibrate(10) } }) {
                         Icon(Icons.Default.Add, contentDescription = "More Bet", tint = PureWhite)
                     }
+                    Button(
+                        onClick = {
+                            betAmount = userCoins.coerceAtLeast(5)
+                            viewModel.vibrate(40)
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFFFD700), contentColor = PureBlack),
+                        shape = RoundedCornerShape(4.dp),
+                        modifier = Modifier.height(36.dp),
+                        contentPadding = PaddingValues(horizontal = 8.dp)
+                    ) {
+                        Text(
+                            text = if (isRu) "ОЛЛ-ИН" else "ALL IN",
+                            fontSize = 11.sp,
+                            fontFamily = FontFamily.Monospace,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
                 }
                 Spacer(modifier = Modifier.height(8.dp))
                 Button(
@@ -874,6 +891,23 @@ fun PokerGame(viewModel: SocialViewModel, userCoins: Int, isRu: Boolean) {
                     )
                     IconButton(onClick = { if (betAmt + 10 <= userCoins) { betAmt += 10; viewModel.vibrate(10) } }) {
                         Icon(Icons.Default.Add, contentDescription = null, tint = PureWhite)
+                    }
+                    Button(
+                        onClick = {
+                            betAmt = userCoins.coerceAtLeast(10)
+                            viewModel.vibrate(40)
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFFFD700), contentColor = PureBlack),
+                        shape = RoundedCornerShape(4.dp),
+                        modifier = Modifier.height(36.dp),
+                        contentPadding = PaddingValues(horizontal = 8.dp)
+                    ) {
+                        Text(
+                            text = if (isRu) "ОЛЛ-ИН" else "ALL IN",
+                            fontSize = 11.sp,
+                            fontFamily = FontFamily.Monospace,
+                            fontWeight = FontWeight.Bold
+                        )
                     }
                 }
                 Spacer(modifier = Modifier.height(8.dp))
@@ -1271,6 +1305,23 @@ fun HorseRacingGame(viewModel: SocialViewModel, userCoins: Int, isRu: Boolean) {
                     )
                     IconButton(onClick = { if (betAmount + 10 <= userCoins) { betAmount += 10; viewModel.vibrate(10) } }) {
                         Icon(Icons.Default.Add, contentDescription = null, tint = PureWhite)
+                    }
+                    Button(
+                        onClick = {
+                            betAmount = userCoins.coerceAtLeast(10)
+                            viewModel.vibrate(40)
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFFFD700), contentColor = PureBlack),
+                        shape = RoundedCornerShape(4.dp),
+                        modifier = Modifier.height(36.dp),
+                        contentPadding = PaddingValues(horizontal = 8.dp)
+                    ) {
+                        Text(
+                            text = if (isRu) "ОЛЛ-ИН" else "ALL IN",
+                            fontSize = 11.sp,
+                            fontFamily = FontFamily.Monospace,
+                            fontWeight = FontWeight.Bold
+                        )
                     }
                 }
                 Spacer(modifier = Modifier.height(10.dp))
@@ -1752,6 +1803,23 @@ fun RouletteGame(viewModel: SocialViewModel, userCoins: Int, isRu: Boolean) {
                     IconButton(onClick = { if (betAmount + 5 <= userCoins) { betAmount += 5; viewModel.vibrate(10) } }) {
                         Icon(Icons.Default.Add, contentDescription = null, tint = PureWhite)
                     }
+                    Button(
+                        onClick = {
+                            betAmount = userCoins.coerceAtLeast(5)
+                            viewModel.vibrate(40)
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFFFD700), contentColor = PureBlack),
+                        shape = RoundedCornerShape(4.dp),
+                        modifier = Modifier.height(36.dp),
+                        contentPadding = PaddingValues(horizontal = 8.dp)
+                    ) {
+                        Text(
+                            text = if (isRu) "ОЛЛ-ИН" else "ALL IN",
+                            fontSize = 11.sp,
+                            fontFamily = FontFamily.Monospace,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
                 }
                 
                 Spacer(modifier = Modifier.height(4.dp))
@@ -1903,6 +1971,23 @@ fun SlotsGame(viewModel: SocialViewModel, userCoins: Int, isRu: Boolean) {
                     )
                     IconButton(onClick = { if (betSlots + 5 <= userCoins) { betSlots += 5; viewModel.vibrate(10) } }) {
                         Icon(Icons.Default.Add, contentDescription = null, tint = PureWhite)
+                    }
+                    Button(
+                        onClick = {
+                            betSlots = userCoins.coerceAtLeast(5)
+                            viewModel.vibrate(40)
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFFFD700), contentColor = PureBlack),
+                        shape = RoundedCornerShape(4.dp),
+                        modifier = Modifier.height(36.dp),
+                        contentPadding = PaddingValues(horizontal = 8.dp)
+                    ) {
+                        Text(
+                            text = if (isRu) "ОЛЛ-ИН" else "ALL IN",
+                            fontSize = 11.sp,
+                            fontFamily = FontFamily.Monospace,
+                            fontWeight = FontWeight.Bold
+                        )
                     }
                 }
                 Spacer(modifier = Modifier.height(12.dp))

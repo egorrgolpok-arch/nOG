@@ -1745,6 +1745,59 @@ class SocialRepository(private val context: Context, private val scope: Coroutin
     private fun getDynamicInternetLinkAndContext(contentHint: String, lang: String): Pair<String, String> {
         val q = contentHint.lowercase()
         val isRu = lang == "RU"
+        val generalPool = listOf(
+            "https://techcrunch.com" to (if (isRu) "инновационный вестник TechCrunch" else "TechCrunch tech startup news"),
+            "https://habr.com" to (if (isRu) "Хабр: сообщество IT-специалистов" else "Habr Russian IT collaborative platform"),
+            "https://wired.com" to (if (isRu) "Wired: технологии, наука и культура" else "Wired tech & science stories"),
+            "https://vc.ru" to (if (isRu) "VC.ru: стартапы и бизнес" else "VC.ru business and technology news"),
+            "https://medium.com" to (if (isRu) "блог-платформа Medium" else "Medium modern blog & articles repository"),
+            "https://dev.to" to (if (isRu) "ИТ-сообщество Dev.to" else "Dev.to global developer community hub"),
+            "https://tjournal.ru" to (if (isRu) "архив интернет-культуры T Journal" else "T Journal internet culture & tech news"),
+            "https://dtf.ru" to (if (isRu) "DTF: игры, кино и медиа" else "DTF gaming and movie community"),
+            "https://bloomberg.com" to (if (isRu) "финансовый гигант Bloomberg" else "Bloomberg global financial news feed"),
+            "https://forbes.ru" to (if (isRu) "деловое издание Forbes Russia" else "Forbes Russia finance & analytics"),
+            "https://bbc.com/news" to (if (isRu) "новостной портал BBC News" else "BBC News global report feed"),
+            "https://lenta.ru" to (if (isRu) "новостной журнал Lenta.ru" else "Lenta.ru Russian news portal"),
+            "https://rbc.ru" to (if (isRu) "РБК: экономика и политика" else "RBC Russian business agency"),
+            "https://theverge.com" to (if (isRu) "The Verge: обзоры гаджетов и IT-жизнь" else "The Verge tech journalism & media"),
+            "https://engadget.com" to (if (isRu) "Engadget: обзоры потребительской электроники" else "Engadget consumer tech review source"),
+            "https://mashable.com" to (if (isRu) "тренды и культура в Mashable" else "Mashable internet culture trends"),
+            "https://gizmodo.com" to (if (isRu) "Gizmodo: наука, фантастика и дизайн" else "Gizmodo science & speculative tech"),
+            "https://cnet.com" to (if (isRu) "CNet: путеводитель по миру техники" else "CNET consumer electronics updates"),
+            "https://producthunt.com" to (if (isRu) "Product Hunt: новинки софта и гаджетов" else "Product Hunt software launchboard"),
+            "https://hackaday.com" to (if (isRu) "железячные проекты на Hackaday" else "Hackaday hardware hacker workspace"),
+            "https://slashdot.org" to (if (isRu) "Slashdot: новости для гиков" else "Slashdot global tech discussion platform"),
+            "https://arstechnica.com" to (if (isRu) "глубокая аналитика Ars Technica" else "Arstechnica technical in-depth journal"),
+            "https://venturebeat.com" to (if (isRu) "VentureBeat: новости ИИ и геймдева" else "VentureBeat business and AI trends"),
+            "https://thenextweb.com" to (if (isRu) "TNW: будущее интернет-технологий" else "TNW web development and future insight"),
+            "https://sports.ru" to (if (isRu) "Sports.ru: спортивное медиа" else "Sports.ru major sports network"),
+            "https://kinopoisk.ru" to (if (isRu) "Кинопоиск: база данных фильмов" else "Kinopoisk Russian movie authority"),
+            "https://3dnews.ru" to (if (isRu) "3DNews: ежедневные ИТ-новости" else "3DNews Russian computer hardware digest"),
+            "https://ixbt.com" to (if (isRu) "iXBT.com: обзоры ПК и гаджетов" else "iXBT Russian PC & gadget review platform"),
+            "https://rozetked.me" to (if (isRu) "Rozetked: обзоры гаджетов и стиля" else "Rozetked tech lifestyle & consumer reports"),
+            "https://wylsa.com" to (if (isRu) "Wylsacom: техно-лайфстайл блог" else "Wylsacom tech lifestyle hub"),
+            "https://pikabu.ru" to (if (isRu) "Пикабу: народный развлекательный портал" else "Pikabu Russian community board"),
+            "https://yaplakal.com" to (if (isRu) "развлекательный портал ЯПлакалъ" else "Yaplakal community entertainment board"),
+            "https://lifehacker.ru" to (if (isRu) "Лайфхакер: база полезных советов" else "Lifehacker RU practical tips repository"),
+            "https://lifehacker.com" to (if (isRu) "международный Lifehacker" else "Lifehacker EN global productivity guides"),
+            "https://ted.com" to (if (isRu) "лекции TED Talks на русском" else "TED Talks global inspirational presentations"),
+            "https://coursera.org" to (if (isRu) "образовательная платформа Coursera" else "Coursera online course network"),
+            "https://arxiv.org" to (if (isRu) "архив препринтов научных работ arXiv" else "arXiv repository for scientific preprints"),
+            "https://scientificamerican.com" to (if (isRu) "научно-популярный журнал Scientific American" else "Scientific American science & space articles"),
+            "https://nationalgeographic.com" to (if (isRu) "National Geographic: природа Земли" else "National Geographic magazine feed"),
+            "https://reddit.com/r/worldnews" to (if (isRu) "мировые новости на Reddit /r/worldnews" else "Reddit r/worldnews global community dashboard"),
+            "https://quora.com" to (if (isRu) "вопросы и ответы на Quora" else "Quora global question & answer network"),
+            "https://stackexchange.com" to (if (isRu) "экспертные сообщества StackExchange" else "StackExchange expert Q&A ecosystem"),
+            "https://dribbble.com" to (if (isRu) "портфолио UI/UX на Dribbble" else "Dribbble UI design inspirations board"),
+            "https://behance.net" to (if (isRu) "креативные кейсы Behance" else "Behance design portfolio network"),
+            "https://tproger.ru" to (if (isRu) "Tproger: издание о разработке ПО" else "Tproger Russian developer journal"),
+            "https://codepen.io" to (if (isRu) "песочница фронтенда CodePen" else "CodePen frontend compiler playground"),
+            "https://eurogamer.net" to (if (isRu) "Eurogamer: обзоры консолей и ПК-игр" else "Eurogamer PC/console game updates"),
+            "https://ign.com" to (if (isRu) "IGN: поп-культура и видеоигры" else "IGN gaming news & entertainment media"),
+            "https://pitchfork.com" to (if (isRu) "Pitchfork: обзоры независимой музыки" else "Pitchfork indie music review hub"),
+            "https://pcgamer.com" to (if (isRu) "PC Gamer: лучшие игры на ПК" else "PC Gamer news & reviews board")
+        )
+
         return when {
             q.contains("video") || q.contains("клип") || q.contains("фильм") || q.contains("youtube") || q.contains("ютуб") || q.contains("видео") -> {
                 listOf(
@@ -1794,11 +1847,7 @@ class SocialRepository(private val context: Context, private val scope: Coroutin
                 ).random()
             }
             else -> {
-                listOf(
-                    "https://wikipedia.org" to (if (isRu) "свободный мировой справочник Википедия" else "global free encyclopedical Knowledge archive"),
-                    "https://reddit.com" to (if (isRu) "социальная доска обсуждений Reddit" else "global social board Reddit"),
-                    "https://nog.network" to (if (isRu) "официальный мейнфрейм сети nOG" else "classified nOG mainframe feed")
-                ).random()
+                generalPool.random()
             }
         }
     }
