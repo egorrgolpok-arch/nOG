@@ -58,7 +58,8 @@ fun DurakGameComponent(
     userCoins: Int,
     isRu: Boolean,
     isCasinoMode: Boolean,
-    onDismiss: (() -> Unit)? = null
+    onDismiss: (() -> Unit)? = null,
+    modifier: Modifier = Modifier.fillMaxSize()
 ) {
     val scope = rememberCoroutineScope()
     val allUsers by viewModel.allUsers.collectAsState(initial = emptyList())
@@ -77,6 +78,7 @@ fun DurakGameComponent(
     var trumpSuit by remember { mutableStateOf("") }
     var remainingCardsCount by remember { mutableStateOf(0) }
     var durakText by remember { mutableStateOf("") }
+    var botTrigger by remember { mutableStateOf(0) }
     
     var currentAttackerId by remember { mutableStateOf("") }
     var currentDefenderId by remember { mutableStateOf("") }
@@ -299,7 +301,7 @@ fun DurakGameComponent(
     // Automated simulation of Bot playing against Bot or other events
     suspend fun runBotTurnSimulation() {
         if (!inDurak) return
-        val customDelay = if (isLowEnd) 2200L else 1200L
+        val customDelay = if (isLowEnd) 1800L else 1000L
         delay(customDelay)
         if (!inDurak) return
         
@@ -333,12 +335,37 @@ fun DurakGameComponent(
                     // Trigger defense
                     delay(customDelay)
                     if (def.isHuman) {
-                        durakText = if (isRu) "${att.name} атаковал тебя картой $card! Защищайся козырем или картой той же масти старше." 
-                                   else "${att.name} attacked you with $card! Defend or take cards."
+                        durakText = if (isRu) "${att.name} атаковал тебя картой $card! Защищайся козырем, мастью старше или переведи (если есть карта того же ранга)!" 
+                                   else "${att.name} attacked you with $card! Defend, pass/transfer, or take cards."
                     } else {
                         // Bot defends against Bot
                         val defIdx = players.indexOfFirst { it.id == def.id }
                         val defHand = players[defIdx].cards
+                        
+                        // Rule Check: Can Bot Transfer? (Переводной дурак!)
+                        val ranksOnTable = activeAttackCards.map { it.dropLast(1) }
+                        val transferCandidates = defHand.filter { it.dropLast(1) in ranksOnTable }
+                        val nextDefOfBot = getNextActivePlayer(def.id)
+                        val canBotTransfer = nextDefOfBot != null && nextDefOfBot.cards.size >= (activeAttackCards.size + 1)
+                        
+                        if (activeDefendCards.isEmpty() && transferCandidates.isNotEmpty() && canBotTransfer && Random.nextFloat() < 0.65f) {
+                            val transferCard = selectCardByDifficulty(transferCandidates, difficultyLevel, trumpSuit, isAttack = true)
+                            val newDefHand = defHand.toMutableList().apply { remove(transferCard) }
+                            players[defIdx] = players[defIdx].copy(cards = newDefHand)
+                            activeAttackCards.add(transferCard)
+                            
+                            val prevDefenderId = currentDefenderId
+                            val nextDefState = getNextActivePlayer(prevDefenderId)
+                            currentAttackerId = prevDefenderId
+                            currentDefenderId = nextDefState?.id ?: ""
+                            
+                            durakText = if (isRu) "🤖 ${def.name} ПЕРЕВЕЛ ход картой $transferCard на ${nextDefState?.name}!"
+                                       else "🤖 ${def.name} TRANSFERRED with $transferCard to ${nextDefState?.name}!"
+                            viewModel.vibrate(40)
+                            botTrigger++
+                            return
+                        }
+                        
                         val defCandidates = defHand.filter { defCard ->
                             val defSuit = defCard.last().toString()
                             val attSuit = card.last().toString()
@@ -404,21 +431,48 @@ fun DurakGameComponent(
                         }
                     }
                 } else {
-                    // No playable card, bot calls Beaten!
-                    durakText = if (isRu) "Бита! Стол пуст." else "Beaten! Table cleared."
-                    activeAttackCards.clear()
-                    activeDefendCards.clear()
-                    refillHands()
-                    if (!checkForEndGame()) {
-                        val defenderState = players.find { it.id == currentDefenderId }
-                        val nextAttacker = if (defenderState == null || defenderState.isOut) {
-                            getNextActivePlayer(currentDefenderId)?.id ?: ""
-                        } else {
-                            currentDefenderId
+                    // No playable card from main attacker. Let other bots try to toss (Подкидывание!)
+                    val otherBots = players.filter { it.id != currentDefenderId && it.id != currentAttackerId && !it.isHuman && !it.isOut }
+                    var otherTossed = false
+                    if (activeAttackCards.isNotEmpty() && activeAttackCards.size < 6) {
+                        for (bot in otherBots) {
+                            val botIdx = players.indexOfFirst { it.id == bot.id }
+                            if (botIdx != -1) {
+                                val botHand = players[botIdx].cards
+                                val ranksOnTable = (activeAttackCards + activeDefendCards).map { it.dropLast(1) }
+                                val botPlayable = botHand.filter { it.dropLast(1) in ranksOnTable }
+                                if (botPlayable.isNotEmpty()) {
+                                    val card = selectCardByDifficulty(botPlayable, difficultyLevel, trumpSuit, isAttack = true)
+                                    val newHand = botHand.toMutableList().apply { remove(card) }
+                                    players[botIdx] = players[botIdx].copy(cards = newHand)
+                                    activeAttackCards.add(card)
+                                    otherTossed = true
+                                    durakText = if (isRu) "🦾 ${bot.name} подкинул карту $card!" else "🦾 ${bot.name} tossed in: $card!"
+                                    viewModel.vibrate(15)
+                                    botTrigger++
+                                    break
+                                }
+                            }
                         }
-                        val nextDef = getNextActivePlayer(nextAttacker)
-                        currentAttackerId = nextAttacker
-                        currentDefenderId = nextDef?.id ?: ""
+                    }
+                    
+                    if (!otherTossed) {
+                        // Truly no one can toss. Beaten!
+                        durakText = if (isRu) "Бита! Стол пуст." else "Beaten! Table cleared."
+                        activeAttackCards.clear()
+                        activeDefendCards.clear()
+                        refillHands()
+                        if (!checkForEndGame()) {
+                            val defenderState = players.find { it.id == currentDefenderId }
+                            val nextAttacker = if (defenderState == null || defenderState.isOut) {
+                                getNextActivePlayer(currentDefenderId)?.id ?: ""
+                            } else {
+                                currentDefenderId
+                            }
+                            val nextDef = getNextActivePlayer(nextAttacker)
+                            currentAttackerId = nextAttacker
+                            currentDefenderId = nextDef?.id ?: ""
+                        }
                     }
                 }
             } else {
@@ -428,6 +482,31 @@ fun DurakGameComponent(
                     val botIdx = players.indexOfFirst { it.id == def.id }
                     if (botIdx != -1) {
                         val hand = players[botIdx].cards
+                        
+                        // Rule Check: Can Bot Transfer elements to next clockwise player?
+                        val ranksOnTable = activeAttackCards.map { it.dropLast(1) }
+                        val transferCandidates = hand.filter { it.dropLast(1) in ranksOnTable }
+                        val nextDefOfBot = getNextActivePlayer(def.id)
+                        val canBotTransfer = nextDefOfBot != null && nextDefOfBot.cards.size >= (activeAttackCards.size + 1)
+                        
+                        if (activeDefendCards.isEmpty() && transferCandidates.isNotEmpty() && canBotTransfer && Random.nextFloat() < 0.65f) {
+                            val transferCard = selectCardByDifficulty(transferCandidates, difficultyLevel, trumpSuit, isAttack = true)
+                            val newDefHand = hand.toMutableList().apply { remove(transferCard) }
+                            players[botIdx] = players[botIdx].copy(cards = newDefHand)
+                            activeAttackCards.add(transferCard)
+                            
+                            val prevDefenderId = currentDefenderId
+                            val nextDefState = getNextActivePlayer(prevDefenderId)
+                            currentAttackerId = prevDefenderId
+                            currentDefenderId = nextDefState?.id ?: ""
+                            
+                            durakText = if (isRu) "🤖 ${def.name} ПЕРЕВЕЛ игру картой $transferCard на ${nextDefState?.name}!"
+                                       else "🤖 ${def.name} TRANSFERRED with $transferCard to ${nextDefState?.name}!"
+                            viewModel.vibrate(40)
+                            botTrigger++
+                            return
+                        }
+                        
                         val defCandidates = hand.filter { defCard ->
                             val defSuit = defCard.last().toString()
                             val attSuit = targetAttack.last().toString()
@@ -448,7 +527,7 @@ fun DurakGameComponent(
                             players[botIdx] = players[botIdx].copy(cards = newDefHand)
                             activeDefendCards.add(defCard)
                             viewModel.vibrate(15)
-                            durakText = if (isRu) "${def.name} отбился козырной или старшей картой $defCard. Подкинь еще!" 
+                            durakText = if (isRu) "${def.name} отбился картой $defCard. Подкинь еще!" 
                                        else "${def.name} beat with $defCard. Throw more or complete round!"
                         } else {
                             // Bot takes
@@ -472,7 +551,7 @@ fun DurakGameComponent(
         }
     
     // Trigger automated simulations if active player/defender roles are bot-governed
-    LaunchedEffect(currentAttackerId, currentDefenderId, activeAttackCards.size, activeDefendCards.size, inDurak) {
+    LaunchedEffect(currentAttackerId, currentDefenderId, botTrigger, inDurak) {
         if (inDurak && currentAttackerId.isNotEmpty() && currentDefenderId.isNotEmpty()) {
             val att = players.find { it.id == currentAttackerId }
             val def = players.find { it.id == currentDefenderId }
@@ -583,6 +662,7 @@ fun DurakGameComponent(
             
             durakText = if (isRu) "Ты атаковал соперника картой $card! Ожидание ответа..." 
                        else "You played attack: $card! Waiting for bot respond..."
+            botTrigger++
         } else {
             viewModel.vibrate(40)
             durakText = if (isRu) "Нельзя походить картой $card. Выберите карту того же ранга." 
@@ -597,6 +677,31 @@ fun DurakGameComponent(
         val playerIdx = players.indexOfFirst { it.isHuman }
         if (playerIdx == -1) return
         val hand = players[playerIdx].cards
+        
+        // --- 1. Rule Check: Can Human Player Transfer (Перевод)? ---
+        if (activeDefendCards.isEmpty()) {
+            val ranksOnTable = activeAttackCards.map { it.dropLast(1) }
+            val nextDef = getNextActivePlayer(currentDefenderId)
+            val canTransfer = nextDef != null && nextDef.cards.size >= (activeAttackCards.size + 1)
+            
+            if (card.dropLast(1) in ranksOnTable && canTransfer) {
+                val updatedHand = hand.toMutableList().apply { remove(card) }
+                players[playerIdx] = players[playerIdx].copy(cards = updatedHand)
+                activeAttackCards.add(card)
+                
+                // Shift roles:
+                val prevDefenderId = currentDefenderId
+                val nextDefState = getNextActivePlayer(prevDefenderId)
+                currentAttackerId = prevDefenderId
+                currentDefenderId = nextDefState?.id ?: ""
+                
+                durakText = if (isRu) "Ты успешно ПЕРЕВЕЛ ход картой $card на ${nextDefState?.name}!"
+                             else "You successfully TRANSFERRED the turn with $card to ${nextDefState?.name}!"
+                viewModel.vibrate(45)
+                botTrigger++
+                return
+            }
+        }
         
         // Check if valid coverage
         val defSuit = card.last().toString()
@@ -617,6 +722,7 @@ fun DurakGameComponent(
             viewModel.vibrate(20)
             
             durakText = if (isRu) "Ты отбился картой $card!" else "You successfully defended with $card!"
+            botTrigger++
         } else {
             viewModel.vibrate(40)
             durakText = if (isRu) "Нельзя отбиться картой $card против $targetAttack!" 
@@ -668,8 +774,7 @@ fun DurakGameComponent(
     
     // UI Layout
     Column(
-        modifier = Modifier
-            .fillMaxSize()
+        modifier = modifier
             .background(PureBlack)
             .padding(8.dp)
     ) {
@@ -1177,6 +1282,25 @@ fun DurakGameComponent(
                                             playerAttack(card)
                                         } else if (amIDefender) {
                                             playerDefend(card)
+                                        } else if (activeAttackCards.isNotEmpty() && currentDefenderId != "player" && activeAttackCards.size < 6) {
+                                            // Bystander player tossing in a card (Подкидывание!)
+                                            val ranksOnTable = (activeAttackCards + activeDefendCards).map { it.dropLast(1) }
+                                            if (card.dropLast(1) in ranksOnTable) {
+                                                val playerIdx = players.indexOfFirst { it.isHuman }
+                                                if (playerIdx != -1) {
+                                                    val hand = players[playerIdx].cards
+                                                    val updatedHand = hand.toMutableList().apply { remove(card) }
+                                                    players[playerIdx] = players[playerIdx].copy(cards = updatedHand)
+                                                    activeAttackCards.add(card)
+                                                    viewModel.vibrate(20)
+                                                    durakText = if (isRu) "Ты подкинул карту $card!" else "You tossed in card $card!"
+                                                    botTrigger++
+                                                }
+                                            } else {
+                                                viewModel.vibrate(40)
+                                                durakText = if (isRu) "Вы можете подкинуть только карту того же ранга ($ranksOnTable)!" 
+                                                           else "You can only toss in cards matching tabletop ranks ($ranksOnTable)!"
+                                            }
                                         }
                                     }
                                 ) {
@@ -1187,11 +1311,13 @@ fun DurakGameComponent(
                     }
                 }
                 
-                Spacer(modifier = Modifier.height(4.dp))
+                Spacer(modifier = Modifier.height(8.dp))
                 
-                // Docked Controls at the bottom of the screen (Request 4)
+                // Docked Controls elevated and raised higher for improved visibility and ergonomics
                 Row(
-                    modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = 35.dp, top = 8.dp, start = 8.dp, end = 8.dp),
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     val amIAttacker = currentAttackerId == "player"

@@ -3504,7 +3504,8 @@ fun DurakDialog(onDismiss: () -> Unit, lang: String, viewModel: SocialViewModel)
                     userCoins = 0, // Not connected to coins
                     isRu = lang == "RU",
                     isCasinoMode = false,
-                    onDismiss = onDismiss
+                    onDismiss = onDismiss,
+                    modifier = Modifier.fillMaxWidth().weight(1f)
                 )
             }
         }

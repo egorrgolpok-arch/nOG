@@ -409,16 +409,18 @@ fun BlackjackGame(viewModel: SocialViewModel, userCoins: Int, isRu: Boolean) {
         inGame = false
         val playerScore = getHandScore(playerHand)
         scope.launch {
-            // Dealer bot plays with clever card selection
+            // Dealer bot plays with clever card selection and strict casino guidelines!
             while (true) {
                 val dealerScore = getHandScore(dealerHand)
-                if (dealerScore < 17) {
+                val isSoft17 = dealerScore == 17 && dealerHand.any { it.startsWith("A") }
+                
+                if (dealerScore < 17 || isSoft17) {
                     delay(600)
                     dealerHand.add(dealCard())
                     viewModel.vibrate(15)
-                } else if (dealerScore <= 18 && playerScore <= 21 && dealerScore < playerScore) {
-                    // Smart casino risk taking to try beating a winning player score
-                    if (kotlin.random.Random.nextFloat() < 0.65f) {
+                } else if (dealerScore <= 19 && playerScore <= 21 && dealerScore < playerScore) {
+                    // High-stakes casino risk taking to try beating a winning player score
+                    if (kotlin.random.Random.nextFloat() < 0.82f) {
                         delay(600)
                         dealerHand.add(dealCard())
                         viewModel.vibrate(15)
@@ -1367,14 +1369,12 @@ inline fun <T> List<T>.indexOfMaxBy(selector: (T) -> Float): Int {
 @Composable
 fun RouletteGame(viewModel: SocialViewModel, userCoins: Int, isRu: Boolean) {
     val scope = rememberCoroutineScope()
-    var betAmount by remember { mutableStateOf(10) }
+    var chipValue by remember { mutableStateOf(10) }
+    var activeBets by remember { mutableStateOf<Map<String, Int>>(emptyMap()) }
     var inSpin by remember { mutableStateOf(false) }
 
     // Authentic roulette red numbers set according to classic casino rules! (Request 5 / 6)
     val rouletteRedNumbers = remember { setOf(1, 3, 5, 7, 9, 12, 14, 16, 18, 19, 21, 23, 25, 27, 30, 32, 34, 36) }
-
-    // Selected bet type: "red", "black", "even", "odd", "zero" or "num_X" (specific number bet)
-    var betType by remember { mutableStateOf("red") }
     
     var lastSpinNumber by remember { mutableStateOf<Int?>(null) }
     var rouletteStatusText by remember { mutableStateOf("") }
@@ -1382,11 +1382,16 @@ fun RouletteGame(viewModel: SocialViewModel, userCoins: Int, isRu: Boolean) {
     var ballAngle by remember { mutableStateOf(0f) }
 
     fun startRouletteSpin() {
-        if (userCoins < betAmount) {
-            rouletteStatusText = if (isRu) "НЕДОСТАТОЧНО СРЕДСТВ" else "NOT ENOUGH BANK"
+        val totalBetAmount = activeBets.values.sum()
+        if (totalBetAmount <= 0) {
+            rouletteStatusText = if (isRu) "МИНИМАЛЬНАЯ СТАВКА НА СТОЛЕ: 5 МОНЕТ!" else "MINIMUM TABLE STAKE IS 5 COINS!"
             return
         }
-        viewModel.updateCoins(userCoins - betAmount)
+        if (userCoins < totalBetAmount) {
+            rouletteStatusText = if (isRu) "НЕДОСТАТОЧНО СРЕДСТВ ДЛЯ ВСЕХ СТАВОК" else "NOT ENOUGH COINS FOR ALL ACTIVE PLACED CHIPS"
+            return
+        }
+        viewModel.updateCoins(userCoins - totalBetAmount)
         viewModel.vibrate(40)
         
         inSpin = true
@@ -1430,61 +1435,75 @@ fun RouletteGame(viewModel: SocialViewModel, userCoins: Int, isRu: Boolean) {
             val isEven = finalWinningNumber != 0 && finalWinningNumber % 2 == 0
             val isOdd = finalWinningNumber % 2 == 1
 
-            var won = false
-            var payoutMultiplier = 0
+            var totalWinnings = 0
+            var wonAny = false
             
-            if (betType.startsWith("num_")) {
-                val chosenNum = betType.substringAfter("num_").toIntOrNull() ?: -1
-                if (finalWinningNumber == chosenNum) {
-                    won = true
-                    payoutMultiplier = 36
+            activeBets.forEach { (bet, amt) ->
+                var won = false
+                var payoutMultiplier = 0
+                
+                if (bet.startsWith("num_")) {
+                    val chosenNum = bet.substringAfter("num_").toIntOrNull() ?: -1
+                    if (finalWinningNumber == chosenNum) {
+                        won = true
+                        payoutMultiplier = 36
+                    }
+                } else {
+                    when (bet) {
+                        "red" -> {
+                            if (winningColor == "red") {
+                                won = true
+                                payoutMultiplier = 2
+                            }
+                        }
+                        "black" -> {
+                            if (winningColor == "black") {
+                                won = true
+                                payoutMultiplier = 2
+                            }
+                        }
+                        "even" -> {
+                            if (isEven) {
+                                won = true
+                                payoutMultiplier = 2
+                            }
+                        }
+                        "odd" -> {
+                            if (isOdd) {
+                                won = true
+                                payoutMultiplier = 2
+                            }
+                        }
+                        "zero" -> {
+                            if (finalWinningNumber == 0) {
+                                won = true
+                                payoutMultiplier = 36
+                            }
+                        }
+                    }
                 }
-            } else {
-                when (betType) {
-                    "red" -> {
-                        if (winningColor == "red") {
-                            won = true
-                            payoutMultiplier = 2
-                        }
-                    }
-                    "black" -> {
-                        if (winningColor == "black") {
-                            won = true
-                            payoutMultiplier = 2
-                        }
-                    }
-                    "even" -> {
-                        if (isEven) {
-                            won = true
-                            payoutMultiplier = 2
-                        }
-                    }
-                    "odd" -> {
-                        if (isOdd) {
-                            won = true
-                            payoutMultiplier = 2
-                        }
-                    }
-                    "zero" -> {
-                        if (finalWinningNumber == 0) {
-                            won = true
-                            payoutMultiplier = 36
-                        }
-                    }
+                if (won) {
+                    wonAny = true
+                    totalWinnings += amt * payoutMultiplier
                 }
             }
 
             inSpin = false
-            if (won) {
-                val winnings = betAmount * payoutMultiplier
-                rouletteStatusText = if (isRu) "🎉 ВЫПАЛО ЧИСЛО $finalWinningNumber! Победитель получил $winnings монет." 
-                                   else "🎉 HIT FIELD $finalWinningNumber! Claimed payout of $winnings coins."
-                viewModel.updateCoins(userCoins + winnings)
+            if (wonAny) {
+                rouletteStatusText = if (isRu) {
+                    "🎉 ВЫПАЛО ЧИСЛО $finalWinningNumber! Твой выигрыш: $totalWinnings монет!"
+                } else {
+                    "🎉 HIT FIELD $finalWinningNumber! Won total: $totalWinnings coins!"
+                }
+                viewModel.updateCoins(userCoins - totalBetAmount + totalWinnings)
                 viewModel.vibrate(180)
             } else {
                 val colText = if (winningColor == "red") (if (isRu) "КРАСНОЕ" else "RED") else if (winningColor == "black") (if (isRu) "ЧЕРНОЕ" else "BLACK") else "ZERO"
-                rouletteStatusText = if (isRu) "ПОТЕРИ. Выпало число $finalWinningNumber ($colText). Попробуй еще раз!" 
-                                   else "DEBIT EFFECT. Rolled $finalWinningNumber ($colText). Rotate again!"
+                rouletteStatusText = if (isRu) {
+                    "ПРОИГРЫШ. Выпало число $finalWinningNumber ($colText). Потери: $totalBetAmount монет."
+                } else {
+                    "LOST. Rolled $finalWinningNumber ($colText). Lost: $totalBetAmount coins."
+                }
                 viewModel.vibrate(80)
             }
         }
@@ -1653,7 +1672,65 @@ fun RouletteGame(viewModel: SocialViewModel, userCoins: Int, isRu: Boolean) {
         // Select Bet Type
         Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             if (!inSpin) {
-                // Interactive roulette betting grid 0-36 (Request 6)
+                // Display current active bets summary / stake:
+                val totalBetAmount = activeBets.values.sum()
+                if (totalBetAmount > 0) {
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = CardDefaults.cardColors(containerColor = CardGray),
+                        border = BorderStroke(1.dp, BorderGray)
+                    ) {
+                        Column(modifier = Modifier.padding(10.dp)) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = if (isRu) "АКТИВНЫЕ СТАВКИ: $totalBetAmount 🪙" else "ACTIVE STAKES: $totalBetAmount 🪙",
+                                    color = AlertYellow,
+                                    fontSize = 11.sp,
+                                    fontFamily = FontFamily.Monospace,
+                                    fontWeight = FontWeight.Bold
+                                )
+                                Button(
+                                    onClick = { activeBets = emptyMap(); viewModel.vibrate(30) },
+                                    colors = ButtonDefaults.buttonColors(containerColor = Color(0x33FF3B30), contentColor = Color(0xFFFF5252)),
+                                    contentPadding = PaddingValues(horizontal = 10.dp, vertical = 2.dp),
+                                    shape = RoundedCornerShape(4.dp),
+                                    modifier = Modifier.height(26.dp)
+                                ) {
+                                    Text(if (isRu) "СБРОСИТЬ ВСЕ" else "CLEAR ALL", fontSize = 9.sp, fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold)
+                                }
+                            }
+                            
+                            Spacer(modifier = Modifier.height(6.dp))
+                            // Small list of active bets
+                            val activeBetsListText = activeBets.entries.map { (bet, amt) ->
+                                val label = when {
+                                    bet == "red" -> if (isRu) "Красное" else "Red"
+                                    bet == "black" -> if (isRu) "Черное" else "Black"
+                                    bet == "even" -> if (isRu) "Чет" else "Even"
+                                    bet == "odd" -> if (isRu) "Нечет" else "Odd"
+                                    bet == "zero" -> "0"
+                                    bet.startsWith("num_") -> bet.substringAfter("num_")
+                                    else -> bet
+                                }
+                                "$label: $amt"
+                            }.joinToString(", ")
+                            Text(
+                                text = activeBetsListText,
+                                color = TextGray,
+                                fontSize = 9.sp,
+                                fontFamily = FontFamily.Monospace,
+                                maxLines = 2,
+                                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+                            )
+                        }
+                    }
+                }
+
+                // Interactive roulette betting grid 0-36 (Request 4)
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -1661,6 +1738,9 @@ fun RouletteGame(viewModel: SocialViewModel, userCoins: Int, isRu: Boolean) {
                         .border(1.dp, BorderGray, RoundedCornerShape(4.dp))
                         .padding(8.dp)
                 ) {
+                    val currentZeroBet = activeBets["num_0"] ?: activeBets["zero"] ?: 0
+                    val zeroLabel = if (currentZeroBet > 0) "0 ($currentZeroBet 🪙)" else "0"
+                    
                     Text(
                         text = if (isRu) "ОРИГИНАЛЬНОЕ ПОЛЕ СТАВОК (0-36) [36х]:" else "ORIGINAL BETTING GRID (0-36) [36x]:",
                         color = TextGray,
@@ -1670,18 +1750,26 @@ fun RouletteGame(viewModel: SocialViewModel, userCoins: Int, isRu: Boolean) {
                     )
                     
                     // Green Zero Button
-                    val isZeroSelected = betType == "num_0" || betType == "zero"
                     Surface(
-                        onClick = { betType = "num_0"; viewModel.vibrate(15) },
+                        onClick = {
+                            val current = activeBets["num_0"] ?: 0
+                            if (userCoins >= (totalBetAmount + chipValue)) {
+                                activeBets = activeBets + ("num_0" to current + chipValue)
+                                viewModel.vibrate(15)
+                            } else {
+                                viewModel.vibrate(40)
+                                rouletteStatusText = if (isRu) "НЕДОСТАТОЧНО СРЕДСТВ ДЛЯ СТАВКИ!" else "OUT OF COINS FOR THIS PLACEMENT!"
+                            }
+                        },
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(30.dp),
-                        color = if (isZeroSelected) AlertGreen else Color(0x1A00FF66),
-                        border = BorderStroke(1.dp, if (isZeroSelected) PureWhite else AlertGreen),
+                        color = if (currentZeroBet > 0) AlertGreen else Color(0x1A00FF66),
+                        border = BorderStroke(1.dp, if (currentZeroBet > 0) PureWhite else AlertGreen),
                         shape = RoundedCornerShape(4.dp)
                     ) {
                         Box(contentAlignment = Alignment.Center) {
-                            Text("0", color = PureWhite, fontWeight = FontWeight.Bold, fontFamily = FontFamily.Monospace, fontSize = 11.sp)
+                            Text(zeroLabel, color = PureWhite, fontWeight = FontWeight.Bold, fontFamily = FontFamily.Monospace, fontSize = 11.sp)
                         }
                     }
                     
@@ -1691,7 +1779,7 @@ fun RouletteGame(viewModel: SocialViewModel, userCoins: Int, isRu: Boolean) {
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(115.dp)
+                            .height(130.dp)
                             .verticalScroll(rememberScrollState()),
                         verticalArrangement = Arrangement.spacedBy(4.dp)
                     ) {
@@ -1705,23 +1793,36 @@ fun RouletteGame(viewModel: SocialViewModel, userCoins: Int, isRu: Boolean) {
                                     val isRedNum = rouletteRedNumbers.contains(num)
                                     val cellColor = if (isRedNum) Color(0xFFFF3B30) else PureBlack
                                     val cellBorderColor = if (isRedNum) Color(0xFFFF8A80) else BorderGray
-                                    val isSelected = betType == "num_$num"
                                     
-                                    val finalColor = if (isSelected) AlertYellow else cellColor
-                                    val finalTextColor = if (isSelected) PureBlack else PureWhite
+                                    val currentNumBet = activeBets["num_$num"] ?: 0
+                                    val hasBet = currentNumBet > 0
+                                    
+                                    val finalColor = if (hasBet) AlertYellow else cellColor
+                                    val finalTextColor = if (hasBet) PureBlack else PureWhite
+                                    
+                                    val keyLabel = if (currentNumBet > 0) "$num ($currentNumBet 🪙)" else num.toString()
                                     
                                     Surface(
-                                        onClick = { betType = "num_$num"; viewModel.vibrate(15) },
+                                        onClick = {
+                                            val current = activeBets["num_$num"] ?: 0
+                                            if (userCoins >= (totalBetAmount + chipValue)) {
+                                                activeBets = activeBets + ("num_$num" to current + chipValue)
+                                                viewModel.vibrate(15)
+                                            } else {
+                                                viewModel.vibrate(40)
+                                                rouletteStatusText = if (isRu) "НЕДОСТАТОЧНО СРЕДСТВ ДЛЯ СТАВКИ!" else "OUT OF COINS FOR THIS PLACEMENT!"
+                                            }
+                                        },
                                         modifier = Modifier
                                             .weight(1f)
                                             .height(28.dp),
                                         color = finalColor,
-                                        border = BorderStroke(1.dp, if (isSelected) PureWhite else cellBorderColor),
+                                        border = BorderStroke(1.dp, if (hasBet) PureWhite else cellBorderColor),
                                         shape = RoundedCornerShape(2.dp)
                                     ) {
                                         Box(contentAlignment = Alignment.Center) {
                                             Text(
-                                                text = num.toString(),
+                                                text = keyLabel,
                                                 color = finalTextColor,
                                                 fontWeight = FontWeight.Bold,
                                                 fontSize = 11.sp,
@@ -1762,18 +1863,30 @@ fun RouletteGame(viewModel: SocialViewModel, userCoins: Int, isRu: Boolean) {
                             "black" -> Color(0x33FFFFFF)
                             else -> Color.Transparent
                         }
-                        val isSelected = betType == sector
+                        
+                        val currentSectorBet = activeBets[sector] ?: 0
+                        val hasSectorBet = currentSectorBet > 0
+                        val sectorLabel = if (currentSectorBet > 0) "$text ($currentSectorBet 🪙)" else text
                         
                         Surface(
-                            onClick = { betType = sector; viewModel.vibrate(20) },
+                            onClick = {
+                                val current = activeBets[sector] ?: 0
+                                if (userCoins >= (totalBetAmount + chipValue)) {
+                                    activeBets = activeBets + (sector to current + chipValue)
+                                    viewModel.vibrate(20)
+                                } else {
+                                    viewModel.vibrate(40)
+                                    rouletteStatusText = if (isRu) "НЕДОСТАТОЧНО СРЕДСТВ ДЛЯ СТАВКИ!" else "OUT OF COINS FOR THIS PLACEMENT!"
+                                }
+                            },
                             modifier = Modifier.weight(1f),
-                            border = BorderStroke(1.dp, if (isSelected) PureWhite else BorderGray),
-                            color = if (isSelected) DeepGray else sectorBg,
+                            border = BorderStroke(1.dp, if (hasSectorBet) PureWhite else BorderGray),
+                            color = if (hasSectorBet) AlertYellow else sectorBg,
                             shape = RoundedCornerShape(4.dp)
                         ) {
                             Text(
-                                text = text,
-                                color = PureWhite,
+                                text = sectorLabel,
+                                color = if (hasSectorBet) PureBlack else PureWhite,
                                 fontSize = 9.sp,
                                 fontFamily = FontFamily.Monospace,
                                 textAlign = TextAlign.Center,
@@ -1785,40 +1898,41 @@ fun RouletteGame(viewModel: SocialViewModel, userCoins: Int, isRu: Boolean) {
                 
                 Spacer(modifier = Modifier.height(4.dp))
                 
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceEvenly,
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    IconButton(onClick = { if (betAmount > 5) { betAmount -= 5; viewModel.vibrate(10) } }) {
-                        Icon(Icons.Default.Remove, contentDescription = null, tint = PureWhite)
-                    }
+                // Active Chip Selection Tool
+                Column(modifier = Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
                     Text(
-                        text = "${if (isRu) "СТАВКА: " else "BET: "}$betAmount 🪙",
-                        color = PureWhite,
+                        text = if (isRu) "ВЫБЕРИТЕ НОМИНАЛ ФИШЕК ДЛЯ СТАВКИ:" else "SELECT CHIP SIZE TO PLACE:",
+                        color = TextGray,
+                        fontSize = 10.sp,
                         fontFamily = FontFamily.Monospace,
-                        fontSize = 13.sp,
-                        fontWeight = FontWeight.Bold
+                        modifier = Modifier.padding(bottom = 6.dp)
                     )
-                    IconButton(onClick = { if (betAmount + 5 <= userCoins) { betAmount += 5; viewModel.vibrate(10) } }) {
-                        Icon(Icons.Default.Add, contentDescription = null, tint = PureWhite)
-                    }
-                    Button(
-                        onClick = {
-                            betAmount = userCoins.coerceAtLeast(5)
-                            viewModel.vibrate(40)
-                        },
-                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFFFD700), contentColor = PureBlack),
-                        shape = RoundedCornerShape(4.dp),
-                        modifier = Modifier.height(36.dp),
-                        contentPadding = PaddingValues(horizontal = 8.dp)
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceEvenly,
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text(
-                            text = if (isRu) "ОЛЛ-ИН" else "ALL IN",
-                            fontSize = 11.sp,
-                            fontFamily = FontFamily.Monospace,
-                            fontWeight = FontWeight.Bold
-                        )
+                        val chipSizes = listOf(5, 10, 25, 100, 500)
+                        chipSizes.forEach { cValue ->
+                            val isSelectedChip = chipValue == cValue
+                            Surface(
+                                onClick = { chipValue = cValue; viewModel.vibrate(10) },
+                                color = if (isSelectedChip) AlertYellow else CardGray,
+                                border = BorderStroke(1.5.dp, if (isSelectedChip) PureWhite else BorderGray),
+                                shape = RoundedCornerShape(20.dp),
+                                modifier = Modifier.size(45.dp)
+                            ) {
+                                Box(contentAlignment = Alignment.Center) {
+                                    Text(
+                                        text = cValue.toString(),
+                                        color = if (isSelectedChip) PureBlack else PureWhite,
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 11.sp,
+                                        fontFamily = FontFamily.Monospace
+                                    )
+                                }
+                            }
+                        }
                     }
                 }
                 
@@ -1830,7 +1944,13 @@ fun RouletteGame(viewModel: SocialViewModel, userCoins: Int, isRu: Boolean) {
                     shape = RoundedCornerShape(4.dp),
                     colors = ButtonDefaults.buttonColors(containerColor = PureWhite, contentColor = PureBlack)
                 ) {
-                    Text(if (isRu) "СПУСТИТЬ КУРОК КРУТИЛКИ" else "ENGAGE SPIN TRIGGER", fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold)
+                    val totalStake = activeBets.values.sum()
+                    val trigText = if (isRu) {
+                        if (totalStake > 0) "ЗАПУСТИТЬ КРУТИЛКУ ($totalStake 🪙)" else "ЗАПУСТИТЬ КРУТИЛКУ"
+                    } else {
+                        if (totalStake > 0) "ENGAGE SPIN TRIGGER ($totalStake 🪙)" else "ENGAGE SPIN TRIGGER"
+                    }
+                    Text(trigText, fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold)
                 }
             } else {
                 CircularProgressIndicator(
@@ -1856,7 +1976,7 @@ fun SlotsGame(viewModel: SocialViewModel, userCoins: Int, isRu: Boolean) {
     var betSlots by remember { mutableStateOf(10) }
     var rolling by remember { mutableStateOf(false) }
 
-    val reelSymbols = listOf("🪙", "🤖", "💎", "💀", "⚠️", "🦾", "🎰")
+    val reelSymbols = listOf("🪙", "🤖", "💎", "💀", "⚠️", "🦾", "🎰", "🔋", "🔑", "🛡️", "🔥", "🔮")
     var reel1 by remember { mutableStateOf("🎰") }
     var reel2 by remember { mutableStateOf("🎰") }
     var reel3 by remember { mutableStateOf("🎰") }
@@ -1891,13 +2011,19 @@ fun SlotsGame(viewModel: SocialViewModel, userCoins: Int, isRu: Boolean) {
             var multiplier = 0
             if (reel1 == reel2 && reel2 == reel3) {
                 multiplier = when (reel1) {
-                    "💎" -> 50
-                    "🤖" -> 25
-                    "🪙" -> 15
-                    else -> 10
+                    "💎" -> 25
+                    "🤖" -> 15
+                    "🪙" -> 10
+                    "🎰" -> 40
+                    else -> 6
                 }
             } else if (reel1 == reel2 || reel2 == reel3 || reel1 == reel3) {
-                multiplier = 2
+                // In real casinos, a 2-reel match has only a 35% chance to return a push (refund your bet), keeping the slots tight and profitable!
+                if (Random.nextFloat() < 0.35f) {
+                    multiplier = 1
+                } else {
+                    multiplier = 0
+                }
             }
 
             if (multiplier > 0) {
