@@ -301,7 +301,8 @@ fun DurakGameComponent(
     // Automated simulation of Bot playing against Bot or other events
     suspend fun runBotTurnSimulation() {
         if (!inDurak) return
-        val customDelay = if (isLowEnd) 1800L else 1000L
+        val baseDelay = if (isLowEnd) 2200L else 1800L
+        val customDelay = baseDelay + Random.nextLong(200, 700)
         delay(customDelay)
         if (!inDurak) return
         
@@ -309,246 +310,179 @@ fun DurakGameComponent(
         val def = players.find { it.id == currentDefenderId }
         
         if (att == null || def == null) return
+        
+        // --- UNIFIED DEFENDER AI BLOCK ---
+        // If the defender is a bot, and they have undefended cards to cover:
+        if (!def.isHuman && activeAttackCards.size > activeDefendCards.size) {
+            val defIdx = players.indexOfFirst { it.id == def.id }
+            if (defIdx == -1) return
+            val defHand = players[defIdx].cards
             
-            if (!att.isHuman) {
-                // CASE: Bot attacks!
-                val botIdx = players.indexOfFirst { it.id == att.id }
-                if (botIdx == -1) return
-                val hand = players[botIdx].cards
+            // Defend the card at the index of currently covered cards
+            val targetAttack = activeAttackCards[activeDefendCards.size]
+            
+            // Check if Bot can transfer (Only if activeDefendCards is empty and transfer rules are met)
+            val ranksOnTable = activeAttackCards.map { it.dropLast(1) }
+            val transferCandidates = defHand.filter { it.dropLast(1) in ranksOnTable }
+            val nextDefOfBot = getNextActivePlayer(def.id)
+            val canBotTransfer = nextDefOfBot != null && nextDefOfBot.cards.size >= (activeAttackCards.size + 1)
+            
+            if (activeDefendCards.isEmpty() && transferCandidates.isNotEmpty() && canBotTransfer && Random.nextFloat() < 0.60f) {
+                // Bot decides to transfer!
+                val transferCard = selectCardByDifficulty(transferCandidates, difficultyLevel, trumpSuit, isAttack = true)
+                val newDefHand = defHand.toMutableList().apply { remove(transferCard) }
+                players[defIdx] = players[defIdx].copy(cards = newDefHand)
+                activeAttackCards.add(transferCard)
                 
-                val playable = if (activeAttackCards.isEmpty()) {
-                    hand
+                val prevDefenderId = currentDefenderId
+                val nextDefState = getNextActivePlayer(prevDefenderId)
+                currentAttackerId = prevDefenderId
+                currentDefenderId = nextDefState?.id ?: ""
+                
+                durakText = if (isRu) "🤖 ${def.name} ПЕРЕВЕЛ ход картой $transferCard на ${nextDefState?.name}!"
+                           else "🤖 ${def.name} TRANSFERRED with $transferCard to ${nextDefState?.name}!"
+                viewModel.vibrate(40)
+                botTrigger++
+                return
+            }
+            
+            // Standard Defense against targetAttack
+            val defCandidates = defHand.filter { defCard ->
+                val defSuit = defCard.last().toString()
+                val attSuit = targetAttack.last().toString()
+                val defVal = getCardValue(defCard)
+                val attVal = getCardValue(targetAttack)
+                
+                if (defSuit == attSuit) {
+                    defVal > attVal
                 } else {
-                    val ranksOnTable = (activeAttackCards + activeDefendCards).map { it.dropLast(1) }
-                    hand.filter { it.dropLast(1) in ranksOnTable }
+                    defSuit == trumpSuit && attSuit != trumpSuit
                 }
+            }
+            
+            if (defCandidates.isNotEmpty()) {
+                val defCard = selectCardByDifficulty(defCandidates, difficultyLevel, trumpSuit, isAttack = false)
+                val newDefHand = defHand.toMutableList().apply { remove(defCard) }
+                players[defIdx] = players[defIdx].copy(cards = newDefHand)
+                activeDefendCards.add(defCard)
+                viewModel.vibrate(15)
                 
-                if (playable.isNotEmpty() && activeAttackCards.size < 6) {
-                    // Bot attacks
-                    val card = selectCardByDifficulty(playable, difficultyLevel, trumpSuit, isAttack = true)
-                    val newHand = hand.toMutableList().apply { remove(card) }
-                    players[botIdx] = players[botIdx].copy(cards = newHand)
-                    activeAttackCards.add(card)
-                    viewModel.vibrate(12)
-                    durakText = if (isRu) "${att.name} атакует картой $card!" else "${att.name} plays attack: $card!"
-                    
-                    // Trigger defense
-                    delay(customDelay)
-                    if (def.isHuman) {
-                        durakText = if (isRu) "${att.name} атаковал тебя картой $card! Защищайся козырем, мастью старше или переведи (если есть карта того же ранга)!" 
-                                   else "${att.name} attacked you with $card! Defend, pass/transfer, or take cards."
-                    } else {
-                        // Bot defends against Bot
-                        val defIdx = players.indexOfFirst { it.id == def.id }
-                        val defHand = players[defIdx].cards
-                        
-                        // Rule Check: Can Bot Transfer? (Переводной дурак!)
-                        val ranksOnTable = activeAttackCards.map { it.dropLast(1) }
-                        val transferCandidates = defHand.filter { it.dropLast(1) in ranksOnTable }
-                        val nextDefOfBot = getNextActivePlayer(def.id)
-                        val canBotTransfer = nextDefOfBot != null && nextDefOfBot.cards.size >= (activeAttackCards.size + 1)
-                        
-                        if (activeDefendCards.isEmpty() && transferCandidates.isNotEmpty() && canBotTransfer && Random.nextFloat() < 0.65f) {
-                            val transferCard = selectCardByDifficulty(transferCandidates, difficultyLevel, trumpSuit, isAttack = true)
-                            val newDefHand = defHand.toMutableList().apply { remove(transferCard) }
-                            players[defIdx] = players[defIdx].copy(cards = newDefHand)
-                            activeAttackCards.add(transferCard)
-                            
-                            val prevDefenderId = currentDefenderId
-                            val nextDefState = getNextActivePlayer(prevDefenderId)
-                            currentAttackerId = prevDefenderId
-                            currentDefenderId = nextDefState?.id ?: ""
-                            
-                            durakText = if (isRu) "🤖 ${def.name} ПЕРЕВЕЛ ход картой $transferCard на ${nextDefState?.name}!"
-                                       else "🤖 ${def.name} TRANSFERRED with $transferCard to ${nextDefState?.name}!"
-                            viewModel.vibrate(40)
-                            botTrigger++
-                            return
-                        }
-                        
-                        val defCandidates = defHand.filter { defCard ->
-                            val defSuit = defCard.last().toString()
-                            val attSuit = card.last().toString()
-                            val defVal = getCardValue(defCard)
-                            val attVal = getCardValue(card)
-                            
-                            if (defSuit == attSuit) {
-                                defVal > attVal
-                            } else {
-                                defSuit == trumpSuit && attSuit != trumpSuit
-                            }
-                        }
-                        
-                        if (defCandidates.isNotEmpty()) {
-                            val defCard = selectCardByDifficulty(defCandidates, difficultyLevel, trumpSuit, isAttack = false)
-                            val newDefHand = defHand.toMutableList().apply { remove(defCard) }
-                            players[defIdx] = players[defIdx].copy(cards = newDefHand)
-                            activeDefendCards.add(defCard)
-                            viewModel.vibrate(12)
-                            durakText = if (isRu) "${def.name} защитился картой $defCard!" else "${def.name} defended with $defCard!"
-                            
-                            // Trigger next attack cycle from Bot or Bita
-                            delay(customDelay)
-                            if (playable.size <= 1 || Random.nextFloat() < 0.35f) {
-                                // Bot calls Bita (beaten!)
-                                durakText = if (isRu) "Бита! Игроки добирают карты." else "Beaten! Refilling hands."
-                                activeAttackCards.clear()
-                                activeDefendCards.clear()
-                                refillHands()
-                                if (!checkForEndGame()) {
-                                    // Defender becomes new attacker clockwise
-                                    val defenderState = players.find { it.id == currentDefenderId }
-                                    val nextAttacker = if (defenderState == null || defenderState.isOut) {
-                                        getNextActivePlayer(currentDefenderId)?.id ?: ""
-                                    } else {
-                                        currentDefenderId
-                                    }
-                                    val nextDef = getNextActivePlayer(nextAttacker)
-                                    currentAttackerId = nextAttacker
-                                    currentDefenderId = nextDef?.id ?: ""
-                                    durakText = if (isRu) "Очередь хода переходит к ${players.find { it.id == currentAttackerId }?.name}"
-                                                else "Turn moves to ${players.find { it.id == currentAttackerId }?.name}"
-                                }
-                            } else {
-                                // Bot throws another card!
-                                runBotTurnSimulation()
-                            }
-                        } else {
-                            // Bot can't defend and takes cards
-                            durakText = if (isRu) "${def.name} не может защититься и забирает стол!" else "${def.name} cannot defend and claims the table!"
-                            val finalHand = defHand + activeAttackCards + activeDefendCards
-                            players[defIdx] = players[defIdx].copy(cards = finalHand)
-                            activeAttackCards.clear()
-                            activeDefendCards.clear()
-                            refillHands()
-                            if (!checkForEndGame()) {
-                                // Skip defender's turn to attack, next person clockwise attacks
-                                val nextAttacker = getNextActivePlayer(def.id)
-                                val nextDef = nextAttacker?.let { getNextActivePlayer(it.id) }
-                                currentAttackerId = nextAttacker?.id ?: ""
-                                currentDefenderId = nextDef?.id ?: ""
-                            }
-                        }
-                    }
+                durakText = if (isRu) "${def.name} защитился картой $defCard!" else "${def.name} defended with $defCard!"
+                
+                // If there are still undefended cards left, recursively call defense
+                if (activeAttackCards.size > activeDefendCards.size) {
+                    runBotTurnSimulation()
                 } else {
-                    // No playable card from main attacker. Let other bots try to toss (Подкидывание!)
-                    val otherBots = players.filter { it.id != currentDefenderId && it.id != currentAttackerId && !it.isHuman && !it.isOut }
-                    var otherTossed = false
-                    if (activeAttackCards.isNotEmpty() && activeAttackCards.size < 6) {
-                        for (bot in otherBots) {
-                            val botIdx = players.indexOfFirst { it.id == bot.id }
-                            if (botIdx != -1) {
-                                val botHand = players[botIdx].cards
-                                val ranksOnTable = (activeAttackCards + activeDefendCards).map { it.dropLast(1) }
-                                val botPlayable = botHand.filter { it.dropLast(1) in ranksOnTable }
-                                if (botPlayable.isNotEmpty()) {
-                                    val card = selectCardByDifficulty(botPlayable, difficultyLevel, trumpSuit, isAttack = true)
-                                    val newHand = botHand.toMutableList().apply { remove(card) }
-                                    players[botIdx] = players[botIdx].copy(cards = newHand)
-                                    activeAttackCards.add(card)
-                                    otherTossed = true
-                                    durakText = if (isRu) "🦾 ${bot.name} подкинул карту $card!" else "🦾 ${bot.name} tossed in: $card!"
-                                    viewModel.vibrate(15)
-                                    botTrigger++
-                                    break
-                                }
-                            }
-                        }
-                    }
-                    
-                    if (!otherTossed) {
-                        // Truly no one can toss. Beaten!
-                        durakText = if (isRu) "Бита! Стол пуст." else "Beaten! Table cleared."
-                        activeAttackCards.clear()
-                        activeDefendCards.clear()
-                        refillHands()
-                        if (!checkForEndGame()) {
-                            val defenderState = players.find { it.id == currentDefenderId }
-                            val nextAttacker = if (defenderState == null || defenderState.isOut) {
-                                getNextActivePlayer(currentDefenderId)?.id ?: ""
-                            } else {
-                                currentDefenderId
-                            }
-                            val nextDef = getNextActivePlayer(nextAttacker)
-                            currentAttackerId = nextAttacker
-                            currentDefenderId = nextDef?.id ?: ""
-                        }
-                    }
+                    // All cards are defended! Now wait for attacker's next move.
+                    botTrigger++
                 }
             } else {
-                // Human is the attacker, Bot is defender
-                if (activeAttackCards.isNotEmpty() && activeAttackCards.size > activeDefendCards.size) {
-                    val targetAttack = activeAttackCards.last()
-                    val botIdx = players.indexOfFirst { it.id == def.id }
-                    if (botIdx != -1) {
-                        val hand = players[botIdx].cards
-                        
-                        // Rule Check: Can Bot Transfer elements to next clockwise player?
-                        val ranksOnTable = activeAttackCards.map { it.dropLast(1) }
-                        val transferCandidates = hand.filter { it.dropLast(1) in ranksOnTable }
-                        val nextDefOfBot = getNextActivePlayer(def.id)
-                        val canBotTransfer = nextDefOfBot != null && nextDefOfBot.cards.size >= (activeAttackCards.size + 1)
-                        
-                        if (activeDefendCards.isEmpty() && transferCandidates.isNotEmpty() && canBotTransfer && Random.nextFloat() < 0.65f) {
-                            val transferCard = selectCardByDifficulty(transferCandidates, difficultyLevel, trumpSuit, isAttack = true)
-                            val newDefHand = hand.toMutableList().apply { remove(transferCard) }
-                            players[botIdx] = players[botIdx].copy(cards = newDefHand)
-                            activeAttackCards.add(transferCard)
-                            
-                            val prevDefenderId = currentDefenderId
-                            val nextDefState = getNextActivePlayer(prevDefenderId)
-                            currentAttackerId = prevDefenderId
-                            currentDefenderId = nextDefState?.id ?: ""
-                            
-                            durakText = if (isRu) "🤖 ${def.name} ПЕРЕВЕЛ игру картой $transferCard на ${nextDefState?.name}!"
-                                       else "🤖 ${def.name} TRANSFERRED with $transferCard to ${nextDefState?.name}!"
-                            viewModel.vibrate(40)
-                            botTrigger++
-                            return
-                        }
-                        
-                        val defCandidates = hand.filter { defCard ->
-                            val defSuit = defCard.last().toString()
-                            val attSuit = targetAttack.last().toString()
-                            val defVal = getCardValue(defCard)
-                            val attVal = getCardValue(targetAttack)
-                            
-                            if (defSuit == attSuit) {
-                                defVal > attVal
-                            } else {
-                                defSuit == trumpSuit && attSuit != trumpSuit
+                // Bot cannot defend, must take all cards!
+                durakText = if (isRu) "${def.name} не может защититься и завлекает стол!" else "${def.name} cannot defend and claims the table!"
+                val finalHand = defHand + activeAttackCards + activeDefendCards
+                players[defIdx] = players[defIdx].copy(cards = finalHand)
+                activeAttackCards.clear()
+                activeDefendCards.clear()
+                refillHands()
+                if (!checkForEndGame()) {
+                    // Skip defender's turn to attack, next clockwise active player attacks
+                    val nextAttacker = getNextActivePlayer(def.id)
+                    val nextDef = nextAttacker?.let { getNextActivePlayer(it.id) }
+                    currentAttackerId = nextAttacker?.id ?: ""
+                    currentDefenderId = nextDef?.id ?: ""
+                }
+            }
+            return
+        }
+        
+        // --- UNIFIED ATTACKER AI BLOCK ---
+        if (!att.isHuman) {
+            // CASE: Bot attacks!
+            val botIdx = players.indexOfFirst { it.id == att.id }
+            if (botIdx == -1) return
+            val hand = players[botIdx].cards
+            
+            val playable = if (activeAttackCards.isEmpty()) {
+                hand
+            } else {
+                val ranksOnTable = (activeAttackCards + activeDefendCards).map { it.dropLast(1) }
+                hand.filter { it.dropLast(1) in ranksOnTable }
+            }
+            
+            if (playable.isNotEmpty() && activeAttackCards.size < 6) {
+                // Bot attacks
+                val card = selectCardByDifficulty(playable, difficultyLevel, trumpSuit, isAttack = true)
+                val newHand = hand.toMutableList().apply { remove(card) }
+                players[botIdx] = players[botIdx].copy(cards = newHand)
+                activeAttackCards.add(card)
+                viewModel.vibrate(12)
+                durakText = if (isRu) "${att.name} атакует картой $card!" else "${att.name} plays attack: $card!"
+                
+                if (def.isHuman) {
+                    delay(1200)
+                    durakText = if (isRu) "${att.name} атаковал тебя картой $card! Защищайся козырем, мастью старше или переведи!" 
+                               else "${att.name} attacked you with $card! Defend, pass/transfer, or take cards."
+                } else {
+                    // Bot defends against Bot immediately
+                    runBotTurnSimulation()
+                }
+            } else {
+                // No cards to play or max active attack limit of 6 reached.
+                // Bot attacker calls Bita (beaten!) because all cards are defended and they can't throw more cards.
+                // Let other bots try to toss (Подкидывание) first!
+                val otherBots = players.filter { it.id != currentDefenderId && it.id != currentAttackerId && !it.isHuman && !it.isOut }
+                var otherTossed = false
+                if (activeAttackCards.isNotEmpty() && activeAttackCards.size < 6) {
+                    for (bot in otherBots) {
+                        val botIdx = players.indexOfFirst { it.id == bot.id }
+                        if (botIdx != -1) {
+                            val botHand = players[botIdx].cards
+                            val ranksOnTable = (activeAttackCards + activeDefendCards).map { it.dropLast(1) }
+                            val botPlayable = botHand.filter { it.dropLast(1) in ranksOnTable }
+                            if (botPlayable.isNotEmpty()) {
+                                val card = selectCardByDifficulty(botPlayable, difficultyLevel, trumpSuit, isAttack = true)
+                                val newHand = botHand.toMutableList().apply { remove(card) }
+                                players[botIdx] = players[botIdx].copy(cards = newHand)
+                                activeAttackCards.add(card)
+                                otherTossed = true
+                                durakText = if (isRu) "🦾 ${bot.name} подкинул карту $card!" else "🦾 ${bot.name} tossed in: $card!"
+                                viewModel.vibrate(15)
+                                botTrigger++
+                                break
                             }
                         }
-                        
-                        if (defCandidates.isNotEmpty()) {
-                            // Bot defends
-                            val defCard = selectCardByDifficulty(defCandidates, difficultyLevel, trumpSuit, isAttack = false)
-                            val newDefHand = hand.toMutableList().apply { remove(defCard) }
-                            players[botIdx] = players[botIdx].copy(cards = newDefHand)
-                            activeDefendCards.add(defCard)
-                            viewModel.vibrate(15)
-                            durakText = if (isRu) "${def.name} отбился картой $defCard. Подкинь еще!" 
-                                       else "${def.name} beat with $defCard. Throw more or complete round!"
+                    }
+                }
+                
+                if (!otherTossed) {
+                    // Truly no one can toss. Beaten!
+                    // Wait larger, realistic delay as requested to give human player time to toss!
+                    val bitaDelay = if (players.any { it.isHuman && !it.isOut }) 4500L else 1200L
+                    durakText = if (isRu) "Все походили. Карты уходят в биту через момент..." else "All played. Discarding table..."
+                    delay(bitaDelay)
+                    
+                    durakText = if (isRu) "Бита! Игроки добирают карты." else "Beaten! Refilling hands."
+                    activeAttackCards.clear()
+                    activeDefendCards.clear()
+                    refillHands()
+                    if (!checkForEndGame()) {
+                        // Defender becomes new attacker clockwise
+                        val defenderState = players.find { it.id == currentDefenderId }
+                        val nextAttacker = if (defenderState == null || defenderState.isOut) {
+                            getNextActivePlayer(currentDefenderId)?.id ?: ""
                         } else {
-                            // Bot takes
-                            durakText = if (isRu) "${def.name} берет карты со стола!" else "${def.name} can't beat and takes cards!"
-                            val finalHand = hand + activeAttackCards + activeDefendCards
-                            players[botIdx] = players[botIdx].copy(cards = finalHand)
-                            activeAttackCards.clear()
-                            activeDefendCards.clear()
-                            refillHands()
-                            if (!checkForEndGame()) {
-                                // Skip defender turn, next clockwise attacks
-                                val nextAttacker = getNextActivePlayer(def.id)
-                                val nextDef = nextAttacker?.let { getNextActivePlayer(it.id) }
-                                currentAttackerId = nextAttacker?.id ?: ""
-                                currentDefenderId = nextDef?.id ?: ""
-                            }
+                            currentDefenderId
                         }
+                        val nextDef = getNextActivePlayer(nextAttacker)
+                        currentAttackerId = nextAttacker
+                        currentDefenderId = nextDef?.id ?: ""
+                        durakText = if (isRu) "Очередь хода переходит к ${players.find { it.id == currentAttackerId }?.name}"
+                                    else "Turn moves to ${players.find { it.id == currentAttackerId }?.name}"
                     }
                 }
             }
         }
+    }
     
     // Trigger automated simulations if active player/defender roles are bot-governed
     LaunchedEffect(currentAttackerId, currentDefenderId, botTrigger, inDurak) {
@@ -560,8 +494,8 @@ fun DurakGameComponent(
                 if (!att.isHuman && activeAttackCards.size == activeDefendCards.size) {
                     runBotTurnSimulation()
                 }
-                // If human player attacked, and bot has to defend
-                if (att.isHuman && activeAttackCards.size > activeDefendCards.size) {
+                // If defender is a bot and there are undefended cards on the table
+                if (!def.isHuman && activeAttackCards.size > activeDefendCards.size) {
                     runBotTurnSimulation()
                 }
             }
@@ -1317,7 +1251,7 @@ fun DurakGameComponent(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(bottom = 35.dp, top = 8.dp, start = 8.dp, end = 8.dp),
+                        .padding(bottom = 75.dp, top = 8.dp, start = 8.dp, end = 8.dp),
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     val amIAttacker = currentAttackerId == "player"
