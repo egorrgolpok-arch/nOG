@@ -162,7 +162,7 @@ class MainActivity : ComponentActivity() {
                     val launcher = rememberLauncherForActivityResult(
                         ActivityResultContracts.RequestMultiplePermissions()
                     ) { permissions ->
-                        // Handle result
+                        viewModel.loadDeviceData()
                     }
                     
                     LaunchedEffect(Unit) {

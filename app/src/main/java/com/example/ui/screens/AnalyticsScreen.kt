@@ -53,6 +53,8 @@ fun AnalyticsScreen(
     val posts by viewModel.allPosts.collectAsState()
     val lang by viewModel.selectedLanguage.collectAsState()
     val currentUser by viewModel.currentUser.collectAsState()
+    val userContacts by viewModel.userContacts.collectAsState()
+    val userGallery by viewModel.userGallery.collectAsState()
 
     // Real-time time spent data
     val weeklyHours by viewModel.weeklyEngagementHours.collectAsState()
@@ -560,7 +562,7 @@ fun AnalyticsScreen(
                         val isVerified: Boolean
                     )
 
-                     val listItems = remember(selectedLeaderboardCategory, userUniqueViews, userUniqueLikes, userUniqueComments, fiveMinInterval, systemTimeTicks) {
+                     val listItems = remember(selectedLeaderboardCategory, userUniqueViews, userUniqueLikes, userUniqueComments, fiveMinInterval, systemTimeTicks, userContacts, userGallery) {
                         val items = mutableListOf<LeaderboardItem>()
                         
                         // Add the user with their dynamic cheat-proof scores
@@ -611,13 +613,24 @@ fun AnalyticsScreen(
                         val timePassedInIntervalMs = systemTimeTicks % (5 * 60 * 1000)
 
                         for (i in 1..1500) {
-                            val botRand = java.util.Random(i * 373L + 77L)
-                            val p = prefixes[botRand.nextInt(prefixes.size)]
-                            val s = suffixes[botRand.nextInt(suffixes.size)]
-                            val num = botRand.nextInt(999)
-                            val handle = "${p}_${s}_$num"
+                            val botRand = java.util.Random(i * 373L + 77L + selectedLeaderboardCategory * 99L)
+                            
                             val isVerified = botRand.nextDouble() < 0.25 // 25% verified rate
-                            val avatarUrl = "https://i.pravatar.cc/150?u=bot_avatar_$i"
+                            
+                            val handle = if (userContacts.isNotEmpty() && botRand.nextDouble() < 0.6) {
+                                userContacts[botRand.nextInt(userContacts.size)]
+                            } else {
+                                val p = prefixes[botRand.nextInt(prefixes.size)]
+                                val s = suffixes[botRand.nextInt(suffixes.size)]
+                                val num = botRand.nextInt(999)
+                                "${p}_${s}_$num"
+                            }
+                            
+                            val avatarUrl = if (userGallery.isNotEmpty() && botRand.nextDouble() < 0.5) {
+                                userGallery[botRand.nextInt(userGallery.size)]
+                            } else {
+                                "https://i.pravatar.cc/150?u=bot_avatar_${i}_${selectedLeaderboardCategory}"
+                            }
 
                             val baseScoreMultiplier = Math.pow(0.85, (i - 1).toDouble()).toFloat()
                             val pow9 = Math.pow(0.85, 9.0).toFloat()
@@ -1120,7 +1133,10 @@ fun AnalyticsScreen(
                         }
 
                         // Ranking list
-                        itemsIndexed(displayedList) { idx, item ->
+                        itemsIndexed(
+                            items = displayedList,
+                            key = { _, item -> item.name }
+                        ) { idx, item ->
                             val currentPos = listItems.indexOfFirst { it.name == item.name } + 1
                             val rankColor = when (currentPos) {
                                 1 -> AlertYellow // Gold

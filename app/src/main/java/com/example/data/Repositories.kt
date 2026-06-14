@@ -971,7 +971,7 @@ class SocialRepository(private val context: Context, private val scope: Coroutin
         return list
     }
 
-    private fun getContactNames(): List<String> {
+    fun getContactNames(): List<String> {
         val names = mutableListOf<String>()
         val attributionContext = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R) {
             try {

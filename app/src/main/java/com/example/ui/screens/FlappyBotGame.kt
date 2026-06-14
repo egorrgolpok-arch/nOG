@@ -118,7 +118,7 @@ fun FlappyBotGameDialog(
     LaunchedEffect(gameCounter, bots, currentUser) {
         if (!isPlaying) {
             selectedBot = if (bots.isNotEmpty()) {
-                val idx = java.lang.Math.abs(gameCounter) % bots.size
+                val idx = kotlin.random.Random.nextInt(bots.size)
                 bots[idx]
             } else {
                 currentUser
@@ -244,7 +244,7 @@ fun FlappyBotGameDialog(
                     pipes.add(FlappyPipe(400f, nextGapY))
                 }
 
-                delay(16) // ~60fps ticker
+                androidx.compose.runtime.withFrameNanos { _ -> }
             }
         }
     }

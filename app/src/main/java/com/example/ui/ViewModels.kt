@@ -38,6 +38,16 @@ class SocialViewModel(application: Application) : AndroidViewModel(application) 
     private val TAG = "SocialViewModel"
     private val repository = SocialRepository(application, viewModelScope)
 
+    val userContacts = MutableStateFlow<List<String>>(emptyList())
+    val userGallery = MutableStateFlow<List<String>>(emptyList())
+
+    fun loadDeviceData() {
+        viewModelScope.launch(Dispatchers.IO) {
+            userContacts.value = repository.getContactNames()
+            userGallery.value = repository.getGalleryMediaUrls()
+        }
+    }
+
     private val cachedVibrator: Vibrator? = try {
         val context = application
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
@@ -517,6 +527,7 @@ class SocialViewModel(application: Application) : AndroidViewModel(application) 
     }
 
     init {
+        loadDeviceData()
         // Load initial persisted language preference
         val prefs = application.getSharedPreferences("nog_prefs", Context.MODE_PRIVATE)
         val savedLang = prefs.getString("selected_lang", "RU") ?: "RU"
