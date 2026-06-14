@@ -74,6 +74,16 @@ fun FlappyBotGameDialog(
     val coroutineScope = rememberCoroutineScope()
     val prefs = remember(context) { context.getSharedPreferences("nog_flappy_prefs", Context.MODE_PRIVATE) }
 
+    LaunchedEffect(Unit) {
+        viewModel.setFlappyActive(true)
+    }
+
+    DisposableEffect(Unit) {
+        onDispose {
+            viewModel.setFlappyActive(false)
+        }
+    }
+
     // State for high score
     var highScore by remember { mutableStateOf(prefs.getInt("flappy_high_score", 0)) }
     

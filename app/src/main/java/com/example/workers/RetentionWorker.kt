@@ -117,7 +117,12 @@ class RetentionWorker(context: Context, params: WorkerParameters) : CoroutineWor
                         "СЛУШАЙ СЮДА: Дилер в казино говорит, что ты боишься сыграть по-крупному. Докажи ему обратное! 🎰😤",
                         "Твой Тамагочи эволюционировал в программиста и теперь пишет багрепорты на твою жизнь. Зайди проверь! 💻🦎",
                         "Очередное напоминание: Мир полон скуки, а у нас тут есть виртуальные лошади и космический дурак! 🌌🐎",
-                        "Твой терминальный буфер переполнен несыгранными раундами. Очисти стек активности! 💾🎮"
+                        "Твой терминальный буфер переполнен несыгранными раундами. Очисти стек активности! 💾🎮",
+                        "Пока тебя нет, Скуф совершил набег на твою крипту и купил мешок пельменей! 🥟💰",
+                        "Внимание! Зафиксировано критическое падение мемов в синапсах! Спешно вернись в ленту nOG! 🧠💻",
+                        "Твой питомец только что подрался с ИИ-пылесосом и победил. Приди обнять героя! 🐕⚡",
+                        "Казино увеличило шансы в слотах на 0.00001%! Твой шанс стать крипто-бароном близок как никогда! 🎰🤑",
+                        "Твоя активность на абсолютном нуле. Поздравляем, ты официально сертифицирован как HTML-программист! 🤡🔨"
                     ).random()
                 } else {
                     listOf(
@@ -130,7 +135,12 @@ class RetentionWorker(context: Context, params: WorkerParameters) : CoroutineWor
                         "ATTENTION OPERATOR: The dealer claims you don't have the nerve to play on high stakes. Go prove them wrong! 🎰😤",
                         "Your pet upgraded its core compiler and is currently refactoring your highscore logs. Stop it! 💻🦎",
                         "Crucial status update: The outer world is plain, while we have neural horse racing and cosmic card strategy! 🌌🐎",
-                        "Node terminal buffer is saturated with unplayed rounds. Empty your execution stack! 💾🎮"
+                        "Node terminal buffer is saturated with unplayed rounds. Empty your execution stack! 💾🎮",
+                        "While you are away, a local Skuf raided your crypto stash to buy a bucket of dumplings! 🥟💰",
+                        "Warning! Critical drop in neural meme density detected in your lobe! Sync back to nOG feed! 🧠💻",
+                        "Your code-pet engaged in physical combat with an AI vacuum cleaner and won. Come praise the hero! 🐕⚡",
+                        "The casino increased slot machine payouts by 0.00001%! Your fortune is finally pre-compiled! 🎰🤑",
+                        "Telemetry reports your activity index is flat. Congratulations, you are now a certified HTML coder! 🤡🔨"
                     ).random()
                 }
             }

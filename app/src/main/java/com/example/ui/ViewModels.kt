@@ -462,6 +462,13 @@ class SocialViewModel(application: Application) : AndroidViewModel(application) 
     private val _isSimulating = MutableStateFlow(true)
     val isSimulating: StateFlow<Boolean> = _isSimulating.asStateFlow()
 
+    private val _isFlappyActive = MutableStateFlow(false)
+    val isFlappyActive: StateFlow<Boolean> = _isFlappyActive.asStateFlow()
+
+    fun setFlappyActive(active: Boolean) {
+        _isFlappyActive.value = active
+    }
+
     init {
         // Load initial persisted language preference
         val prefs = application.getSharedPreferences("nog_prefs", Context.MODE_PRIVATE)
@@ -595,7 +602,7 @@ class SocialViewModel(application: Application) : AndroidViewModel(application) 
                 // Continuous check for all active cooldowns
                 com.example.workers.CooldownNotifier.checkAndNotifyAllCooldowns(context)
 
-                if (_isSimulating.value) {
+                if (_isSimulating.value && !_isFlappyActive.value) {
                     try {
                         repository.performSimulationTick()
                     } catch (e: Exception) {
@@ -618,7 +625,7 @@ class SocialViewModel(application: Application) : AndroidViewModel(application) 
                 // Slower tick in low-end device mode to prevent excessive SQLite state updates
                 val tickDelay = if (_isLowEndDeviceMode.value) 12000L else 1500L
                 delay(tickDelay) 
-                if (_isSimulating.value) {
+                if (_isSimulating.value && !_isFlappyActive.value) {
                     try {
                         val posts = allRawPosts.value
                         val bots = allUsers.value.filter { it.isAi }

@@ -1659,18 +1659,19 @@ object CaseGenerator {
         "Пиксельный", "Токсичный", "Желейный", "Полупроводниковый", "Пьяный", "Анонимный",
         "Майнерский", "Урановый", "Сумасшедший", "Коммунистический", "Капиталистический", "Силиконовый",
         "Паленый", "Оверклокнутый", "Синтетический", "Глючный", "Мемный", "Гипертрофированный",
-        "Картонный", "Адский", "Золотой", "Космический", "Тайный", "Школьный", "Дворовый"
+        "Картонный", "Адский", "Золотой", "Космический", "Тайный", "Школьный", "Дворовый",
+        "Скуфоидный", "Альтушечный", "Гигачадовский", "Рофлановый", "Пепешный", "Омежный", "Скамный"
     )
     private val nounCaseRu = listOf(
         "Кулер", "Резистор", "Аватар", "Конденсатор", "Тред", "Сервер", "Кабель", "Абузер",
         "Блокчейн", "Модератор", "Чипсет", "Интеграл", "Носок", "Верификатор", "Корпус",
         "Баг", "Код", "Скриншот", "Провод", "Ноут", "Шланг", "Анлим", "Гигачад", "Шитпост",
-        "Компот", "Сигма", "Думер", "Скуф", "Пельмень", "Кефир", "Сухарик"
+        "Компот", "Сигма", "Думер", "Скуф", "Пельмень", "Кефир", "Сухарик", "Хомяк", "Инфоцыган"
     )
     private val suffixCaseRu = listOf(
         "в масле", "от Габена", "в депрессии", "из DNS", "под пивом", "с подсветкой", "из 2007",
         "без регистрации", "3.0", "Pro Max", "на коленке", "киберпанк", "для нищих", "для олигархов",
-        "из подвала", "от Дурова", "в кредит", "с алика", "на читах", "за 16 копеек"
+        "из подвала", "от Дурова", "в кредит", "с алика", "на читах", "за 16 копеек", "с завода", "из Чижика"
     )
 
     private val adjCaseEn = listOf(
@@ -1678,18 +1679,19 @@ object CaseGenerator {
         "Pixelated", "Toxic", "Jelly", "Semiconductor", "Drunk", "Anonymous",
         "Mining", "Uranium", "Crazy", "Communist", "Capitalist", "Silicon",
         "Counterfeit", "Overclocked", "Synthetic", "Glitchy", "Meme", "Overblown",
-        "Cardboard", "Infernal", "Golden", "Cosmic", "Secret", "School", "Yard"
+        "Cardboard", "Infernal", "Golden", "Cosmic", "Secret", "School", "Yard",
+        "Skufoid", "Altushny", "Gigachadded", "Roflan", "Pepegish", "Omegish", "Scammy"
     )
     private val nounCaseEn = listOf(
         "Cooler", "Resistor", "Avatar", "Capacitor", "Thread", "Server", "Cable", "Abuser",
         "Blockchain", "Moderator", "Chipset", "Integral", "Sock", "Validator", "Case",
         "Bug", "Code", "Screenshot", "Wire", "Laptop", "Hose", "Unlim", "Gigachad", "Shitpost",
-        "Compote", "Sigma", "Doomer", "Skuf", "Dumpling", "Kefir", "Rusk"
+        "Compote", "Sigma", "Doomer", "Skuf", "Dumpling", "Kefir", "Rusk", "Hamster", "Infogypsy"
     )
     private val suffixCaseEn = listOf(
         "in oil", "by Gabe", "in depression", "from DNS", "under beer", "with RGB", "since 2007",
         "without signup", "3.0", "Pro Max", "on knee", "cyberpunk", "for beggars", "for oligarchs",
-        "from basement", "by Durov", "on credit", "from Aliexpress", "on cheats", "for 16 cents"
+        "from basement", "by Durov", "on credit", "from Aliexpress", "on cheats", "for 16 cents", "from factory", "from Chizhik"
     )
 
     private val descTemplatesRu = listOf(
@@ -1708,9 +1710,21 @@ object CaseGenerator {
     )
 
     fun generateCases(lang: String): List<CaseType> {
-        val basePrices = listOf(16000, 24000, 32000, 42000, 56000, 75000, 95000, 120000, 150000, 180000)
-        val minRarities = listOf("ОБЫЧНАЯ", "ОБЫЧНАЯ", "РЕДКАЯ", "РЕДКАЯ", "АХУЕННАЯ", "АХУЕННАЯ", "НЕВЕБЕЙШАЯ", "НЕВЕБЕЙШАЯ", "НЕВЕБЕЙШАЯ", "НЕВЕБЕЙШАЯ")
-        val premiumChances = listOf(0.01f, 0.03f, 0.05f, 0.08f, 0.12f, 0.18f, 0.24f, 0.32f, 0.40f, 0.50f)
+        val basePrices = listOf(
+            16000, 24000, 32000, 42000, 56000, 
+            75000, 95000, 120000, 150000, 180000,
+            240000, 320000, 450000, 600000, 999999
+        )
+        val minRarities = listOf(
+            "ОБЫЧНАЯ", "ОБЫЧНАЯ", "РЕДКАЯ", "РЕДКАЯ", "АХУЕННАЯ", 
+            "АХУЕННАЯ", "НЕВЕБЕЙШАЯ", "НЕВЕБЕЙШАЯ", "НЕВЕБЕЙШАЯ", "НЕВЕБЕЙШАЯ",
+            "НЕВЕБЕЙШАЯ", "ЭКСКЛЮЗИВНАЯ", "ЭКСКЛЮЗИВНАЯ", "ЭКСКЛЮЗИВНАЯ", "ЭКСКЛЮЗИВНАЯ"
+        )
+        val premiumChances = listOf(
+            0.01f, 0.03f, 0.05f, 0.08f, 0.12f, 
+            0.18f, 0.24f, 0.32f, 0.40f, 0.50f,
+            0.55f, 0.60f, 0.65f, 0.75f, 0.90f
+        )
         
         val gradients = listOf(
             listOf(Color(0xFF0F2027), Color(0xFF203A43), Color(0xFF2C5364)), // dark steel
@@ -1722,12 +1736,17 @@ object CaseGenerator {
             listOf(Color(0xFF7F00FF), Color(0xFFFF007F)), // neon purple
             listOf(Color(0xFFF9D423), Color(0xFFFF4E50)), // magma
             listOf(Color(0xFF4CA1AF), Color(0xFF2C3E50)), // ocean depth
-            listOf(Color(0xFF1D976C), Color(0xFF93F9B9))  // minty fresh
+            listOf(Color(0xFF1D976C), Color(0xFF93F9B9)), // minty fresh
+            listOf(Color(0xFF3A6073), Color(0xFF3A6073)), // slate
+            listOf(Color(0xFFEF32D9), Color(0xFF89FFFD)), // rainbow
+            listOf(Color(0xFF0511F2), Color(0xFF3D58F2), Color(0xFF010D26)), // deep velvet
+            listOf(Color(0xFFBF953F), Color(0xFFFCF6BA), Color(0xFFB38728)), // gold bar
+            listOf(Color(0xFF1A1A1A), Color(0xFF333333), Color(0xFF111111))  // pure black
         )
 
-        val emojis = listOf("📦", "🎰", "🔥", "☢️", "💎", "🔫", "💀", "👑", "🍕", "🛸")
+        val emojis = listOf("📦", "🎰", "🔥", "☢️", "💎", "🔫", "💀", "👑", "🍕", "🛸", "🐹", "🐎", "🦉", "🤡", "🦧")
 
-        return List(10) { i ->
+        return List(15) { i ->
             val rand = Random((i + 5).toLong() * 8813)
             val adjRu = adjCaseRu[rand.nextInt(adjCaseRu.size)]
             val nounRu = nounCaseRu[rand.nextInt(nounCaseRu.size)]
