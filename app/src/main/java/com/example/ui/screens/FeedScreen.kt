@@ -708,7 +708,8 @@ fun PostItem(
             .background(PureBlack)
             .combinedClickable(
                 onClick = onCommentClick,
-                onLongClick = onArchiveToggle
+                onLongClick = onArchiveToggle,
+                onDoubleClick = { onLikeClick() }
             ),
         shape = RoundedCornerShape(0.dp),
         colors = CardDefaults.cardColors(containerColor = PureBlack)
@@ -855,10 +856,12 @@ fun PostItem(
                 }
             }
 
-            LinkifyText(
-                text = displayText,
-                modifier = Modifier.fillMaxWidth()
-            )
+            androidx.compose.foundation.text.selection.SelectionContainer {
+                LinkifyText(
+                    text = displayText,
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
 
             if (canExpand) {
                 Spacer(modifier = Modifier.height(4.dp))
@@ -1124,6 +1127,27 @@ fun PostItem(
                         color = TextGray,
                         fontSize = 12.sp,
                         fontFamily = FontFamily.Monospace
+                    )
+                }
+
+                // Share Action
+                val shareContext = androidx.compose.ui.platform.LocalContext.current
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier
+                        .clickable { 
+                            val clipboardManager = shareContext.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
+                            val clipData = android.content.ClipData.newPlainText("post_content", "${post.content}\n\nПост от ${author?.username ?: "Unknown"} @${author?.handle ?: "handle"}")
+                            clipboardManager.setPrimaryClip(clipData)
+                            android.widget.Toast.makeText(shareContext, if(lang == "RU") "Скопировано!" else "Post copied!", android.widget.Toast.LENGTH_SHORT).show()
+                        }
+                        .padding(4.dp)
+                ) {
+                    Icon(
+                        Icons.Outlined.Share,
+                        contentDescription = if (lang == "RU") "Поделиться" else "Share",
+                        tint = TextGray,
+                        modifier = Modifier.size(18.dp)
                     )
                 }
 

@@ -194,7 +194,10 @@ class MainActivity : ComponentActivity() {
                             // Feed Item
                             NavigationBarItem(
                                 selected = currentScreen is Screen.Feed,
-                                onClick = { viewModel.navigateTo(Screen.Feed) },
+                                onClick = { 
+                                    viewModel.vibrate(20)
+                                    viewModel.navigateTo(Screen.Feed) 
+                                },
                                 icon = {
                                     Icon(
                                         imageVector = if (currentScreen is Screen.Feed) Icons.Filled.RssFeed else Icons.Outlined.RssFeed,
@@ -222,7 +225,10 @@ class MainActivity : ComponentActivity() {
                             val unreadCommunityCount by viewModel.unreadCommunityPostsCount.collectAsState()
                             NavigationBarItem(
                                 selected = currentScreen is Screen.Community,
-                                onClick = { viewModel.navigateTo(Screen.Community) },
+                                onClick = { 
+                                    viewModel.vibrate(20)
+                                    viewModel.navigateTo(Screen.Community) 
+                                },
                                 icon = {
                                     BadgedBox(
                                         badge = {
@@ -302,7 +308,10 @@ class MainActivity : ComponentActivity() {
                             // Analytics Stats Item
                             NavigationBarItem(
                                 selected = currentScreen is Screen.Analytics,
-                                onClick = { viewModel.navigateTo(Screen.Analytics) },
+                                onClick = { 
+                                    viewModel.vibrate(20)
+                                    viewModel.navigateTo(Screen.Analytics) 
+                                },
                                 icon = {
                                     Icon(
                                         imageVector = if (currentScreen is Screen.Analytics) Icons.Filled.Analytics else Icons.Outlined.Analytics,
@@ -331,7 +340,10 @@ class MainActivity : ComponentActivity() {
                             // Profile Customizer Settings
                             NavigationBarItem(
                                 selected = currentScreen is Screen.Profile,
-                                onClick = { viewModel.navigateTo(Screen.Profile) },
+                                onClick = { 
+                                    viewModel.vibrate(20)
+                                    viewModel.navigateTo(Screen.Profile) 
+                                },
                                 icon = {
                                     com.example.ui.screens.AvatarWithDecoration(
                                         avatarUrl = currentUser?.avatarUrl,

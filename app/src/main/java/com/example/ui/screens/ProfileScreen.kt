@@ -1,5 +1,6 @@
 package com.example.ui.screens
 
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -153,6 +154,15 @@ fun ProfileScreen(
                 
                 // 1. Core Profile Details & Visual Form
                 item {
+                    val ctx = androidx.compose.ui.platform.LocalContext.current
+                    val h = java.util.Calendar.getInstance().get(java.util.Calendar.HOUR_OF_DAY)
+                    val greeting = when (h) {
+                        in 5..11 -> if (lang == "RU") "ДОБРОЕ УТРО ☀️" else "GOOD MORNING ☀️"
+                        in 12..16 -> if (lang == "RU") "ДОБРЫЙ ДЕНЬ 🌤️" else "GOOD AFTERNOON 🌤️"
+                        in 17..21 -> if (lang == "RU") "ДОБРЫЙ ВЕЧЕР 🌙" else "GOOD EVENING 🌙"
+                        else -> if (lang == "RU") "ДОБРОЙ НОЧИ 🌌" else "GOOD NIGHT 🌌"
+                    }
+                    
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -160,6 +170,14 @@ fun ProfileScreen(
                             .border(1.dp, BorderGray, RoundedCornerShape(4.dp))
                             .padding(16.dp)
                     ) {
+                        Text(
+                            text = greeting,
+                            color = AlertGreen,
+                            fontSize = 10.sp,
+                            fontFamily = FontFamily.Monospace,
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier.padding(bottom = 12.dp)
+                        )
                         Row(
                             verticalAlignment = Alignment.CenterVertically
                         ) {
@@ -192,7 +210,13 @@ fun ProfileScreen(
                                     text = userProfile?.handle ?: "@handle",
                                     color = TextGray,
                                     fontSize = 13.sp,
-                                    fontFamily = FontFamily.Monospace
+                                    fontFamily = FontFamily.Monospace,
+                                    modifier = Modifier.clickable {
+                                        val clipboardManager = ctx.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
+                                        val clipData = android.content.ClipData.newPlainText("user_handle", userProfile?.handle ?: "@handle")
+                                        clipboardManager.setPrimaryClip(clipData)
+                                        android.widget.Toast.makeText(ctx, if(lang == "RU") "Скопировано!" else "Handle copied!", android.widget.Toast.LENGTH_SHORT).show()
+                                    }
                                 )
                                 
                                 Spacer(modifier = Modifier.height(4.dp))

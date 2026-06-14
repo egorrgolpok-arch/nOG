@@ -288,6 +288,27 @@ class SocialViewModel(application: Application) : AndroidViewModel(application) 
         prefs.edit().putInt("user_coins2", newAmount).apply()
     }
 
+    fun resetLeaderboardCategory(category: Int) {
+        viewModelScope.launch {
+            val context = getApplication<Application>()
+            val prefs = context.getSharedPreferences("nog_prefs", Context.MODE_PRIVATE)
+            when (category) {
+                0 -> { // Views
+                    prefs.edit().putString("viewed_post_ids_set", "").putInt("feed_views", 0).apply()
+                    _uniqueViewsCount.value = 0
+                    _feedViews.value = 0
+                }
+                1 -> { // Likes
+                    prefs.edit().putStringSet("liked_posts", emptySet()).apply()
+                    _likedPostIds.value = emptySet()
+                }
+                2 -> { // Comments
+                    repository.clearCommentsByAuthor("user")
+                }
+            }
+        }
+    }
+
     fun getDecorationExpiry(id: Int): Long {
         val prefs = getApplication<Application>().getSharedPreferences("nog_prefs", Context.MODE_PRIVATE)
         return prefs.getLong("user_decoration_expires_id_$id", 0L)
@@ -500,6 +521,52 @@ class SocialViewModel(application: Application) : AndroidViewModel(application) 
         val prefs = application.getSharedPreferences("nog_prefs", Context.MODE_PRIVATE)
         val savedLang = prefs.getString("selected_lang", "RU") ?: "RU"
         _selectedLanguage.value = savedLang
+
+        // --- WEEKLY TOURNAMENT / MONDAY RESET LOGIC ---
+        val calendar = java.util.Calendar.getInstance()
+        val currentWeekOfYear = calendar.get(java.util.Calendar.WEEK_OF_YEAR)
+        val currentYear = calendar.get(java.util.Calendar.YEAR)
+        val lastResetWeek = prefs.getInt("last_monday_reset_week", -1)
+        val lastResetYear = prefs.getInt("last_monday_reset_year", -1)
+        val isMonday = calendar.get(java.util.Calendar.DAY_OF_WEEK) == java.util.Calendar.MONDAY
+
+        if ((isMonday || currentWeekOfYear != lastResetWeek || currentYear != lastResetYear) && (lastResetWeek != -1)) {
+            if (isMonday && (lastResetWeek != currentWeekOfYear || lastResetYear != currentYear)) {
+                // Reset Views
+                prefs.edit().putString("viewed_post_ids_set", "").putInt("feed_views", 0).apply()
+                _uniqueViewsCount.value = 0
+                _feedViews.value = 0
+
+                // Reset Likes
+                prefs.edit().putStringSet("liked_posts", emptySet()).apply()
+                _likedPostIds.value = emptySet()
+
+                // Reset Comments
+                viewModelScope.launch {
+                    repository.clearCommentsByAuthor("user")
+                }
+
+                // Record reset
+                prefs.edit()
+                    .putInt("last_monday_reset_week", currentWeekOfYear)
+                    .putInt("last_monday_reset_year", currentYear)
+                    .apply()
+
+                viewModelScope.launch {
+                    repository.insertNotification(
+                        title = if (savedLang == "RU") "Новый турнир начался! 🏆" else "New Tournament Started! 🏆",
+                        message = if (savedLang == "RU") "Понедельник наступил! Все ваши турнирные очки (просмотры, лайки, ответы) сброшены. Время покорять топ заново!" else "Monday is here! All your tournament points (views, likes, comments) have been reset. Time to conquer the top again!",
+                        type = "SYSTEM"
+                    )
+                }
+            }
+        }
+        if (lastResetWeek == -1) {
+            prefs.edit()
+                .putInt("last_monday_reset_week", currentWeekOfYear)
+                .putInt("last_monday_reset_year", currentYear)
+                .apply()
+        }
 
         // Calculate consecutive day login streak
         val lastStreakDate = prefs.getString("last_streak_date", "") ?: ""

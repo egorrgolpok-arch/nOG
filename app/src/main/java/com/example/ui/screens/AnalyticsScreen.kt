@@ -584,6 +584,26 @@ fun AnalyticsScreen(
                         val prefixes = listOf("alpha", "delta", "cyber", "quantum", "neon", "zero", "matrix", "synth", "pixel", "byte", "omega", "sigma", "meta", "turbo", "giga", "kilo", "micro", "nano", "orbital", "stellar", "apex", "flux", "helix", "void", "shadow", "cybernetic", "kinetic", "quantum_leap", "neural", "synapse")
                         val suffixes = listOf("node", "coder", "bot", "hacker", "core", "mind", "pulse", "grid", "matrix", "shell", "processor", "syndicate", "flow", "daemon", "link", "agent", "vertex", "vector", "net", "mesh", "wave", "vortex", "cascade", "signal", "anchor", "spark", "forge", "beacon", "echo", "nexus")
 
+                        val calendar = java.util.Calendar.getInstance()
+                        val weekOfYear = calendar.get(java.util.Calendar.WEEK_OF_YEAR)
+                        val year = calendar.get(java.util.Calendar.YEAR)
+                        val weeklySeed = year * 100L + weekOfYear
+                        val weeklyRandom = java.util.Random(weeklySeed)
+                        
+                        // Minimums specified in the requirements: 10000 for views, 5000 for likes, 2000 for comments
+                        val maxViews = 10000 + weeklyRandom.nextInt(5000)
+                        val maxLikes = 5000 + weeklyRandom.nextInt(3000)
+                        val maxComments = 2000 + weeklyRandom.nextInt(1500)
+
+                        // Calculate how much of the week has passed to simulate bot progress overriding each other over time
+                        val dayOfWeek = calendar.get(java.util.Calendar.DAY_OF_WEEK)
+                        val normalizedDay = if (dayOfWeek == java.util.Calendar.SUNDAY) 6 else dayOfWeek - 2
+                        val hour = calendar.get(java.util.Calendar.HOUR_OF_DAY)
+                        val minute = calendar.get(java.util.Calendar.MINUTE)
+                        val elapsedMinutes = normalizedDay * 24 * 60 + hour * 60 + minute
+                        val totalMinutes = 7 * 24 * 60
+                        val weekProgress = elapsedMinutes.toDouble() / totalMinutes.coerceAtLeast(1).toDouble()
+
                         // Stable random generator for this 5-minute interval and selected category
                         val intervalSeed = fiveMinInterval * 12345L + selectedLeaderboardCategory * 987L
                         val randomGen = java.util.Random(intervalSeed)
@@ -599,78 +619,49 @@ fun AnalyticsScreen(
                             val isVerified = botRand.nextDouble() < 0.25 // 25% verified rate
                             val avatarUrl = "https://i.pravatar.cc/150?u=bot_avatar_$i"
 
+                            val baseScoreMultiplier = Math.pow(0.85, (i - 1).toDouble()).toFloat()
+                            val pow9 = Math.pow(0.85, 9.0).toFloat()
+                            
+                            // Each bot has a curved growth pattern (fast starter vs slow starter)
+                            val power = 0.5 + botRand.nextDouble() * 2.0
+                            val botProgress = Math.pow(weekProgress, power).coerceIn(0.0, 1.0)
+
                             val score = when (selectedLeaderboardCategory) {
                                 0 -> { // Views
-                                    val base = if (i <= 10) {
-                                        when (i) {
-                                            1 -> 150
-                                            2 -> 132
-                                            3 -> 118
-                                            4 -> 105
-                                            5 -> 95
-                                            6 -> 86
-                                            7 -> 78
-                                            8 -> 71
-                                            9 -> 65
-                                            else -> 60
-                                        }
-                                    } else if (i <= 100) {
-                                        60 - ((i - 10) * 0.5f).toInt() // ranges from 60 down to 15
+                                    val targetScore = if (i <= 10) {
+                                        (maxViews * baseScoreMultiplier).toInt()
                                     } else {
-                                        (15 - ((i - 100) * 0.015f).toInt()).coerceAtLeast(0) // ranges from 15 down to 0
+                                        val rem = maxViews * pow9
+                                        (rem - ((i - 10) * (rem / 1490f))).toInt().coerceAtLeast(0)
                                     }
                                     
-                                    val liveGrind = (timePassedInIntervalMs / 60000).toInt() * randomGen.nextInt(3)
-                                    val variance = randomGen.nextInt(8)
-                                    base + variance + liveGrind
+                                    val liveGrind = (timePassedInIntervalMs / 60000).toInt() * randomGen.nextInt(10)
+                                    val variance = randomGen.nextInt(50)
+                                    (targetScore * botProgress).toInt() + variance + liveGrind
                                 }
                                 1 -> { // Likes
-                                    val base = if (i <= 10) {
-                                        when (i) {
-                                            1 -> 65
-                                            2 -> 54
-                                            3 -> 46
-                                            4 -> 39
-                                            5 -> 33
-                                            6 -> 28
-                                            7 -> 24
-                                            8 -> 21
-                                            9 -> 18
-                                            else -> 16
-                                        }
-                                    } else if (i <= 100) {
-                                        16 - ((i - 10) * 0.12f).toInt() // ranges from 16 down to 5
+                                    val targetScore = if (i <= 10) {
+                                        (maxLikes * baseScoreMultiplier).toInt()
                                     } else {
-                                        (5 - ((i - 100) * 0.0035f).toInt()).coerceAtLeast(0) // ranges from 5 down to 0
+                                        val rem = maxLikes * pow9
+                                        (rem - ((i - 10) * (rem / 1490f))).toInt().coerceAtLeast(0)
                                     }
                                     
-                                    val liveGrind = (timePassedInIntervalMs / 100000).toInt() * randomGen.nextInt(2)
-                                    val variance = randomGen.nextInt(4)
-                                    base + variance + liveGrind
+                                    val liveGrind = (timePassedInIntervalMs / 100000).toInt() * randomGen.nextInt(5)
+                                    val variance = randomGen.nextInt(15)
+                                    (targetScore * botProgress).toInt() + variance + liveGrind
                                 }
                                 else -> { // Comments
-                                    val base = if (i <= 10) {
-                                        when (i) {
-                                            1 -> 35
-                                            2 -> 29
-                                            3 -> 24
-                                            4 -> 20
-                                            5 -> 17
-                                            6 -> 14
-                                            7 -> 12
-                                            8 -> 10
-                                            9 -> 8
-                                            else -> 7
-                                        }
-                                    } else if (i <= 100) {
-                                        7 - ((i - 10) * 0.06f).toInt() // ranges from 7 down to 2
+                                    val targetScore = if (i <= 10) {
+                                        (maxComments * baseScoreMultiplier).toInt()
                                     } else {
-                                        (2 - ((i - 100) * 0.002f).toInt()).coerceAtLeast(0) // ranges from 2 down to 0
+                                        val rem = maxComments * pow9
+                                        (rem - ((i - 10) * (rem / 1490f))).toInt().coerceAtLeast(0)
                                     }
                                     
-                                    val liveGrind = (timePassedInIntervalMs / 150000).toInt() * randomGen.nextInt(2)
-                                    val variance = randomGen.nextInt(3)
-                                    base + variance + liveGrind
+                                    val liveGrind = (timePassedInIntervalMs / 150000).toInt() * randomGen.nextInt(3)
+                                    val variance = randomGen.nextInt(10)
+                                    (targetScore * botProgress).toInt() + variance + liveGrind
                                 }
                             }
 
@@ -822,6 +813,7 @@ fun AnalyticsScreen(
                                                              if (selectedLeaderboardCategory == 0) lastClaimTimeCat0 = now
                                                              else if (selectedLeaderboardCategory == 1) lastClaimTimeCat1 = now
                                                              else lastClaimTimeCat2 = now
+                                                             viewModel.resetLeaderboardCategory(selectedLeaderboardCategory)
                                                              viewModel.vibrate(100)
                                                              
                                                              showClaimSuccessDialog = if (lang == "RU") {

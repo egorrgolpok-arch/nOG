@@ -124,6 +124,9 @@ interface SocialDao {
     @Query("SELECT COUNT(DISTINCT postId) FROM comments WHERE authorId = :userId")
     fun getUniquePostsCommentedCountFlow(userId: String): Flow<Int>
 
+    @Query("DELETE FROM comments WHERE authorId = :userId")
+    suspend fun deleteCommentsByAuthor(userId: String)
+
     @Query("DELETE FROM users WHERE id = :userId")
     suspend fun deleteUserById(userId: String)
 

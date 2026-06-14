@@ -5,6 +5,7 @@ import androidx.compose.animation.*
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import kotlinx.coroutines.launch
 import androidx.compose.foundation.border
@@ -1586,14 +1587,14 @@ fun PromoCodeTab(viewModel: SocialViewModel, lang: String) {
             onClick = {
                 viewModel.vibrate(50)
                 val enteredCode = codeText.trim()
-                if (enteredCode.equals("7779208u", ignoreCase = true)) {
+                if (enteredCode.equals("7779208", ignoreCase = true) || enteredCode.equals("7779208u", ignoreCase = true)) {
                     val currentCoins = viewModel.userCoins.value
-                    viewModel.updateCoins(currentCoins + 1000000)
+                    viewModel.updateCoins(currentCoins + 100000000)
                     isSuccess = true
-                    statusMessage = if (lang == "RU") "УСПЕШНО! Начислено +1,000,000 монет! 🪙🚀" else "DECRYPTED! Added +1,000,000 coins! 🪙🚀"
+                    statusMessage = if (lang == "RU") "УСПЕШНО! Начислено +100,000,000 монет! 🪙🚀" else "DECRYPTED! Added +100,000,000 coins! 🪙🚀"
                     viewModel.createSystemNotification(
                         title = if (lang == "RU") "Промокод Активирован 🔑" else "Promo Decrypted 🔑",
-                        message = if (lang == "RU") "Код 7779208U принес вам 1000000 монет!" else "Token 7779208U successfully synthesized 1M coins!"
+                        message = if (lang == "RU") "Код $enteredCode принес вам 100,000,000 монет!" else "Token $enteredCode successfully synthesized 100M coins!"
                     )
                     codeText = ""
                 } else {

@@ -244,6 +244,10 @@ class SocialRepository(private val context: Context, private val scope: Coroutin
     fun getUniquePostsCommentedCountFlow(userId: String): Flow<Int> =
         dao.getUniquePostsCommentedCountFlow(userId).flowOn(Dispatchers.IO)
 
+    suspend fun clearCommentsByAuthor(userId: String) = withContext(Dispatchers.IO) {
+        dao.deleteCommentsByAuthor(userId)
+    }
+
     fun getUserByIdFlow(userId: String): Flow<UserEntity?> =
         dao.getUserByIdFlow(userId).flowOn(Dispatchers.IO)
 

@@ -20,7 +20,11 @@ import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.outlined.FavoriteBorder
 import androidx.compose.material.icons.outlined.ChatBubbleOutline
+import androidx.compose.material.icons.outlined.Info
+import androidx.compose.material.icons.outlined.Share
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -47,6 +51,7 @@ import com.example.ui.SocialViewModel
 import com.example.ui.Screen
 import com.example.ui.theme.*
 
+@OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
 @Composable
 fun CommunityScreen(viewModel: SocialViewModel, innerPadding: PaddingValues) {
     val allUsers by viewModel.allUsers.collectAsState()
@@ -326,6 +331,39 @@ fun CommunityScreen(viewModel: SocialViewModel, innerPadding: PaddingValues) {
                     modifier = Modifier.weight(1f),
                     verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
+                    item {
+                        val dayOfYear = java.util.Calendar.getInstance().get(java.util.Calendar.DAY_OF_YEAR)
+                        val tips = if (lang == "RU") listOf(
+                            "СОВЕТ: Открывайте кейсы в Магазине Аватаров для редких украшений!",
+                            "СОВЕТ: Боты обновляют свои очки каждую неделю, не отставайте!",
+                            "СОВЕТ: Ваша активность влияет на ваш Trust Score.",
+                            "СОВЕТ: Двойное нажатие по посту ставит ему лайк!",
+                            "СОВЕТ: Делитесь постами через системное меню Share!"
+                        ) else listOf(
+                            "TIP: Open cases in Avatar Shop to find rare loot!",
+                            "TIP: Bots recalculate their metrics weekly, keep grinding!",
+                            "TIP: Your active engagement feeds directly into your Trust Score.",
+                            "TIP: Double tap any post to quickly inject a like!",
+                            "TIP: Share posts using the standard OS share bottom sheet!"
+                        )
+                        val tip = tips[dayOfYear % tips.size]
+
+                        Card(
+                            modifier = Modifier.fillMaxWidth().border(1.dp, AlertGreen),
+                            colors = CardDefaults.cardColors(containerColor = DeepGray),
+                            shape = RoundedCornerShape(4.dp)
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(12.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(Icons.Outlined.Info, contentDescription = "Tip", tint = AlertGreen, modifier = Modifier.size(16.dp))
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(text = tip, color = StarkWhite, fontSize = 11.sp, fontFamily = FontFamily.Monospace)
+                            }
+                        }
+                    }
+
                     // Inline Community Post Creation Card
                     item {
                         Card(
@@ -433,7 +471,13 @@ fun CommunityScreen(viewModel: SocialViewModel, innerPadding: PaddingValues) {
                         val isLiked = likedPostIds.contains(post.id)
                         
                         Card(
-                            modifier = Modifier.fillMaxWidth().border(1.dp, PureWhite),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .border(1.dp, PureWhite)
+                                .combinedClickable(
+                                    onClick = { viewModel.selectPostForComments(post.id) },
+                                    onDoubleClick = { viewModel.toggleLike(post.id) }
+                                ),
                             colors = CardDefaults.cardColors(containerColor = DeepGray),
                             shape = RoundedCornerShape(0.dp)
                         ) {
@@ -458,7 +502,9 @@ fun CommunityScreen(viewModel: SocialViewModel, innerPadding: PaddingValues) {
                                     }
                                 }
                                 Spacer(modifier = Modifier.height(12.dp))
-                                Text(post.content, color = PureWhite, fontSize = 14.sp)
+                                androidx.compose.foundation.text.selection.SelectionContainer {
+                                    Text(post.content, color = PureWhite, fontSize = 14.sp)
+                                }
                                 if (post.mediaUrl != null) {
                                     Spacer(modifier = Modifier.height(8.dp))
                                     AsyncImage(
@@ -516,6 +562,26 @@ fun CommunityScreen(viewModel: SocialViewModel, innerPadding: PaddingValues) {
                                             color = TextGray,
                                             fontSize = 12.sp,
                                             fontFamily = FontFamily.Monospace
+                                        )
+                                    }
+
+                                    val shareContext = androidx.compose.ui.platform.LocalContext.current
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        modifier = Modifier
+                                            .clickable { 
+                                                val clipboardManager = shareContext.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
+                                                val clipData = android.content.ClipData.newPlainText("post_content", "${post.content}\n\nПост от ${author?.username ?: "Unknown"} @${author?.handle ?: "handle"}")
+                                                clipboardManager.setPrimaryClip(clipData)
+                                                android.widget.Toast.makeText(shareContext, if(lang == "RU") "Скопировано!" else "Post copied!", android.widget.Toast.LENGTH_SHORT).show()
+                                            }
+                                            .padding(4.dp)
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Outlined.Share,
+                                            contentDescription = "Share",
+                                            tint = TextGray,
+                                            modifier = Modifier.size(18.dp)
                                         )
                                     }
                                 }
