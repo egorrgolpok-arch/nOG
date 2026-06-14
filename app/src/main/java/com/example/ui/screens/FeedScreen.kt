@@ -82,16 +82,16 @@ fun FeedScreen(
 
     var selectedTab by remember { mutableStateOf(0) }
 
-    // Log scroll activity for analytics
+    // Log scroll activity for analytics (credited on scrolling UP as requested)
     val context = LocalContext.current
-    var maxIndexScrolled by remember { mutableStateOf(0) }
+    var lastObservedIndex by remember { mutableStateOf(0) }
     LaunchedEffect(lazyListState) {
         androidx.compose.runtime.snapshotFlow { lazyListState.firstVisibleItemIndex }.collect { index ->
-            if (index > maxIndexScrolled) {
-                val scrolledPast = index - maxIndexScrolled
-                viewModel.incrementViewsBy(scrolledPast)
-                maxIndexScrolled = index
+            if (index < lastObservedIndex) {
+                val scrolledUpCount = lastObservedIndex - index
+                viewModel.incrementViewsBy(scrolledUpCount)
             }
+            lastObservedIndex = index
         }
     }
 
@@ -414,6 +414,9 @@ fun FeedScreen(
                                 contentPadding = PaddingValues(bottom = 80.dp)
                             ) {
                                 items(posts, key = { it.id }) { post ->
+                                    LaunchedEffect(post.id) {
+                                        viewModel.markPostAsViewed(post.id)
+                                    }
                                     val author = users.find { it.id == post.authorId }
                                     val isF = currentUserFollowingIds.contains(post.authorId)
                                     val resolvedDecId = remember(author, activeUserDecId) {

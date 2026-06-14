@@ -241,6 +241,9 @@ class SocialRepository(private val context: Context, private val scope: Coroutin
     fun commentsForPostFlow(postId: Int): Flow<List<CommentEntity>> =
         dao.getCommentsForPostFlow(postId).flowOn(Dispatchers.IO)
 
+    fun getUniquePostsCommentedCountFlow(userId: String): Flow<Int> =
+        dao.getUniquePostsCommentedCountFlow(userId).flowOn(Dispatchers.IO)
+
     fun getUserByIdFlow(userId: String): Flow<UserEntity?> =
         dao.getUserByIdFlow(userId).flowOn(Dispatchers.IO)
 
@@ -299,6 +302,12 @@ class SocialRepository(private val context: Context, private val scope: Coroutin
         val initialLikes = if (author?.isVerified == true) Random.nextInt(50, 200) else post.likesCount
         
         val id = dao.insertPost(post.copy(likesCount = initialLikes)).toInt()
+        
+        try {
+            dao.pruneOldPosts()
+        } catch (e: Exception) {
+            Log.e(TAG, "Pruning old posts failed in insertPost", e)
+        }
         
         // Notify user if subscribed to this bot
         if (post.authorId != "user") {
