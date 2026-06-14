@@ -14,6 +14,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.withLock
 import java.util.UUID
 import kotlin.random.Random
 
@@ -218,17 +219,42 @@ class SocialViewModel(application: Application) : AndroidViewModel(application) 
     // Unique posts viewed (cheat-proof views count)
     private val _uniqueViewsCount = MutableStateFlow(0)
     val uniqueViewsCount: StateFlow<Int> = _uniqueViewsCount.asStateFlow()
+    
+    private val viewMutex = kotlinx.coroutines.sync.Mutex()
 
     fun markPostAsViewed(postId: Int) {
         viewModelScope.launch {
-            val context = getApplication<Application>()
-            val prefs = context.getSharedPreferences("nog_prefs", Context.MODE_PRIVATE)
-            val viewedStr = prefs.getString("viewed_post_ids_set", "") ?: ""
-            val viewedSet = if (viewedStr.isEmpty()) mutableSetOf() else viewedStr.split(",").toMutableSet()
-            if (!viewedSet.contains(postId.toString())) {
-                viewedSet.add(postId.toString())
-                prefs.edit().putString("viewed_post_ids_set", viewedSet.joinToString(",")).apply()
-                _uniqueViewsCount.value = viewedSet.size
+            viewMutex.withLock {
+                val context = getApplication<Application>()
+                val prefs = context.getSharedPreferences("nog_prefs", Context.MODE_PRIVATE)
+                val viewedStr = prefs.getString("viewed_post_ids_set", "") ?: ""
+                val viewedSet = if (viewedStr.isEmpty()) mutableSetOf() else viewedStr.split(",").toMutableSet()
+                if (!viewedSet.contains(postId.toString())) {
+                    viewedSet.add(postId.toString())
+                    prefs.edit().putString("viewed_post_ids_set", viewedSet.joinToString(",")).apply()
+                    
+                    val oldUniqueSize = _uniqueViewsCount.value
+                    val newUniqueSize = viewedSet.size
+                    _uniqueViewsCount.value = newUniqueSize
+                    
+                    // Keep feedViews in sync as well for UI representations
+                    _feedViews.value = newUniqueSize
+                    prefs.edit().putInt("feed_views", newUniqueSize).apply()
+
+                    val oldCoinsFromViews = oldUniqueSize / 10
+                    val newCoinsFromViews = newUniqueSize / 10
+                    if (newCoinsFromViews > oldCoinsFromViews) {
+                        val earned = newCoinsFromViews - oldCoinsFromViews
+                        val updatedCoins = _userCoins.value + earned
+                        updateCoins(updatedCoins)
+
+                        repository.insertNotification(
+                            title = if (_selectedLanguage.value == "RU") "Монета заработана! 🪙" else "Coin Earned! 🪙",
+                            message = if (_selectedLanguage.value == "RU") "Вы заработали +$earned монету за просмотр 10 уникальных постов в ленте." else "You earned +$earned coin for viewing 10 unique posts in the feed.",
+                            type = "SYSTEM"
+                        )
+                    }
+                }
             }
         }
     }
@@ -595,8 +621,8 @@ class SocialViewModel(application: Application) : AndroidViewModel(application) 
             val context = getApplication<Application>()
             var duoTickCount = 0
             while (true) {
-                // Slower tick in low-end device mode to preserve CPU cycles
-                val tickDelay = if (_isLowEndDeviceMode.value) 8000L else 1200L
+                // Speed up bot post generation by ticking much faster
+                val tickDelay = if (_isLowEndDeviceMode.value) 4000L else 350L
                 delay(tickDelay)
                 
                 // Continuous check for all active cooldowns
@@ -622,8 +648,8 @@ class SocialViewModel(application: Application) : AndroidViewModel(application) 
         // Periodic Tick for Engagement: Likes/Comments
         viewModelScope.launch {
             while (true) {
-                // Slower tick in low-end device mode to prevent excessive SQLite state updates
-                val tickDelay = if (_isLowEndDeviceMode.value) 12000L else 1500L
+                // Speed up bot engagement (likes and comments)
+                val tickDelay = if (_isLowEndDeviceMode.value) 6000L else 450L
                 delay(tickDelay) 
                 if (_isSimulating.value && !_isFlappyActive.value) {
                     try {

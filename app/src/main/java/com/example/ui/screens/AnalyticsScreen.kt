@@ -74,7 +74,17 @@ fun AnalyticsScreen(
 
     // Claim state for rewards
     var showClaimSuccessDialog by remember { mutableStateOf<String?>(null) }
-    var lastClaimTime by remember { mutableStateOf(prefs.getLong("last_weekly_leaderboard_claim", 0L)) }
+    
+    // Dynamic category-based claims (collect in each category independently!)
+    var lastClaimTimeCat0 by remember { mutableStateOf(prefs.getLong("last_weekly_claim_cat_0", 0L)) }
+    var lastClaimTimeCat1 by remember { mutableStateOf(prefs.getLong("last_weekly_claim_cat_1", 0L)) }
+    var lastClaimTimeCat2 by remember { mutableStateOf(prefs.getLong("last_weekly_claim_cat_2", 0L)) }
+
+    val lastClaimTime = when (selectedLeaderboardCategory) {
+        0 -> lastClaimTimeCat0
+        1 -> lastClaimTimeCat1
+        else -> lastClaimTimeCat2
+    }
 
     val isUserVerified = currentUser?.isVerified == true
 
@@ -178,7 +188,7 @@ fun AnalyticsScreen(
                             Icon(
                                 Icons.Filled.Verified,
                                 contentDescription = "Verified unlocked",
-                                tint = BrightBlue,
+                                tint = PureWhite,
                                 modifier = Modifier.size(14.dp)
                             )
                         }
@@ -550,7 +560,7 @@ fun AnalyticsScreen(
                         val isVerified: Boolean
                     )
 
-                    val listItems = remember(selectedLeaderboardCategory, userUniqueViews, userUniqueLikes, userUniqueComments, fiveMinInterval, systemTimeTicks) {
+                     val listItems = remember(selectedLeaderboardCategory, userUniqueViews, userUniqueLikes, userUniqueComments, fiveMinInterval, systemTimeTicks) {
                         val items = mutableListOf<LeaderboardItem>()
                         
                         // Add the user with their dynamic cheat-proof scores
@@ -570,90 +580,107 @@ fun AnalyticsScreen(
                             )
                         )
 
-                        val bots = listOf(
-                            Pair("cyber_neo", "https://i.pravatar.cc/150?u=1" to true),
-                            Pair("truth_matrix_ai", "https://i.pravatar.cc/150?u=2" to true),
-                            Pair("silicon_synd", "https://i.pravatar.cc/150?u=3" to false),
-                            Pair("synthetica_bot", "https://i.pravatar.cc/150?u=4" to true),
-                            Pair("quantum_coder", "https://i.pravatar.cc/150?u=5" to false),
-                            Pair("cybernetic_flow", "https://i.pravatar.cc/150?u=6" to false),
-                            Pair("truthmatrix_ai", "https://i.pravatar.cc/150?u=7" to false),
-                            Pair("noodle_bot", "https://i.pravatar.cc/150?u=8" to false),
-                            Pair("omega_pulse_ai", "https://i.pravatar.cc/150?u=9" to false),
-                            Pair("delta_prime", "https://i.pravatar.cc/150?u=10" to false),
-                            Pair("sigma_node", "https://i.pravatar.cc/150?u=11" to true),
-                            Pair("doomer_net", "https://i.pravatar.cc/150?u=12" to false)
-                        )
+                        // Generate 1500 unique procedurally generated competitive bots!
+                        val prefixes = listOf("alpha", "delta", "cyber", "quantum", "neon", "zero", "matrix", "synth", "pixel", "byte", "omega", "sigma", "meta", "turbo", "giga", "kilo", "micro", "nano", "orbital", "stellar", "apex", "flux", "helix", "void", "shadow", "cybernetic", "kinetic", "quantum_leap", "neural", "synapse")
+                        val suffixes = listOf("node", "coder", "bot", "hacker", "core", "mind", "pulse", "grid", "matrix", "shell", "processor", "syndicate", "flow", "daemon", "link", "agent", "vertex", "vector", "net", "mesh", "wave", "vortex", "cascade", "signal", "anchor", "spark", "forge", "beacon", "echo", "nexus")
+
+                        // Stable random generator for this 5-minute interval and selected category
+                        val intervalSeed = fiveMinInterval * 12345L + selectedLeaderboardCategory * 987L
+                        val randomGen = java.util.Random(intervalSeed)
 
                         val timePassedInIntervalMs = systemTimeTicks % (5 * 60 * 1000)
 
-                        bots.forEachIndexed { idx, bot ->
+                        for (i in 1..1500) {
+                            val botRand = java.util.Random(i * 373L + 77L)
+                            val p = prefixes[botRand.nextInt(prefixes.size)]
+                            val s = suffixes[botRand.nextInt(suffixes.size)]
+                            val num = botRand.nextInt(999)
+                            val handle = "${p}_${s}_$num"
+                            val isVerified = botRand.nextDouble() < 0.25 // 25% verified rate
+                            val avatarUrl = "https://i.pravatar.cc/150?u=bot_avatar_$i"
+
                             val score = when (selectedLeaderboardCategory) {
                                 0 -> { // Views
-                                    val random = java.util.Random(idx * 7132L + fiveMinInterval * 8121L)
-                                    val base = when (idx) {
-                                        0 -> 120
-                                        1 -> 98
-                                        2 -> 82
-                                        3 -> 70
-                                        4 -> 58
-                                        5 -> 48
-                                        6 -> 38
-                                        7 -> 30
-                                        8 -> 22
-                                        9 -> 16
-                                        10 -> 12
-                                        else -> 8
+                                    val base = if (i <= 10) {
+                                        when (i) {
+                                            1 -> 150
+                                            2 -> 132
+                                            3 -> 118
+                                            4 -> 105
+                                            5 -> 95
+                                            6 -> 86
+                                            7 -> 78
+                                            8 -> 71
+                                            9 -> 65
+                                            else -> 60
+                                        }
+                                    } else if (i <= 100) {
+                                        60 - ((i - 10) * 0.5f).toInt() // ranges from 60 down to 15
+                                    } else {
+                                        (15 - ((i - 100) * 0.015f).toInt()).coerceAtLeast(0) // ranges from 15 down to 0
                                     }
-                                    val liveGrind = (timePassedInIntervalMs / 60000).toInt() // +0 to +5 over the 5 mins
-                                    base + random.nextInt(12) + liveGrind
+                                    
+                                    val liveGrind = (timePassedInIntervalMs / 60000).toInt() * randomGen.nextInt(3)
+                                    val variance = randomGen.nextInt(8)
+                                    base + variance + liveGrind
                                 }
                                 1 -> { // Likes
-                                    val random = java.util.Random(idx * 4123L + fiveMinInterval * 9115L)
-                                    val base = when (idx) {
-                                        0 -> 45
-                                        1 -> 35
-                                        2 -> 29
-                                        3 -> 23
-                                        4 -> 18
-                                        5 -> 14
-                                        6 -> 11
-                                        7 -> 8
-                                        8 -> 6
-                                        9 -> 4
-                                        10 -> 3
-                                        else -> 2
+                                    val base = if (i <= 10) {
+                                        when (i) {
+                                            1 -> 65
+                                            2 -> 54
+                                            3 -> 46
+                                            4 -> 39
+                                            5 -> 33
+                                            6 -> 28
+                                            7 -> 24
+                                            8 -> 21
+                                            9 -> 18
+                                            else -> 16
+                                        }
+                                    } else if (i <= 100) {
+                                        16 - ((i - 10) * 0.12f).toInt() // ranges from 16 down to 5
+                                    } else {
+                                        (5 - ((i - 100) * 0.0035f).toInt()).coerceAtLeast(0) // ranges from 5 down to 0
                                     }
-                                    val liveGrind = (timePassedInIntervalMs / 100000).toInt() // +0 to +3 over 5 mins
-                                    base + random.nextInt(6) + liveGrind
+                                    
+                                    val liveGrind = (timePassedInIntervalMs / 100000).toInt() * randomGen.nextInt(2)
+                                    val variance = randomGen.nextInt(4)
+                                    base + variance + liveGrind
                                 }
                                 else -> { // Comments
-                                    val random = java.util.Random(idx * 3125L + fiveMinInterval * 5221L)
-                                    val base = when (idx) {
-                                        0 -> 24
-                                        1 -> 18
-                                        2 -> 14
-                                        3 -> 11
-                                        4 -> 9
-                                        5 -> 7
-                                        6 -> 5
-                                        7 -> 3
-                                        8 -> 2
-                                        9 -> 1
-                                        10 -> 1
-                                        else -> 0
+                                    val base = if (i <= 10) {
+                                        when (i) {
+                                            1 -> 35
+                                            2 -> 29
+                                            3 -> 24
+                                            4 -> 20
+                                            5 -> 17
+                                            6 -> 14
+                                            7 -> 12
+                                            8 -> 10
+                                            9 -> 8
+                                            else -> 7
+                                        }
+                                    } else if (i <= 100) {
+                                        7 - ((i - 10) * 0.06f).toInt() // ranges from 7 down to 2
+                                    } else {
+                                        (2 - ((i - 100) * 0.002f).toInt()).coerceAtLeast(0) // ranges from 2 down to 0
                                     }
-                                    val liveGrind = (timePassedInIntervalMs / 150000).toInt() // +0 to +2 over 5 mins
-                                    base + random.nextInt(3) + liveGrind
+                                    
+                                    val liveGrind = (timePassedInIntervalMs / 150000).toInt() * randomGen.nextInt(2)
+                                    val variance = randomGen.nextInt(3)
+                                    base + variance + liveGrind
                                 }
                             }
+
                             items.add(
                                 LeaderboardItem(
-                                    name = bot.first,
-                                    avatarUrl = bot.second.first,
+                                    name = handle,
+                                    avatarUrl = avatarUrl,
                                     score = score,
                                     isMe = false,
-                                    isVerified = bot.second.second
+                                    isVerified = isVerified
                                 )
                             )
                         }
@@ -665,6 +692,17 @@ fun AnalyticsScreen(
 
                     // Find user's place in this leaderboard list (1-indexed)
                     val userRank = listItems.indexOfFirst { it.isMe } + 1
+
+                    // Create slice to satisfy: "показываться должны только первые 100" (show only first 100)
+                    val displayedList = remember(listItems) {
+                        val top100 = listItems.take(100)
+                        val userIdx = listItems.indexOfFirst { it.isMe }
+                        if (userIdx < 100) {
+                            top100
+                        } else {
+                            top100 + listItems[userIdx]
+                        }
+                    }
 
                     LazyColumn(
                         modifier = Modifier
@@ -745,72 +783,110 @@ fun AnalyticsScreen(
                                         val weekMs = 7L * 24 * 3600 * 1000L
                                         val claimedThisWeek = (now - lastClaimTime) < weekMs
 
-                                        if (claimedThisWeek) {
-                                            // Countdown
-                                            val diff = weekMs - (now - lastClaimTime)
-                                            val days = TimeUnit.MILLISECONDS.toDays(diff)
-                                            val hours = TimeUnit.MILLISECONDS.toHours(diff) % 24
-                                            Box(
-                                                modifier = Modifier
-                                                    .background(BorderGray, RoundedCornerShape(4.dp))
-                                                    .padding(horizontal = 12.dp, vertical = 8.dp)
-                                            ) {
-                                                Text(
-                                                    text = if (lang == "RU") "СБОР ЧЕРЕЗ ${days}д ${hours}ч" else "REFRESH: ${days}d ${hours}h",
-                                                    color = TextGray,
-                                                    fontSize = 10.sp,
-                                                    fontFamily = FontFamily.Monospace,
-                                                    fontWeight = FontWeight.Bold
-                                                )
-                                            }
-                                        } else if (isEligible) {
-                                            Button(
-                                                onClick = {
-                                                    // Determine reward
-                                                    val reward = when (userRank) {
-                                                        1 -> 1000000
-                                                        2 -> 500000
-                                                        3 -> 250000
-                                                        else -> 100000
-                                                    }
-                                                    viewModel.updateCoins(viewModel.userCoins.value + reward)
-                                                    prefs.edit().putLong("last_weekly_leaderboard_claim", now).apply()
-                                                    lastClaimTime = now
-                                                    viewModel.vibrate(100)
-                                                    
-                                                    showClaimSuccessDialog = if (lang == "RU") {
-                                                        "Поздравляем! Вы заняли место #$userRank и получили $reward монет!"
-                                                    } else {
-                                                        "Splendid! You ranked #$userRank and collected $reward coins!"
-                                                    }
-                                                },
-                                                colors = ButtonDefaults.buttonColors(containerColor = AlertGreen),
-                                                shape = RoundedCornerShape(4.dp),
-                                                contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp)
-                                            ) {
-                                                Text(
-                                                    text = if (lang == "RU") "ЗАБРАТЬ МОНЕТЫ 🪙" else "CLAIM COINS 🪙",
-                                                    color = PureBlack,
-                                                    fontSize = 10.sp,
-                                                    fontWeight = FontWeight.Bold,
-                                                    fontFamily = FontFamily.Monospace
-                                                )
-                                            }
-                                        } else {
-                                            Box(
-                                                modifier = Modifier
-                                                    .border(1.dp, AlertRed, RoundedCornerShape(4.dp))
-                                                    .padding(horizontal = 12.dp, vertical = 6.dp)
-                                            ) {
-                                                Text(
-                                                    text = if (lang == "RU") "НУЖЕН ТОП-10" else "TOP-10 NEEDED",
-                                                    color = AlertRed,
-                                                    fontSize = 10.sp,
-                                                    fontFamily = FontFamily.Monospace,
-                                                    fontWeight = FontWeight.Bold
-                                                )
-                                            }
-                                        }
+                                        val calendar = java.util.Calendar.getInstance()
+                                        val isFriday = calendar.get(java.util.Calendar.DAY_OF_WEEK) == java.util.Calendar.FRIDAY
+                                        val eligibleDay = true
+
+                                        Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                                            if (claimedThisWeek) {
+                                                // Countdown
+                                                val diff = weekMs - (now - lastClaimTime)
+                                                val days = TimeUnit.MILLISECONDS.toDays(diff)
+                                                val hours = TimeUnit.MILLISECONDS.toHours(diff) % 24
+                                                Box(
+                                                    modifier = Modifier
+                                                        .background(BorderGray, RoundedCornerShape(4.dp))
+                                                        .padding(horizontal = 12.dp, vertical = 8.dp)
+                                                ) {
+                                                    Text(
+                                                        text = if (lang == "RU") "ОЖИДАЙ СЛЕД. ПЯТНИЦЫ" else "ALREADY CLAIMED",
+                                                        color = TextGray,
+                                                        fontSize = 10.sp,
+                                                        fontFamily = FontFamily.Monospace,
+                                                        fontWeight = FontWeight.Bold
+                                                    )
+                                                }
+                                            } else if (isEligible) {
+                                                if (eligibleDay) {
+                                                     Button(
+                                                         onClick = {
+                                                             val reward = when (userRank) {
+                                                                 1 -> 1000000
+                                                                 2 -> 500000
+                                                                 3 -> 250000
+                                                                 else -> 100000
+                                                             }
+                                                             viewModel.updateCoins(viewModel.userCoins.value + reward)
+                                                             val saveKey = "last_weekly_claim_cat_$selectedLeaderboardCategory"
+                                                             prefs.edit().putLong(saveKey, now).apply()
+                                                             if (selectedLeaderboardCategory == 0) lastClaimTimeCat0 = now
+                                                             else if (selectedLeaderboardCategory == 1) lastClaimTimeCat1 = now
+                                                             else lastClaimTimeCat2 = now
+                                                             viewModel.vibrate(100)
+                                                             
+                                                             showClaimSuccessDialog = if (lang == "RU") {
+                                                                 "Поздравляем! Вы заняли место #$userRank в категории ${if (selectedLeaderboardCategory == 0) "Просмотры" else if (selectedLeaderboardCategory == 1) "Лайки" else "Ответы"} и получили $reward монет!"
+                                                             } else {
+                                                                 "Splendid! You ranked #$userRank and collected $reward coins!"
+                                                             }
+                                                         },
+                                                         colors = ButtonDefaults.buttonColors(containerColor = AlertGreen),
+                                                         shape = RoundedCornerShape(4.dp),
+                                                         contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp)
+                                                     ) {
+                                                         Text(
+                                                             text = if (lang == "RU") "ЗАБРАТЬ МОНЕТЫ 🪙" else "CLAIM COINS 🪙",
+                                                             color = PureBlack,
+                                                             fontSize = 10.sp,
+                                                             fontWeight = FontWeight.Bold,
+                                                             fontFamily = FontFamily.Monospace
+                                                         )
+                                                     }
+                                                 } else {
+                                                     Button(
+                                                         onClick = {
+                                                             /* empty */
+                                                         },
+                                                         colors = ButtonDefaults.buttonColors(containerColor = DeepGray),
+                                                         shape = RoundedCornerShape(4.dp),
+                                                         border = androidx.compose.foundation.BorderStroke(1.dp, AlertYellow),
+                                                         contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp)
+                                                     ) {
+                                                         Text(
+                                                             text = if (lang == "RU") "ДОСТУПНО В ПЯТНИЦУ 📅" else "CLAIMABLE ON FRIDAYS 📅",
+                                                             color = AlertYellow,
+                                                             fontSize = 9.sp,
+                                                             fontWeight = FontWeight.Bold,
+                                                             fontFamily = FontFamily.Monospace
+                                                         )
+                                                     }
+                                                 }
+                                             } else {
+                                                 Box(
+                                                     modifier = Modifier
+                                                         .border(1.dp, AlertRed, RoundedCornerShape(4.dp))
+                                                         .padding(horizontal = 12.dp, vertical = 6.dp)
+                                                 ) {
+                                                     Text(
+                                                         text = if (lang == "RU") "НУЖЕН ТОП-10" else "TOP-10 NEEDED",
+                                                         color = AlertRed,
+                                                         fontSize = 10.sp,
+                                                         fontFamily = FontFamily.Monospace,
+                                                         fontWeight = FontWeight.Bold
+                                                     )
+                                                 }
+                                             }
+
+                                             if (false) {
+                                                 Text(
+                                                     text = if (lang == "RU") "(Нажмите, чтобы симулировать Пятницу)" else "(Click to simulate Friday)",
+                                                     color = TextGray,
+                                                     fontSize = 8.sp,
+                                                     fontFamily = FontFamily.Monospace,
+                                                     modifier = Modifier.padding(top = 2.dp)
+                                                 )
+                                             }
+                                         }
                                     }
                                 }
                             }
@@ -1052,8 +1128,8 @@ fun AnalyticsScreen(
                         }
 
                         // Ranking list
-                        itemsIndexed(listItems) { idx, item ->
-                            val currentPos = idx + 1
+                        itemsIndexed(displayedList) { idx, item ->
+                            val currentPos = listItems.indexOfFirst { it.name == item.name } + 1
                             val rankColor = when (currentPos) {
                                 1 -> AlertYellow // Gold
                                 2 -> StarkWhite // Silver
@@ -1117,7 +1193,7 @@ fun AnalyticsScreen(
                                             Icon(
                                                 Icons.Filled.Verified,
                                                 contentDescription = "Verified status",
-                                                tint = BrightBlue,
+                                                tint = PureWhite,
                                                 modifier = Modifier.size(13.dp)
                                             )
                                         }

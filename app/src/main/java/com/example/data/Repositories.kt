@@ -266,7 +266,7 @@ class SocialRepository(private val context: Context, private val scope: Coroutin
             
             insertNotification(
                 title = if (getSelectedLanguage() == "RU") "Верификация получена! ✅" else "Verification obtained! ✅",
-                message = if (getSelectedLanguage() == "RU") "Вам выдана галочка на 30 минут. Охваты повышены!" else "You have been granted a blue check for 30 minutes. Reach increased!",
+                message = if (getSelectedLanguage() == "RU") "Вам выдана галочка на 30 минут. Охваты повышены!" else "You have been granted a verification checkmark for 30 minutes. Reach increased!",
                 type = "SYSTEM"
             )
         }

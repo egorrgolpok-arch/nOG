@@ -1139,7 +1139,7 @@ fun AvatarDecorationShopDialog(
                                 textAlign = TextAlign.Center
                             )
                             Text(
-                                text = if (lang == "RU") "Каждую неделю появляется 1 случайный декор из 10.\nДля покупки обязательна синяя/белая галочка!" else "One random premium item is active each calendar week.\nBlue/white verification tick is required!",
+                                text = if (lang == "RU") "Каждую неделю появляется 1 случайный декор из 10.\nДля покупки обязательна черно-белая галочка!" else "One random premium item is active each calendar week.\nBlack-and-white verification tick is required!",
                                 color = TextGray,
                                 fontSize = 11.sp,
                                 fontFamily = FontFamily.Monospace,
@@ -1711,19 +1711,25 @@ object CaseGenerator {
 
     fun generateCases(lang: String): List<CaseType> {
         val basePrices = listOf(
-            16000, 24000, 32000, 42000, 56000, 
-            75000, 95000, 120000, 150000, 180000,
-            240000, 320000, 450000, 600000, 999999
+            16000, 21000, 28000, 36000, 48000, 
+            64000, 80000, 95000, 115000, 140000,
+            175000, 220000, 280000, 360000, 460000,
+            600000, 800000, 1000000, 1500000, 2500000,
+            4000000, 6000000, 9000000, 12000000, 18000000
         )
         val minRarities = listOf(
-            "ОБЫЧНАЯ", "ОБЫЧНАЯ", "РЕДКАЯ", "РЕДКАЯ", "АХУЕННАЯ", 
-            "АХУЕННАЯ", "НЕВЕБЕЙШАЯ", "НЕВЕБЕЙШАЯ", "НЕВЕБЕЙШАЯ", "НЕВЕБЕЙШАЯ",
-            "НЕВЕБЕЙШАЯ", "ЭКСКЛЮЗИВНАЯ", "ЭКСКЛЮЗИВНАЯ", "ЭКСКЛЮЗИВНАЯ", "ЭКСКЛЮЗИВНАЯ"
+            "ОБЫЧНАЯ", "ОБЫЧНАЯ", "ОБЫЧНАЯ", "РЕДКАЯ", "РЕДКАЯ", 
+            "РЕДКАЯ", "АХУЕННАЯ", "АХУЕННАЯ", "АХУЕННАЯ", "АХУЕННАЯ",
+            "НЕВЕБЕЙШАЯ", "НЕВЕБЕЙШАЯ", "НЕВЕБЕЙШАЯ", "НЕВЕБЕЙШАЯ", "НЕВЕБЕЙШАЯ",
+            "НЕВЕБЕЙШАЯ", "НЕВЕБЕЙШАЯ", "НЕВЕБЕЙШАЯ", "НЕВЕБЕЙШАЯ", "НЕВЕБЕЙШАЯ",
+            "НЕВЕБЕЙШАЯ", "НЕВЕБЕЙШАЯ", "НЕВЕБЕЙШАЯ", "НЕВЕБЕЙШАЯ", "НЕВЕБЕЙШАЯ"
         )
         val premiumChances = listOf(
-            0.01f, 0.03f, 0.05f, 0.08f, 0.12f, 
-            0.18f, 0.24f, 0.32f, 0.40f, 0.50f,
-            0.55f, 0.60f, 0.65f, 0.75f, 0.90f
+            0.01f, 0.02f, 0.03f, 0.04f, 0.05f, 
+            0.06f, 0.08f, 0.10f, 0.12f, 0.15f,
+            0.18f, 0.22f, 0.26f, 0.30f, 0.35f,
+            0.40f, 0.45f, 0.50f, 0.60f, 0.70f,
+            0.75f, 0.80f, 0.85f, 0.90f, 0.95f
         )
         
         val gradients = listOf(
@@ -1746,7 +1752,7 @@ object CaseGenerator {
 
         val emojis = listOf("📦", "🎰", "🔥", "☢️", "💎", "🔫", "💀", "👑", "🍕", "🛸", "🐹", "🐎", "🦉", "🤡", "🦧")
 
-        return List(15) { i ->
+        return List(25) { i ->
             val rand = Random((i + 5).toLong() * 8813)
             val adjRu = adjCaseRu[rand.nextInt(adjCaseRu.size)]
             val nounRu = nounCaseRu[rand.nextInt(nounCaseRu.size)]
@@ -1854,7 +1860,10 @@ fun CasesTab(viewModel: SocialViewModel, lang: String) {
         LazyVerticalGrid(
             columns = GridCells.Fixed(1),
             verticalArrangement = Arrangement.spacedBy(12.dp),
-            modifier = Modifier.weight(1f)
+            contentPadding = PaddingValues(bottom = 240.dp),
+            modifier = Modifier
+                .weight(1f)
+                .navigationBarsPadding()
         ) {
             items(cases) { caseItem ->
                 CaseListItem(
@@ -2100,46 +2109,39 @@ fun CaseOpenerDialog(
         
         // Pick the winning rarity category with high risk
         val roll = Random().nextFloat()
-        val winRarity = when (caseItem.id) {
-            1 -> {
+        val winRarity = when (caseItem.minRarity) {
+            "ОБЫЧНАЯ" -> {
                 when {
                     roll < caseItem.premiumChance -> "ЭКСКЛЮЗИВНАЯ"
-                    roll < 0.10f -> "НЕВЕБЕЙШАЯ"
-                    roll < 0.25f -> "АХУЕННАЯ"
-                    roll < 0.55f -> "РЕДКАЯ"
-                    else -> "ОБЫЧНАЯ" // Most common
-                }
-            }
-            2 -> {
-                when {
-                    roll < caseItem.premiumChance -> "ЭКСКЛЮЗИВНАЯ"
-                    roll < 0.12f -> "НЕВЕБЕЙШАЯ"
-                    roll < 0.32f -> "АХУЕННАЯ"
-                    roll < 0.70f -> "РЕДКАЯ"
+                    roll < caseItem.premiumChance + 0.05f -> "НЕВЕБЕЙШАЯ"
+                    roll < caseItem.premiumChance + 0.15f -> "АХУЕННАЯ"
+                    roll < caseItem.premiumChance + 0.45f -> "РЕДКАЯ"
                     else -> "ОБЫЧНАЯ"
                 }
             }
-            3, 4 -> {
+            "РЕДКАЯ" -> {
                 when {
                     roll < caseItem.premiumChance -> "ЭКСКЛЮЗИВНАЯ"
-                    roll < 0.15f -> "НЕВЕБЕЙШАЯ"
-                    roll < 0.45f -> "АХУЕННАЯ"
+                    roll < caseItem.premiumChance + 0.08f -> "НЕВЕБЕЙШАЯ"
+                    roll < caseItem.premiumChance + 0.28f -> "АХУЕННАЯ"
                     else -> "РЕДКАЯ"
                 }
             }
-            5, 6 -> {
+            "АХУЕННАЯ" -> {
                 when {
                     roll < caseItem.premiumChance -> "ЭКСКЛЮЗИВНАЯ"
-                    roll < 0.22f -> "НЕВЕБЕЙШАЯ"
+                    roll < caseItem.premiumChance + 0.18f -> "НЕВЕБЕЙШАЯ"
                     else -> "АХУЕННАЯ"
                 }
             }
-            else -> {
-                // High tier cases
+            "НЕВЕБЕЙШАЯ" -> {
                 when {
                     roll < caseItem.premiumChance -> "ЭКСКЛЮЗИВНАЯ"
                     else -> "НЕВЕБЕЙШАЯ"
                 }
+            }
+            else -> {
+                "НЕВЕБЕЙШАЯ"
             }
         }
         

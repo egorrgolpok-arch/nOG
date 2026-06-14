@@ -82,15 +82,12 @@ fun FeedScreen(
 
     var selectedTab by remember { mutableStateOf(0) }
 
-    // Log scroll activity for analytics (credited on scrolling UP as requested)
+    // Log scroll activity for analytics
     val context = LocalContext.current
     var lastObservedIndex by remember { mutableStateOf(0) }
     LaunchedEffect(lazyListState) {
         androidx.compose.runtime.snapshotFlow { lazyListState.firstVisibleItemIndex }.collect { index ->
-            if (index < lastObservedIndex) {
-                val scrolledUpCount = lastObservedIndex - index
-                viewModel.incrementViewsBy(scrolledUpCount)
-            }
+            // Prevent scrolling feed up and down from artificially rewarding coins by using strict unique viewed post counts instead
             lastObservedIndex = index
         }
     }
