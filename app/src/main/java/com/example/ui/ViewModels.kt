@@ -746,8 +746,10 @@ class SocialViewModel(application: Application) : AndroidViewModel(application) 
                 val tickDelay = if (_isLowEndDeviceMode.value) 4000L else 350L
                 delay(tickDelay)
                 
-                // Continuous check for all active cooldowns
-                com.example.workers.CooldownNotifier.checkAndNotifyAllCooldowns(context)
+                // Continuous check for all active cooldowns (~ every 3.5 seconds of loop to optimize DB/IO overhead)
+                if (duoTickCount % 10 == 0) {
+                    com.example.workers.CooldownNotifier.checkAndNotifyAllCooldowns(context)
+                }
 
                 if (_isSimulating.value && !_isFlappyActive.value) {
                     try {
@@ -1094,6 +1096,12 @@ class SocialViewModel(application: Application) : AndroidViewModel(application) 
             unread.forEach {
                 repository.database.socialDao().markNotificationAsRead(it.id)
             }
+        }
+    }
+
+    fun markNotificationAsRead(id: Int) {
+        viewModelScope.launch(Dispatchers.IO) {
+            repository.database.socialDao().markNotificationAsRead(id)
         }
     }
 

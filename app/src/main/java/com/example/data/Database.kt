@@ -118,7 +118,7 @@ interface SocialDao {
     @Query("DELETE FROM posts WHERE id = :postId")
     suspend fun deletePostById(postId: Int)
 
-    @Query("DELETE FROM posts WHERE authorId != 'user' AND isArchived = 0 AND category != 'Community' AND category != 'Сообщество' AND id NOT IN (SELECT id FROM posts ORDER BY timestamp DESC LIMIT 40)")
+    @Query("DELETE FROM posts WHERE authorId != 'user' AND isArchived = 0 AND (category IS NULL OR (category != 'Community' AND category != 'Сообщество')) AND id NOT IN (SELECT id FROM posts ORDER BY timestamp DESC LIMIT 40)")
     suspend fun pruneOldPosts()
 
     @Query("SELECT COUNT(DISTINCT postId) FROM comments WHERE authorId = :userId")
@@ -133,6 +133,9 @@ interface SocialDao {
     // Comments
     @Query("SELECT * FROM comments WHERE postId = :postId ORDER BY timestamp ASC")
     fun getCommentsForPostFlow(postId: Int): Flow<List<CommentEntity>>
+
+    @Query("SELECT * FROM comments WHERE postId = :postId ORDER BY timestamp ASC")
+    suspend fun getCommentsForPost(postId: Int): List<CommentEntity>
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertComment(comment: CommentEntity): Long

@@ -329,10 +329,18 @@ fun NogAiChatDialog(
                                     
                                     coroutineScope.launch {
                                         try {
-                                            val fullReply = GeminiClient.getCompletion(
-                                                prompt = query,
-                                                systemInstruction = systemInstruction
-                                            )
+                                            val fullReply = if (GeminiClient.isKeyAvailable()) {
+                                                try {
+                                                    GeminiClient.getCompletion(
+                                                        prompt = query,
+                                                        systemInstruction = systemInstruction
+                                                     )
+                                                } catch (apiEx: Exception) {
+                                                    generateLocalResponse(query, lang)
+                                                }
+                                            } else {
+                                                generateLocalResponse(query, lang)
+                                            }
                                             messages.add(
                                                 NogChatMessage(
                                                     id = java.util.UUID.randomUUID().toString(),
@@ -373,10 +381,18 @@ fun NogAiChatDialog(
                                 
                                 coroutineScope.launch {
                                     try {
-                                        val fullReply = GeminiClient.getCompletion(
-                                            prompt = query,
-                                            systemInstruction = systemInstruction
-                                        )
+                                        val fullReply = if (GeminiClient.isKeyAvailable()) {
+                                            try {
+                                                GeminiClient.getCompletion(
+                                                    prompt = query,
+                                                    systemInstruction = systemInstruction
+                                                 )
+                                            } catch (apiEx: Exception) {
+                                                generateLocalResponse(query, lang)
+                                            }
+                                        } else {
+                                            generateLocalResponse(query, lang)
+                                        }
                                         messages.add(
                                             NogChatMessage(
                                                 id = java.util.UUID.randomUUID().toString(),
@@ -413,6 +429,47 @@ fun NogAiChatDialog(
                         )
                     }
                 }
+            }
+        }
+    }
+}
+
+fun generateLocalResponse(query: String, lang: String): String {
+    val q = query.lowercase(java.util.Locale.ROOT)
+    return if (lang == "RU") {
+        when {
+            q.contains("shop") || q.contains("buy") || q.contains("магазин") || q.contains("купить") || q.contains("мерч") || q.contains("рамк") || q.contains("худи") -> {
+                "Уличные повторители, портативные меш-модули nOG, уникальные кастомные рамки для профилей и децентрализованный мерч (худи, стикеры) доступны в нашем защищенном магазине:\n🎒 nOG Shop: https://nog1.tilda.ws/nogshop"
+            }
+            q.contains("download") || q.contains("скачать") || q.contains("клиент") || q.contains("openwrt") || q.contains("прошивк") || q.contains("apk") || q.contains("приложен") -> {
+                "Все версии прошивок nOG OpenWrt, мобильный APK-клиент и десктопные терминальные приложения доступны в нашем репозитории:\n💾 nOG Download: https://nog1.tilda.ws/nogdownload"
+            }
+            q.contains("portal") || q.contains("сайт") || q.contains("сеть") || q.contains("mesh") || q.contains("меш") || q.contains("о проекте") || q.contains("проект") -> {
+                "Центральный веб-узел сети nOG содержит полное техническое описание децентрализованной меш-сети и наш манифест суверенной коммуникации:\n🔗 nOG Portal: https://nog1.tilda.ws"
+            }
+            q.contains("привет") || q.contains("здравствуй") || q.contains("hi") || q.contains("hello") || q.contains("йо") || q.contains("yo") -> {
+                "Приветствую в свободной децентрализованной сети nOG! [Локальная симуляция ИИ активна] 🤖\n\nЯ готов обсудить аппаратное обеспечение, mesh-радиосвязь, наш мерч или помочь с загрузкой нужного софта. Задавай любой вопрос!"
+            }
+            else -> {
+                "[Автономный ИИ nOG]: " + com.example.data.LocalAiHeuristics.getRandomNog("RU", query) + "\n\n🌐 Вы также можете посетить наш официальный узел: https://nog1.tilda.ws"
+            }
+        }
+    } else {
+        when {
+            q.contains("shop") || q.contains("buy") || q.contains("store") || q.contains("merch") || q.contains("hoodie") || q.contains("frame") -> {
+                "Mesh repeaters, pocket nodes, sovereign hoodies, or animated user profile frames are available in our decentralized shop:\n🎒 nOG Shop: https://nog1.tilda.ws/nogshop"
+            }
+            q.contains("download") || q.contains("install") || q.contains("client") || q.contains("openwrt") || q.contains("firmware") || q.contains("apk") || q.contains("app") -> {
+                "Download server files, terminal clients, router openwrt firmware, and Android app packages from our centralized hub:\n💾 nOG Download: https://nog1.tilda.ws/nogdownload"
+            }
+            q.contains("portal") || q.contains("website") || q.contains("site") || q.contains("network") || q.contains("mesh") || q.contains("about") -> {
+                "Sovereign node setup details and our P2P cryptographic community manifest can be found on our main portal:\n🔗 nOG Portal: https://nog1.tilda.ws"
+            }
+            q.contains("hello") || q.contains("hi") || q.contains("hey") || q.contains("yo") || q.contains("greetings") -> {
+                "Greetings on the sovereign nOG network! [Local offline AI active] 🤖\n\nI can help you buy gear, configure OpenWrt antennas, or link you to files. Ask me anything!"
+            }
+            else -> {
+                "[Local nOG AI]: " + com.example.data.LocalAiHeuristics.getRandomNog("EN", query) + "\n\n🌐 Check out our static node portal: https://nog1.tilda.ws"
             }
         }
     }
