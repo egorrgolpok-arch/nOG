@@ -131,7 +131,7 @@ fun NogAiChatDialog(
                         Icon(
                             imageVector = Icons.Filled.SmartToy,
                             contentDescription = "nOG AI logo",
-                            tint = AlertGreen,
+                            tint = PureWhite,
                             modifier = Modifier.size(24.dp)
                         )
                         Spacer(modifier = Modifier.width(10.dp))
@@ -183,16 +183,16 @@ fun NogAiChatDialog(
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
                     Text(
-                        text = "NODE: CRYPTO_GRID_ORACLE",
+                        text = "NODE: BLACK_GRID_ORACLE",
                         fontFamily = FontFamily.Monospace,
                         fontSize = 10.sp,
                         color = TextGray
                     )
                     Text(
-                        text = "STATUS: ONLINE",
+                        text = "STATUS: MONITORING_LOCAL",
                         fontFamily = FontFamily.Monospace,
                         fontSize = 10.sp,
-                        color = AlertGreen
+                        color = PureWhite
                     )
                 }
                 Divider(color = BorderGray, thickness = 1.dp)
@@ -218,19 +218,19 @@ fun NogAiChatDialog(
                                 fontFamily = FontFamily.Monospace,
                                 fontSize = 10.sp,
                                 fontWeight = FontWeight.Bold,
-                                color = if (isUser) PureWhite else AlertGreen,
+                                color = if (isUser) PureWhite else TextGray,
                                 modifier = Modifier.padding(bottom = 4.dp)
                             )
                             
                             Box(
                                 modifier = Modifier
                                     .widthIn(max = 280.dp)
-                                    .clip(RoundedCornerShape(8.dp))
-                                    .background(if (isUser) BorderGray else CardGray)
+                                    .clip(RoundedCornerShape(2.dp))
+                                    .background(if (isUser) PureWhite else PureBlack)
                                     .border(
                                         1.dp,
-                                        if (isUser) LightBorderGray else AlertGreen.copy(alpha = 0.6f),
-                                        RoundedCornerShape(8.dp)
+                                        if (isUser) PureWhite else BorderGray,
+                                        RoundedCornerShape(2.dp)
                                     )
                                     .padding(12.dp)
                             ) {
@@ -238,7 +238,7 @@ fun NogAiChatDialog(
                                     text = msg.text,
                                     fontSize = 13.sp,
                                     fontFamily = FontFamily.Monospace,
-                                    color = PureWhite,
+                                    color = if (isUser) PureBlack else PureWhite,
                                     lineHeight = 18.sp
                                 )
                             }
@@ -256,18 +256,18 @@ fun NogAiChatDialog(
                                     fontFamily = FontFamily.Monospace,
                                     fontSize = 10.sp,
                                     fontWeight = FontWeight.Bold,
-                                    color = AlertGreen,
+                                    color = TextGray,
                                     modifier = Modifier.padding(bottom = 4.dp)
                                 )
                                 Box(
                                     modifier = Modifier
-                                        .clip(RoundedCornerShape(8.dp))
-                                        .background(CardGray)
-                                        .border(2.dp, AlertGreen.copy(alpha = 0.3f), RoundedCornerShape(8.dp))
+                                        .clip(RoundedCornerShape(2.dp))
+                                        .background(PureBlack)
+                                        .border(1.dp, BorderGray, RoundedCornerShape(2.dp))
                                         .padding(12.dp)
                                 ) {
                                     Text(
-                                        text = if (lang == "RU") "Опрос секторов сети..." else "Querying grid nodes...",
+                                        text = if (lang == "RU") "Шифрование запроса..." else "Cryptographic processing...",
                                         fontSize = 13.sp,
                                         fontFamily = FontFamily.Monospace,
                                         color = TextGray
@@ -283,8 +283,8 @@ fun NogAiChatDialog(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(bottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding())
-                        .border(1.dp, BorderGray, RoundedCornerShape(8.dp))
-                        .background(DeepGray)
+                        .border(1.dp, PureWhite, RoundedCornerShape(2.dp))
+                        .background(PureBlack)
                         .padding(horizontal = 12.dp, vertical = 6.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
@@ -425,7 +425,7 @@ fun NogAiChatDialog(
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.Send,
                             contentDescription = if (lang == "RU") "Отправить" else "Send",
-                            tint = if (userText.isNotBlank() && !isSending) AlertGreen else TextGray
+                            tint = if (userText.isNotBlank() && !isSending) PureWhite else TextGray
                         )
                     }
                 }
