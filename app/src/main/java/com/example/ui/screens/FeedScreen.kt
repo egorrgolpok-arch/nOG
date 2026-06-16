@@ -75,6 +75,7 @@ fun FeedScreen(
     
     var showCreatePostDialog by remember { mutableStateOf(false) }
     var showFlappyBotGame by remember { mutableStateOf(false) }
+    var showNogAiChat by remember { mutableStateOf(false) }
     var showTamagotchiDialog by remember { mutableStateOf(false) }
     var showDecorationShopDialog by remember { mutableStateOf(false) }
     var zoomImageUrl by remember { mutableStateOf<String?>(null) }
@@ -483,6 +484,24 @@ fun FeedScreen(
                     )
                 }
 
+                // --- nOG AI Chat FAB ---
+                FloatingActionButton(
+                    onClick = { showNogAiChat = true },
+                    containerColor = PureWhite,
+                    contentColor = PureBlack,
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier
+                        .border(2.dp, PureBlack, RoundedCornerShape(12.dp))
+                        .testTag("nog_ai_chat_fab")
+                ) {
+                    Text(
+                        text = "AI",
+                        fontFamily = FontFamily.Monospace,
+                        fontWeight = FontWeight.ExtraBold,
+                        fontSize = 16.sp
+                    )
+                }
+
                 // --- Create Post FloatingActionButton ---
                 FloatingActionButton(
                     onClick = { showCreatePostDialog = true },
@@ -567,6 +586,14 @@ fun FeedScreen(
                     viewModel.createNewUserPost(content, image, video, category)
                     showCreatePostDialog = false
                 }
+            )
+        }
+
+        // --- nOG AI Chat Dialog ---
+        if (showNogAiChat) {
+            NogAiChatDialog(
+                onDismiss = { showNogAiChat = false },
+                lang = lang
             )
         }
 

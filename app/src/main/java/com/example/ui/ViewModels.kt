@@ -653,14 +653,31 @@ class SocialViewModel(application: Application) : AndroidViewModel(application) 
         val todaySecs = prefs.getInt("time_spent_today_secs", 1440)
         _appTimeSpentToday.value = todaySecs / 3600f
 
-        // Let's generate/load weekly history
-        val day1 = prefs.getFloat("weekly_h_1", 1.2f)
-        val day2 = prefs.getFloat("weekly_h_2", 1.8f)
-        val day3 = prefs.getFloat("weekly_h_3", 0.9f)
-        val day4 = prefs.getFloat("weekly_h_4", 2.3f)
-        val day5 = prefs.getFloat("weekly_h_5", 1.5f)
-        val day6 = prefs.getFloat("weekly_h_6", 1.7f)
-        _weeklyEngagementHours.value = listOf(day1, day2, day3, day4, day5, day6, todaySecs / 3600f)
+        // Dynamic chronological Day-of-the-Week calculation ending with Today
+        val graphCalendar = java.util.Calendar.getInstance()
+        val dayOfWeek = graphCalendar.get(java.util.Calendar.DAY_OF_WEEK)
+        val initTodayIdx = if (dayOfWeek == java.util.Calendar.SUNDAY) 6 else dayOfWeek - 2
+
+        val initDayValues = FloatArray(7)
+        for (i in 0..6) {
+            initDayValues[i] = prefs.getFloat("weekly_h_day_$i", when(i) {
+                0 -> 1.2f
+                1 -> 1.8f
+                2 -> 0.9f
+                3 -> 2.3f
+                4 -> 1.5f
+                5 -> 1.7f
+                else -> 0.4f
+            })
+        }
+
+        val initGraphValues = mutableListOf<Float>()
+        for (offset in 6 downTo 1) {
+            val idx = (initTodayIdx - offset + 7) % 7
+            initGraphValues.add(initDayValues[idx])
+        }
+        initGraphValues.add(todaySecs / 3600f)
+        _weeklyEngagementHours.value = initGraphValues
 
         // Increment seconds every second the app is open
         viewModelScope.launch {
@@ -669,11 +686,37 @@ class SocialViewModel(application: Application) : AndroidViewModel(application) 
                 kotlinx.coroutines.delay(1000L)
                 totalSecs += 1
                 _appTimeSpentToday.value = totalSecs / 3600f
+
+                val currentCalendar = java.util.Calendar.getInstance()
+                val currentDayOfWeek = currentCalendar.get(java.util.Calendar.DAY_OF_WEEK)
+                val currentTodayIdx = if (currentDayOfWeek == java.util.Calendar.SUNDAY) 6 else currentDayOfWeek - 2
+
                 prefs.edit()
                     .putInt("time_spent_today_secs", totalSecs)
-                    .putFloat("weekly_h_7", totalSecs / 3600f)
+                    .putFloat("weekly_h_day_$currentTodayIdx", totalSecs / 3600f)
                     .apply()
-                _weeklyEngagementHours.value = listOf(day1, day2, day3, day4, day5, day6, totalSecs / 3600f)
+
+                val updatedDayValues = FloatArray(7)
+                for (i in 0..6) {
+                     updatedDayValues[i] = prefs.getFloat("weekly_h_day_$i", when(i) {
+                         0 -> 1.2f
+                         1 -> 1.8f
+                         2 -> 0.9f
+                         3 -> 2.3f
+                         4 -> 1.5f
+                         5 -> 1.7f
+                         else -> 0.4f
+                     })
+                }
+
+                val updatedGraphValues = mutableListOf<Float>()
+                for (offset in 6 downTo 1) {
+                    val idx = (currentTodayIdx - offset + 7) % 7
+                    updatedGraphValues.add(updatedDayValues[idx])
+                }
+                updatedGraphValues.add(totalSecs / 3600f)
+
+                _weeklyEngagementHours.value = updatedGraphValues
             }
         }
 

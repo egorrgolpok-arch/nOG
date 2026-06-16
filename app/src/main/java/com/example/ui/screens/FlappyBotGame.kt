@@ -158,7 +158,7 @@ fun FlappyBotGameDialog(
     // Jump function
     fun onFlap() {
         if (isPlaying) {
-            birdVelocity = -8.2f // smooth fly acceleration
+            birdVelocity = -6.5f // smooth fly acceleration
             viewModel.vibrate(30)
         }
     }
@@ -169,7 +169,7 @@ fun FlappyBotGameDialog(
             var lastSpawnX = 400f
             while (isPlaying) {
                 // Gravity & Movement
-                birdVelocity += 0.42f // Gravity index
+                birdVelocity += 0.32f // Gravity index
                 birdY += birdVelocity
 
                 // Ground & Ceiling crash verification
@@ -195,7 +195,7 @@ fun FlappyBotGameDialog(
                 var triggeredPoint = false
 
                 for (pipe in pipes) {
-                    pipe.x -= 4.2f // scrolling speed
+                    pipe.x -= 3.0f // scrolling speed
 
                     // Collision checking (uses slightly trimmed hitbox radius for more satisfying, precise and rewarding passage)
                     val birdX = 120f
@@ -244,7 +244,7 @@ fun FlappyBotGameDialog(
                     pipes.add(FlappyPipe(400f, nextGapY))
                 }
 
-                androidx.compose.runtime.withFrameNanos { _ -> }
+                delay(20L)
             }
         }
     }

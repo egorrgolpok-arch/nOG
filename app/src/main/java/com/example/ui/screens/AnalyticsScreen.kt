@@ -373,11 +373,20 @@ fun AnalyticsScreen(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        val labels = if (lang == "RU") {
-                            listOf("Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Сегодня")
-                        } else {
-                            listOf("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Today")
+                        val calendar = java.util.Calendar.getInstance()
+                        val dayOfWeek = calendar.get(java.util.Calendar.DAY_OF_WEEK)
+                        val todayIdx = if (dayOfWeek == java.util.Calendar.SUNDAY) 6 else dayOfWeek - 2
+                        
+                        val dayNamesRu = listOf("Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс")
+                        val dayNamesEn = listOf("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun")
+                        
+                        val labels = mutableListOf<String>()
+                        for (offset in 6 downTo 1) {
+                            val idx = (todayIdx - offset + 7) % 7
+                            labels.add(if (lang == "RU") dayNamesRu[idx] else dayNamesEn[idx])
                         }
+                        labels.add(if (lang == "RU") "Сегодня" else "Today")
+
                         labels.forEachIndexed { i, label ->
                             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                                 Text(
@@ -1135,7 +1144,7 @@ fun AnalyticsScreen(
                         // Ranking list
                         itemsIndexed(
                             items = displayedList,
-                            key = { _, item -> item.name }
+                            key = { idx, item -> "${item.name}_${idx}_${item.isMe}" }
                         ) { idx, item ->
                             val currentPos = listItems.indexOfFirst { it.name == item.name } + 1
                             val rankColor = when (currentPos) {
