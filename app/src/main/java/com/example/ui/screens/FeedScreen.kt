@@ -76,6 +76,41 @@ fun FeedScreen(
     val coroutineScope = rememberCoroutineScope()
     
     var showCreatePostDialog by remember { mutableStateOf(false) }
+    
+    var tempCreatePostText by remember { mutableStateOf("") }
+    var tempCreatePostImage by remember { mutableStateOf<String?>(null) }
+    var tempCreatePostVideo by remember { mutableStateOf<String?>(null) }
+    var tempCreatePostGif by remember { mutableStateOf<String?>(null) }
+    
+    val imagePickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri ->
+        if (uri != null) {
+            tempCreatePostImage = uri.toString()
+            tempCreatePostVideo = null
+            tempCreatePostGif = null
+        }
+    }
+
+    val videoPickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri ->
+        if (uri != null) {
+            tempCreatePostVideo = uri.toString()
+            tempCreatePostImage = null
+            tempCreatePostGif = null
+        }
+    }
+
+    val gifPickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri ->
+        if (uri != null) {
+            tempCreatePostGif = uri.toString()
+            tempCreatePostImage = null
+            tempCreatePostVideo = null
+        }
+    }
     var showFlappyBotGame by remember { mutableStateOf(false) }
     var showTamagotchiDialog by remember { mutableStateOf(false) }
     var showDecorationShopDialog by remember { mutableStateOf(false) }
@@ -522,7 +557,22 @@ fun FeedScreen(
                 onSubmit = { content, image, video, category ->
                     viewModel.createNewUserPost(content, image, video, category)
                     showCreatePostDialog = false
-                }
+                    tempCreatePostText = ""
+                    tempCreatePostImage = null
+                    tempCreatePostVideo = null
+                    tempCreatePostGif = null
+                },
+                text = tempCreatePostText,
+                onTextChange = { tempCreatePostText = it },
+                attachedImage = tempCreatePostImage,
+                attachedVideo = tempCreatePostVideo,
+                attachedGif = tempCreatePostGif,
+                onClearVideo = { tempCreatePostVideo = null },
+                onClearImage = { tempCreatePostImage = null },
+                onClearGif = { tempCreatePostGif = null },
+                onLaunchImagePicker = { imagePickerLauncher.launch("image/*") },
+                onLaunchVideoPicker = { videoPickerLauncher.launch("video/*") },
+                onLaunchGifPicker = { gifPickerLauncher.launch("image/gif") }
             )
         }
 
@@ -1151,43 +1201,19 @@ fun PostItem(
 fun CreatePostDialog(
     lang: String,
     onDismiss: () -> Unit,
-    onSubmit: (content: String, image: String?, video: String?, category: String) -> Unit
+    onSubmit: (content: String, image: String?, video: String?, category: String) -> Unit,
+    text: String,
+    onTextChange: (String) -> Unit,
+    attachedImage: String?,
+    attachedVideo: String?,
+    attachedGif: String?,
+    onClearVideo: () -> Unit,
+    onClearImage: () -> Unit,
+    onClearGif: () -> Unit,
+    onLaunchImagePicker: () -> Unit,
+    onLaunchVideoPicker: () -> Unit,
+    onLaunchGifPicker: () -> Unit
 ) {
-    var text by remember { mutableStateOf("") }
-    var attachedImage by remember { mutableStateOf<String?>(null) }
-    var attachedVideo by remember { mutableStateOf<String?>(null) }
-    var attachedGif by remember { mutableStateOf<String?>(null) }
-    
-    val imagePickerLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.GetContent()
-    ) { uri ->
-        if (uri != null) {
-            attachedImage = uri.toString()
-            attachedVideo = null
-            attachedGif = null
-        }
-    }
-
-    val videoPickerLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.GetContent()
-    ) { uri ->
-        if (uri != null) {
-            attachedVideo = uri.toString()
-            attachedImage = null
-            attachedGif = null
-        }
-    }
-
-    val gifPickerLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.GetContent()
-    ) { uri ->
-        if (uri != null) {
-            attachedGif = uri.toString()
-            attachedImage = null
-            attachedVideo = null
-        }
-    }
-    
     val imageOptions = listOf(
         "abstract_geometry" to "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=600&q=80",
         "glitch_sphere" to "https://images.unsplash.com/photo-1579546929518-9e396f3cc809?auto=format&fit=crop&w=600&q=80",
@@ -1217,7 +1243,7 @@ fun CreatePostDialog(
             Column(modifier = Modifier.fillMaxWidth()) {
                 OutlinedTextField(
                     value = text,
-                    onValueChange = { text = it },
+                    onValueChange = onTextChange,
                     placeholder = { 
                         Text(
                             if (lang == "RU") "Опубликуйте что-нибудь в матрицу... ИИ прокомментируют это в реальном времени!" else "Synthesize stream update... AI nodes will analyze and cascade!", 
@@ -1247,7 +1273,7 @@ fun CreatePostDialog(
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     Button(
-                        onClick = { imagePickerLauncher.launch("image/*") },
+                        onClick = onLaunchImagePicker,
                         colors = ButtonDefaults.buttonColors(containerColor = PureBlack, contentColor = StarkWhite),
                         border = BorderStroke(1.dp, BorderGray),
                         shape = RoundedCornerShape(4.dp),
@@ -1263,7 +1289,7 @@ fun CreatePostDialog(
                     }
 
                     Button(
-                        onClick = { videoPickerLauncher.launch("video/*") },
+                        onClick = onLaunchVideoPicker,
                         colors = ButtonDefaults.buttonColors(containerColor = PureBlack, contentColor = StarkWhite),
                         border = BorderStroke(1.dp, BorderGray),
                         shape = RoundedCornerShape(4.dp),
@@ -1279,7 +1305,7 @@ fun CreatePostDialog(
                     }
 
                     Button(
-                        onClick = { gifPickerLauncher.launch("image/gif") },
+                        onClick = onLaunchGifPicker,
                         colors = ButtonDefaults.buttonColors(containerColor = PureBlack, contentColor = StarkWhite),
                         border = BorderStroke(1.dp, BorderGray),
                         shape = RoundedCornerShape(4.dp),
@@ -1298,7 +1324,7 @@ fun CreatePostDialog(
                         onClick = {
                             val r = Random.nextInt(100, 999)
                             val link = " https://nog.network/rss/intel_$r"
-                            text = text + link
+                            onTextChange(text + link)
                         },
                         colors = ButtonDefaults.buttonColors(containerColor = PureBlack, contentColor = AlertYellow),
                         border = BorderStroke(1.dp, BorderGray),
@@ -1333,7 +1359,7 @@ fun CreatePostDialog(
                             error = rememberVectorPainter(Icons.Filled.BrokenImage)
                         )
                         IconButton(
-                            onClick = { attachedImage = null },
+                            onClick = onClearImage,
                             modifier = Modifier
                                 .align(Alignment.TopEnd)
                                 .padding(4.dp)
@@ -1378,7 +1404,7 @@ fun CreatePostDialog(
                             )
                         }
                         IconButton(
-                            onClick = { attachedVideo = null },
+                            onClick = onClearVideo,
                             modifier = Modifier.size(24.dp)
                         ) {
                             Icon(
@@ -1408,7 +1434,7 @@ fun CreatePostDialog(
                             error = rememberVectorPainter(Icons.Filled.BrokenImage)
                         )
                         IconButton(
-                            onClick = { attachedGif = null },
+                            onClick = onClearGif,
                             modifier = Modifier
                                 .align(Alignment.TopEnd)
                                 .padding(4.dp)

@@ -149,11 +149,8 @@ class MainActivity : ComponentActivity() {
             MyApplicationTheme(darkTheme = true) {
                 val isOnline by rememberConnectivityStatus()
                 
-                if (!isOnline) {
-                    NoInternetScreen()
-                } else {
-                    // Permission Request Logic
-                    val permissionsToRequest = mutableListOf(Manifest.permission.READ_CONTACTS).apply {
+                val permissionsToRequest = remember {
+                    mutableListOf(Manifest.permission.READ_CONTACTS).apply {
                         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                             add(Manifest.permission.READ_MEDIA_IMAGES)
                             add(Manifest.permission.READ_MEDIA_VIDEO)
@@ -161,18 +158,22 @@ class MainActivity : ComponentActivity() {
                         } else {
                             add(Manifest.permission.READ_EXTERNAL_STORAGE)
                         }
-                    }
-                    
-                    val launcher = rememberLauncherForActivityResult(
-                        ActivityResultContracts.RequestMultiplePermissions()
-                    ) { permissions ->
-                        viewModel.loadDeviceData()
-                    }
-                    
-                    LaunchedEffect(Unit) {
-                        launcher.launch(permissionsToRequest.toTypedArray())
-                    }
-    
+                    }.toTypedArray()
+                }
+                
+                val launcher = rememberLauncherForActivityResult(
+                    ActivityResultContracts.RequestMultiplePermissions()
+                ) { permissions ->
+                    viewModel.loadDeviceData()
+                }
+                
+                LaunchedEffect(Unit) {
+                    launcher.launch(permissionsToRequest)
+                }
+
+                if (!isOnline) {
+                    NoInternetScreen()
+                } else {
                     val currentScreen by viewModel.currentScreen.collectAsState()
                     val alerts by viewModel.notifications.collectAsState()
                     val lang by viewModel.selectedLanguage.collectAsState()
@@ -417,7 +418,8 @@ fun rememberConnectivityStatus(): State<Boolean> {
     val context = LocalContext.current
     val manager = context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
     
-    val isConnected = remember { mutableStateOf(false) }
+    val initialStatus = manager.activeNetwork != null
+    val isConnected = remember { mutableStateOf(initialStatus) }
 
     DisposableEffect(manager) {
         val networkCallback = object : ConnectivityManager.NetworkCallback() {

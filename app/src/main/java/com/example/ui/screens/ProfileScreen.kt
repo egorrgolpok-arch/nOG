@@ -107,6 +107,22 @@ fun ProfileScreen(
     var showFollowingList by remember { mutableStateOf(false) }
     val context = LocalContext.current
 
+    val photoPickerLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.PickVisualMedia()
+    ) { uri ->
+        if (uri != null) {
+            try {
+                context.contentResolver.takePersistableUriPermission(
+                    uri,
+                    Intent.FLAG_GRANT_READ_URI_PERMISSION
+                )
+            } catch (e: Exception) {
+                android.util.Log.e("Profile", "Persistable permission error", e)
+            }
+            tempAvatarUrl = uri.toString()
+        }
+    }
+
     // Synchronize form values on loaded
     LaunchedEffect(userProfile) {
         userProfile?.let {
@@ -711,22 +727,6 @@ fun ProfileScreen(
                                 textStyle = TextStyle(fontSize = 11.sp, fontFamily = FontFamily.Monospace)
                             )
                             
-                            val photoPickerLauncher = rememberLauncherForActivityResult(
-                                ActivityResultContracts.PickVisualMedia()
-                            ) { uri ->
-                                if (uri != null) {
-                                    try {
-                                        context.contentResolver.takePersistableUriPermission(
-                                            uri,
-                                            Intent.FLAG_GRANT_READ_URI_PERMISSION
-                                        )
-                                    } catch (e: Exception) {
-                                        android.util.Log.e("Profile", "Persistable permission error", e)
-                                    }
-                                    tempAvatarUrl = uri.toString()
-                                }
-                            }
-
                             Spacer(modifier = Modifier.height(4.dp))
                             
                             Button(
