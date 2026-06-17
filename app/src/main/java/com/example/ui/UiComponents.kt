@@ -4,6 +4,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.WifiOff
+import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -17,8 +18,39 @@ import com.example.ui.theme.*
 
 @Composable
 fun SplashScreen(username: String, isVerified: Boolean, lang: String) {
-    Box(modifier = Modifier.fillMaxSize().background(PureBlack)) {
-        Text("Hello", color = PureWhite)
+    val hour = java.util.Calendar.getInstance().get(java.util.Calendar.HOUR_OF_DAY)
+    val greeting = when (hour) {
+        in 6..11 -> if (lang == "RU") "Доброе утро" else "Good morning"
+        in 12..17 -> if (lang == "RU") "Добрый день" else "Good day"
+        in 18..21 -> if (lang == "RU") "Добрый вечер" else "Good evening"
+        else -> if (lang == "RU") "Привет" else "Hello"
+    }
+    
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(PureBlack),
+        contentAlignment = Alignment.Center
+    ) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Text(
+                text = "${greeting.uppercase()}, ${username.uppercase()}",
+                color = PureWhite,
+                fontSize = 24.sp,
+                fontFamily = FontFamily.Monospace,
+                fontWeight = FontWeight.Bold,
+                textAlign = TextAlign.Center
+            )
+            if (isVerified) {
+                Spacer(modifier = Modifier.height(8.dp))
+                Icon(
+                    imageVector = Icons.Filled.CheckCircle,
+                    contentDescription = "Verified",
+                    tint = PureWhite,
+                    modifier = Modifier.size(24.dp)
+                )
+            }
+        }
     }
 }
 
