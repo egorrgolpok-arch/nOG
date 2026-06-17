@@ -29,15 +29,7 @@ data class TrendingTrendItem(
 class SocialRepository(private val context: Context, private val scope: CoroutineScope) {
     private val TAG = "SocialRepository"
 
-    val database: AppDatabase by lazy {
-        Room.databaseBuilder(
-            context.applicationContext,
-            AppDatabase::class.java,
-            "nog_social_database"
-        )
-        .fallbackToDestructiveMigration(dropAllTables = true)
-        .build()
-    }
+    val database: AppDatabase = DatabaseProvider.getDatabase(context)
 
     private val dao: SocialDao by lazy { database.socialDao() }
     private val markovChain = MarkovChain(order = 2)

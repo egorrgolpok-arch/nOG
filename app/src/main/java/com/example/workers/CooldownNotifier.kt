@@ -21,11 +21,7 @@ object CooldownNotifier {
         val isRu = generalPrefs.getString("selected_lang", "RU") == "RU"
         
         try {
-            val db = Room.databaseBuilder(
-                context.applicationContext,
-                AppDatabase::class.java,
-                "nog_social_database"
-            ).fallbackToDestructiveMigration(dropAllTables = true).build()
+            val db = com.example.data.DatabaseProvider.getDatabase(context)
             
             val socialDao = db.socialDao()
             val user = socialDao.getUserById("user")
