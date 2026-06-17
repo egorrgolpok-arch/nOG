@@ -121,12 +121,16 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         
         // Schedule Tamagotchi background check
-        val workRequest = PeriodicWorkRequestBuilder<TamagotchiWorker>(15, TimeUnit.MINUTES).build()
-        WorkManager.getInstance(applicationContext).enqueueUniquePeriodicWork(
-            "TamagotchiWorker",
-            ExistingPeriodicWorkPolicy.KEEP,
-            workRequest
-        )
+        try {
+            val workRequest = PeriodicWorkRequestBuilder<TamagotchiWorker>(15, TimeUnit.MINUTES).build()
+            WorkManager.getInstance(applicationContext).enqueueUniquePeriodicWork(
+                "TamagotchiWorker",
+                ExistingPeriodicWorkPolicy.KEEP,
+                workRequest
+            )
+        } catch (e: Exception) {
+            // Safe fallback
+        }
 
         // Configure Coil to support GIFs
         val imageLoader = ImageLoader.Builder(this)
