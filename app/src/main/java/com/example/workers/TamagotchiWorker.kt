@@ -124,11 +124,7 @@ class TamagotchiWorker(
         notificationManager.notify(System.currentTimeMillis().toInt(), notification)
 
         // In-app Notification
-        val db = Room.databaseBuilder(
-            applicationContext,
-            AppDatabase::class.java,
-            "nog_social_database"
-        ).fallbackToDestructiveMigration(dropAllTables = true).build()
+        val db = com.example.data.DatabaseProvider.getDatabase(applicationContext)
         
         db.socialDao().insertNotification(
             NotificationEntity(

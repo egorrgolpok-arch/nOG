@@ -172,16 +172,29 @@ class MainActivity : ComponentActivity() {
                     val currentScreen by viewModel.currentScreen.collectAsState()
                     val alerts by viewModel.notifications.collectAsState()
                     val lang by viewModel.selectedLanguage.collectAsState()
-                    val activeUserDecId by viewModel.activeDecorationId.collectAsState()
                     val currentUser by viewModel.currentUser.collectAsState()
-                    
-                    // Count unread notifications to show numerical badge
+                    val activeUserDecId by viewModel.activeDecorationId.collectAsState()
                     val unreadAlertsCount = alerts.filter { !it.isRead }.size
-    
-                    Scaffold(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .background(PureBlack),
+
+                    //Splash Screen State
+                    var showSplash by remember { mutableStateOf(true) }
+
+                    LaunchedEffect(Unit) {
+                        kotlinx.coroutines.delay(2000)
+                        showSplash = false
+                    }
+
+                    if (showSplash) {
+                        SplashScreen(
+                            username = currentUser?.username ?: "User",
+                            isVerified = currentUser?.isVerified ?: false,
+                            lang = lang
+                        )
+                    } else {
+                        Scaffold(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .background(PureBlack),
                     bottomBar = {
                         NavigationBar(
                             modifier = Modifier
@@ -393,6 +406,7 @@ class MainActivity : ComponentActivity() {
         }
     }
 }
+}
 
 @Composable
 fun rememberConnectivityStatus(): State<Boolean> {
@@ -430,43 +444,3 @@ fun rememberConnectivityStatus(): State<Boolean> {
     return isConnected
 }
 
-@Composable
-fun NoInternetScreen() {
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(PureBlack)
-            .padding(24.dp),
-        contentAlignment = Alignment.Center
-    ) {
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Icon(
-                imageVector = Icons.Filled.WifiOff,
-                contentDescription = "No Internet",
-                tint = AlertRed,
-                modifier = Modifier.size(64.dp)
-            )
-            Spacer(modifier = Modifier.height(16.dp))
-            Text(
-                "НЕТ ПОДКЛЮЧЕНИЯ",
-                color = PureWhite,
-                fontSize = 20.sp,
-                fontWeight = FontWeight.Bold,
-                fontFamily = FontFamily.Monospace,
-                textAlign = TextAlign.Center
-            )
-            Spacer(modifier = Modifier.height(8.dp))
-            Text(
-                "Приложение nOG Network требует активного подключения к Интернету для работы. Пожалуйста, проверьте ваше соединение.",
-                color = TextGray,
-                fontSize = 14.sp,
-                fontFamily = FontFamily.Monospace,
-                textAlign = TextAlign.Center
-            )
-        }
-    }
-}
-
-object AppLifecycleTracker {
-    var isAppInForeground: Boolean = false
-}

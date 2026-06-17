@@ -205,6 +205,16 @@ class SocialViewModel(application: Application) : AndroidViewModel(application) 
         prefs.edit().putBoolean("low_end_device_mode", enabled).apply()
     }
 
+    // --- Markov Chain toggle ---
+    private val _isMarkovChainEnabled = MutableStateFlow<Boolean>(false)
+    val isMarkovChainEnabled: StateFlow<Boolean> = _isMarkovChainEnabled.asStateFlow()
+
+    fun toggleMarkovChainEnabled(enabled: Boolean) {
+        _isMarkovChainEnabled.value = enabled
+        val prefs = getApplication<Application>().getSharedPreferences("nog_prefs", Context.MODE_PRIVATE)
+        prefs.edit().putBoolean("markov_chain_enabled", enabled).apply()
+    }
+
     // --- Persistent Poker Balance ---
     private val _pokerBalance = MutableStateFlow<Int>(1000)
     val pokerBalance: StateFlow<Int> = _pokerBalance.asStateFlow()
@@ -654,6 +664,10 @@ class SocialViewModel(application: Application) : AndroidViewModel(application) 
         // Load low-end device mode
         val savedLowEnd = prefs.getBoolean("low_end_device_mode", false)
         _isLowEndDeviceMode.value = savedLowEnd
+
+        // Load MarkovChain toggle
+        val savedMarkov = prefs.getBoolean("markov_chain_enabled", true)
+        _isMarkovChainEnabled.value = savedMarkov
 
         // Load unique viewed posts count
         val viewedStr = prefs.getString("viewed_post_ids_set", "") ?: ""

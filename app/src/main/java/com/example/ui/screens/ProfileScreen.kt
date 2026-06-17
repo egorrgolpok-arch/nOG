@@ -58,6 +58,7 @@ fun ProfileScreen(
     val followingIds by viewModel.currentUserFollowingIds.collectAsState()
     val isSilentMode by viewModel.isSilentMode.collectAsState()
     val isLowEndDeviceMode by viewModel.isLowEndDeviceMode.collectAsState()
+    val isMarkovChainEnabled by viewModel.isMarkovChainEnabled.collectAsState()
     val selectedPostForComments by viewModel.activePostIdForComments.collectAsState()
     val activeUserDecId by viewModel.activeDecorationId.collectAsState()
     val decorationExpiry by viewModel.decorationExpiry.collectAsState()
@@ -551,6 +552,43 @@ fun ProfileScreen(
                             Switch(
                                 checked = isLowEndDeviceMode,
                                 onCheckedChange = { viewModel.toggleLowEndDeviceMode(it) },
+                                colors = SwitchDefaults.colors(
+                                    checkedThumbColor = PureBlack,
+                                    checkedTrackColor = PureWhite,
+                                    uncheckedThumbColor = TextGray,
+                                    uncheckedTrackColor = DeepGray,
+                                    checkedBorderColor = PureWhite,
+                                    uncheckedBorderColor = BorderGray
+                                )
+                            )
+                        }
+                        
+                        Spacer(modifier = Modifier.height(14.dp))
+                        
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = if (lang == "RU") "Markov Chain боты" else "Markov Chain bots",
+                                    color = PureWhite,
+                                    fontSize = 11.sp,
+                                    fontFamily = FontFamily.Monospace,
+                                    fontWeight = FontWeight.Bold
+                                )
+                                Text(
+                                    text = if (lang == "RU") "70% комментариев ботов генерируются Markov Chain" else "70% of bot comments are generated with Markov Chain",
+                                    color = TextGray,
+                                    fontSize = 10.sp,
+                                    lineHeight = 13.sp
+                                )
+                            }
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Switch(
+                                checked = isMarkovChainEnabled,
+                                onCheckedChange = { viewModel.toggleMarkovChainEnabled(it) },
                                 colors = SwitchDefaults.colors(
                                     checkedThumbColor = PureBlack,
                                     checkedTrackColor = PureWhite,

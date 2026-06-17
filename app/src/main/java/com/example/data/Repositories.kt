@@ -40,6 +40,7 @@ class SocialRepository(private val context: Context, private val scope: Coroutin
     }
 
     private val dao: SocialDao by lazy { database.socialDao() }
+    private val markovChain = MarkovChain(order = 2)
     private val categoryCycleIndex = java.util.concurrent.atomic.AtomicInteger(0)
     private val sharedNetworkTrends = mutableListOf<TrendingTrendItem>()
     private var lastTrendFetchTime = 0L
@@ -300,6 +301,7 @@ class SocialRepository(private val context: Context, private val scope: Coroutin
         }
 
         logMetric("POST_CLICK")
+        markovChain.train(listOf(post.content))
         
         // Increased reach for verified users: starting likes/comments
         val author = dao.getUserById(post.authorId)
@@ -389,6 +391,7 @@ class SocialRepository(private val context: Context, private val scope: Coroutin
         replyToAuthorName: String? = null
     ) = withContext(Dispatchers.IO) {
         logMetric("COMMENT_POST")
+        markovChain.train(listOf(content))
         val finalContent = if (content.isNotBlank()) content else getForumStyleComment(getCurrentLang())
         val commentRowId = dao.insertComment(CommentEntity(
             postId = postId,
@@ -1434,7 +1437,16 @@ class SocialRepository(private val context: Context, private val scope: Coroutin
                         val commenter = otherAvailableComments[i]
                         var commentText = ""
                         if (Random.nextInt(100) < 90) {
-                            commentText = getRealtimeForumComment(lang)
+                            val prefs = context.getSharedPreferences("nog_prefs", Context.MODE_PRIVATE)
+                            val isMarkovEnabled = prefs.getBoolean("markov_chain_enabled", false)
+                            if (isMarkovEnabled && Random.nextInt(100) < 70) {
+                                commentText = markovChain.generate()
+                                if (commentText.isBlank()) {
+                                    commentText = getRealtimeForumComment(lang)
+                                }
+                            } else {
+                                commentText = getRealtimeForumComment(lang)
+                            }
                         } else {
                             if (useGemini) {
                                 try {
@@ -1486,7 +1498,16 @@ class SocialRepository(private val context: Context, private val scope: Coroutin
 
                     var commentText = ""
                     if (Random.nextInt(100) < 90) {
-                        commentText = getRealtimeForumComment(lang)
+                        val prefs = context.getSharedPreferences("nog_prefs", Context.MODE_PRIVATE)
+                        val isMarkovEnabled = prefs.getBoolean("markov_chain_enabled", false)
+                        if (isMarkovEnabled && Random.nextInt(100) < 70) {
+                            commentText = markovChain.generate()
+                            if (commentText.isBlank()) {
+                                commentText = getRealtimeForumComment(lang)
+                            }
+                        } else {
+                            commentText = getRealtimeForumComment(lang)
+                        }
                     } else {
                         if (GeminiClient.isKeyAvailable()) {
                             try {
