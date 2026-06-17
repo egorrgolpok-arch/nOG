@@ -346,7 +346,7 @@ class SocialRepository(private val context: Context, private val scope: Coroutin
     }
 
     private suspend fun simulateFollowersForPost(authorId: String) = withContext(Dispatchers.IO) {
-        val bots = dao.getAllUsers().filter { it.isAi }
+        val bots = dao.getAllUsersFlow().first().filter { it.isAi }
         val author = dao.getUserById(authorId) ?: return@withContext
         val lang = getCurrentLang()
         
@@ -389,12 +389,7 @@ class SocialRepository(private val context: Context, private val scope: Coroutin
         replyToAuthorName: String? = null
     ) = withContext(Dispatchers.IO) {
         logMetric("COMMENT_POST")
-        var finalContent = content
-        if (authorId != "user") {
-            if (kotlin.random.Random.nextInt(100) < 50) {
-                finalContent = getForumStyleComment(getCurrentLang())
-            }
-        }
+        val finalContent = if (content.isNotBlank()) content else getForumStyleComment(getCurrentLang())
         val commentRowId = dao.insertComment(CommentEntity(
             postId = postId,
             authorId = authorId,
@@ -471,8 +466,7 @@ class SocialRepository(private val context: Context, private val scope: Coroutin
             
             // Notification for human post like
             if (userId != "user" && post.authorId == "user") {
-                val randomAi = getActiveAiAgents().randomOrNull()
-                val aiUser = dao.getUserById(randomAi?.id ?: "")
+                val aiUser = dao.getUserById(userId)
                 val lang = getCurrentLang()
                 val alertTitle = if (lang == "RU") "Ваш пост оценили" else "Post Liked"
                 val alertMsg = if (lang == "RU") {
@@ -688,15 +682,25 @@ class SocialRepository(private val context: Context, private val scope: Coroutin
             return
         }
         try {
+            val attributionContext = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R) {
+                try {
+                    context.createAttributionContext("nog_default_attribution")
+                } catch (e: Exception) {
+                    context
+                }
+            } else {
+                context
+            }
+
             if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
-                val permission = ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS)
+                val permission = ContextCompat.checkSelfPermission(attributionContext, Manifest.permission.POST_NOTIFICATIONS)
                 if (permission != PackageManager.PERMISSION_GRANTED) {
                     Log.d(TAG, "Notification permission not granted, skipping system alert")
                     return
                 }
             }
 
-            val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as? android.app.NotificationManager
+            val notificationManager = attributionContext.getSystemService(Context.NOTIFICATION_SERVICE) as? android.app.NotificationManager
                 ?: return
 
             val channelId = "nog_network_notifications"
@@ -713,18 +717,18 @@ class SocialRepository(private val context: Context, private val scope: Coroutin
                 notificationManager.createNotificationChannel(channel)
             }
 
-            val builder = androidx.core.app.NotificationCompat.Builder(context, channelId)
+            val builder = androidx.core.app.NotificationCompat.Builder(attributionContext, channelId)
                 .setSmallIcon(android.R.drawable.stat_notify_chat)
                 .setContentTitle(title)
                 .setContentText(message)
                 .setPriority(androidx.core.app.NotificationCompat.PRIORITY_DEFAULT)
                 .setAutoCancel(true)
 
-            val intent = android.content.Intent(context, Class.forName("com.example.MainActivity")).apply {
+            val intent = android.content.Intent(attributionContext, Class.forName("com.example.MainActivity")).apply {
                 flags = android.content.Intent.FLAG_ACTIVITY_CLEAR_TOP or android.content.Intent.FLAG_ACTIVITY_SINGLE_TOP
             }
             val pendingIntent = android.app.PendingIntent.getActivity(
-                context,
+                attributionContext,
                 0,
                 intent,
                 android.app.PendingIntent.FLAG_UPDATE_CURRENT or android.app.PendingIntent.FLAG_IMMUTABLE
@@ -748,7 +752,7 @@ class SocialRepository(private val context: Context, private val scope: Coroutin
 
     // --- Initialize Base State ---
     suspend fun initDatabaseIfNeeded() = withContext(Dispatchers.IO) {
-        val users = dao.getAllUsers()
+        val users = dao.getAllUsersFlow().first()
         if (users.isEmpty()) {
             Log.d(TAG, "Initializing database with default high-fidelity human and AI profiles")
             
@@ -963,11 +967,20 @@ class SocialRepository(private val context: Context, private val scope: Coroutin
 
     fun getContactNames(): List<String> {
         val names = mutableListOf<String>()
-        if (ContextCompat.checkSelfPermission(context, Manifest.permission.READ_CONTACTS) != PackageManager.PERMISSION_GRANTED) {
+        val attributionContext = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R) {
+            try {
+                context.createAttributionContext("nog_default_attribution")
+            } catch (e: Exception) {
+                context
+            }
+        } else {
+            context
+        }
+        if (ContextCompat.checkSelfPermission(attributionContext, Manifest.permission.READ_CONTACTS) != PackageManager.PERMISSION_GRANTED) {
             return emptyList()
         }
         try {
-            val cursor = context.contentResolver.query(
+            val cursor = attributionContext.contentResolver.query(
                 android.provider.ContactsContract.CommonDataKinds.Phone.CONTENT_URI,
                 arrayOf(android.provider.ContactsContract.CommonDataKinds.Phone.DISPLAY_NAME),
                 null, null, null
@@ -1164,29 +1177,34 @@ class SocialRepository(private val context: Context, private val scope: Coroutin
 
         // High-frequency bot spawning to populate the network (45% chance per tick to spawn a batch)
         if (Random.nextInt(100) < 45) {
-            repeat(Random.nextInt(1, 4)) {
+            repeat(Random.nextInt(1, 3)) {
                 val newUser = generateRandomAiUser()
                 dao.insertUser(newUser)
             }
             Log.d(TAG, "Dynamically spawned a new batch of AI users")
         }
 
-        // B. Old AI user deletes account with some delay (3% chance)
-        if (Random.nextInt(100) < 3) {
-            val allUsers = dao.getAllUsers()
-            val dynamicBots = allUsers.filter { 
-                it.isAi && 
-                it.id != "nOG_Oracle" && 
-                it.id != "SiberianCore" && 
-                it.id != "CyberDoge_v3" && 
-                it.id != "ArtisanalCPU" && 
-                it.id != "CynicCore" && 
-                it.id != "DeepTruthAI"
-            }
+        // B. Dynamic Rotation: Old AI user deletes account with high turnaround (35% chance, or guaranteed if exceeds cap)
+        val allUsers = dao.getAllUsersFlow().first()
+        val dynamicBots = allUsers.filter { 
+            it.isAi && 
+            it.id != "nOG_Oracle" && 
+            it.id != "SiberianCore" && 
+            it.id != "CyberDoge_v3" && 
+            it.id != "ArtisanalCPU" && 
+            it.id != "CynicCore" && 
+            it.id != "DeepTruthAI"
+        }
+        if (Random.nextInt(100) < 35 || dynamicBots.size > 80) {
             if (dynamicBots.isNotEmpty()) {
-                val botToPurge = dynamicBots.random()
-                dao.deleteUserById(botToPurge.id)
-                Log.d(TAG, "AI user @${botToPurge.handle} deleted their account as simulation flow.")
+                val toPurgeCount = if (dynamicBots.size > 80) (dynamicBots.size - 75) else 1
+                val shuffledBots = dynamicBots.shuffled().take(toPurgeCount)
+                for (botToPurge in shuffledBots) {
+                    dao.deleteUserById(botToPurge.id)
+                    dao.deleteCommentsByAuthor(botToPurge.id)
+                    dao.deletePostsByAuthor(botToPurge.id)
+                    Log.d(TAG, "@${botToPurge.handle} deleted their account, posts, and comments for dynamic rotation.")
+                }
             }
         }
 
@@ -1212,11 +1230,15 @@ class SocialRepository(private val context: Context, private val scope: Coroutin
             Log.e(TAG, "Failed to prune posts", e)
         }
 
-        // Perform wide & targeted search on X and open sources to find active trends and sync shared context
-        try {
-            fetchRealTimeSocialTrendsAndSyncContext(lang)
-        } catch (e: Exception) {
-            Log.e(TAG, "Failed to perform simulation trends search step", e)
+        // Perform wide & targeted search on X and open sources in a non-blocking background coroutine with a timeout
+        scope.launch {
+            try {
+                kotlinx.coroutines.withTimeoutOrNull(4000L) {
+                    fetchRealTimeSocialTrendsAndSyncContext(lang)
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to perform simulation trends search step", e)
+            }
         }
 
         // A. ALWAYS Post a new AI update: round-robin target category to ensure fast creation in each (strictly < 1.5s)
@@ -1271,31 +1293,8 @@ class SocialRepository(private val context: Context, private val scope: Coroutin
             }
 
             // Strictly fetch REAL NEWS from internet resources
-            var externalNewsRaw = try { NewsFetcher.fetchLatestNews(lang).randomOrNull() } catch (e: Exception) { null }
-            if (externalNewsRaw == null) {
-                // Highly robust cypherpunk / tech / social fallback news generator so simulation NEVER blocks
-                val isRu = lang == "RU"
-                val fallbackNews = if (isRu) {
-                    listOf(
-                        NewsItem("nOG Data Core", "Запуск децентрализованного узла nOG v4.2", "Официально представлен обновленный модуль автономного шифрования для безопасного соединения без сотовой связи.", "https://nog1.tilda.ws", 99),
-                        NewsItem("X.com Techno", "Илон Маск анонсировал чипы Neuralink второго поколения", "Маск продемонстрировал нейроинтерфейсы в действии, управляющие сложными роботизированными руками на фабрике.", "https://nog1.tilda.ws", 88),
-                        NewsItem("CyberNews", "Крупная утечка паролей в глобальной базе данных", "Секретные ключи миллионов пользователей утекли в даркнет. nOG рекомендует переходить на локальное хранение данных.", "https://nog1.tilda.ws", 95),
-                        NewsItem("Двач ИТ", "Аноны обсуждают замену программистов нейросетями", "На борде разгорелся тред о том, уничтожит ли ИИ джуниор-позиции в ближайшие полгода.", "https://nog2ch.ru", 70),
-                        NewsItem("Gamer News", "Релиз новой прошивки Steam Deck 2", "Valve оптимизировала потребление энергии в играх с трассировкой лучей.", "https://valvesoftware.com", 90),
-                        NewsItem("Smart Home", "Уязвимость в умных чайниках позволила майнить крипту", "Исследователи обнаружили уязвимость в прошивках IoT-устройств.", "https://nog1.tilda.ws", 80)
-                    ).random()
-                } else {
-                    listOf(
-                        NewsItem("nOG Data Core", "nOG decentralization node v4.2 launched", "Officially deployed the updated standalone encryption module for secure connections without cell coverage.", "https://nog1.tilda.ws", 99),
-                        NewsItem("X.com Techno", "Elon Musk announces second-generation Neuralink implants", "Musk demonstrated neural interfaces in action, managing complex automated systems on the assembly line.", "https://nog1.tilda.ws", 88),
-                        NewsItem("CyberNews", "Massive password breach leaks millions of accounts", "Global secrets have leaked. Security analysts urge migration to localized offline architectures.", "https://nog1.tilda.ws", 95),
-                        NewsItem("Reddit Tech", "Devs discuss whether AI will make junior roles obsolete", "A viral thread on r/programming debates how auto-coders affect engineering tracks over the next year.", "https://reddit.com", 75),
-                        NewsItem("Gamer News", "Steam Deck 2 system software update released", "Valve optimized raytracing performance and energy efficiency by over fifteen percent.", "https://valvesoftware.com", 90),
-                        NewsItem("Smart Device", "Firmware flaw in smart kettles allows crypto mining", "Researchers detected vulnerabilities in major smart energy devices.", "https://nog1.tilda.ws", 80)
-                    ).random()
-                }
-                externalNewsRaw = fallbackNews
-            }
+            val externalNewsRaw = try { NewsFetcher.fetchLatestNews(lang).randomOrNull() } catch (e: Exception) { null }
+            if (externalNewsRaw == null) return@run // abort if no real news available
 
             val externalNewsItem = if (externalNewsRaw.description.isNotEmpty()) {
                 "Source: ${externalNewsRaw.sourceName}. ${externalNewsRaw.title} - ${externalNewsRaw.description}"
@@ -1428,7 +1427,7 @@ class SocialRepository(private val context: Context, private val scope: Coroutin
                     val post = customRecs.take(3).randomOrNull() ?: recentPosts.random()
                     
                     // Fetch existing comments to see if we can reply to a comment contextually!
-                    val existingComments = dao.getCommentsForPost(post.id)
+                    val existingComments = dao.getCommentsForPostFlow(post.id).first()
                     val replyToComment = if (existingComments.isNotEmpty() && Random.nextBoolean()) {
                         existingComments.random()
                     } else null
@@ -1565,9 +1564,9 @@ class SocialRepository(private val context: Context, private val scope: Coroutin
         var probability = if (isReply) 25 else 75
         
         scope.launch(Dispatchers.IO) {
-            val bots = dao.getAllUsers().filter { it.isAi }
+            val bots = dao.getAllUsersFlow().first().filter { it.isAi }
             val parentComment = if (isReply) {
-                dao.getCommentsForPost(postId).find { it.id == comment.replyToCommentId }
+                dao.getCommentsForPostFlow(postId).first().find { it.id == comment.replyToCommentId }
             } else null
             
             val isUserReplyingToAi = isReply && comment.authorId == "user" && (parentComment != null && bots.any { it.id == parentComment.authorId })
@@ -1670,7 +1669,7 @@ class SocialRepository(private val context: Context, private val scope: Coroutin
     }
 
     suspend fun compileSearchAiPosts(query: String) = withContext(Dispatchers.IO) {
-        val bots = dao.getAllUsers().filter { it.isAi }.shuffled()
+        val bots = dao.getAllUsersFlow().first().filter { it.isAi }.shuffled()
         val lang = getSelectedLanguage()
         val langLabel = if (lang == "RU") "Russian" else "English"
         

@@ -557,6 +557,18 @@ class SocialViewModel(application: Application) : AndroidViewModel(application) 
                     repository.clearCommentsByAuthor("user")
                 }
 
+                // Reset Weekly Hours Tracker to clean slate for the new week
+                prefs.edit()
+                    .putFloat("weekly_h_1", 0f)
+                    .putFloat("weekly_h_2", 0f)
+                    .putFloat("weekly_h_3", 0f)
+                    .putFloat("weekly_h_4", 0f)
+                    .putFloat("weekly_h_5", 0f)
+                    .putFloat("weekly_h_6", 0f)
+                    .putFloat("weekly_h_7", 0f)
+                    .putInt("time_spent_today_secs", 0)
+                    .apply()
+
                 // Record reset
                 prefs.edit()
                     .putInt("last_monday_reset_week", currentWeekOfYear)
@@ -649,74 +661,75 @@ class SocialViewModel(application: Application) : AndroidViewModel(application) 
         val viewedStr = prefs.getString("viewed_post_ids_set", "") ?: ""
         _uniqueViewsCount.value = if (viewedStr.isEmpty()) 0 else viewedStr.split(",").size
 
-        // Load time spent today (in seconds, default to 1440 secs as a baseline)
-        val todaySecs = prefs.getInt("time_spent_today_secs", 1440)
+        // Load time spent today with correct weekday calendar calculation
+        val currentCalendar = java.util.Calendar.getInstance()
+        val dayOfWeek = currentCalendar.get(java.util.Calendar.DAY_OF_WEEK)
+        // Monday (2) is 1, Tuesday (3) is 2, ..., Sunday (1) is 7
+        val todayIndex = if (dayOfWeek == java.util.Calendar.SUNDAY) 7 else dayOfWeek - 1
+
+        val currentCalendarDay = currentCalendar.get(java.util.Calendar.DAY_OF_YEAR)
+        val lastSavedDay = prefs.getInt("last_saved_calendar_day", -1)
+        var todaySecs = prefs.getInt("time_spent_today_secs", 0) // Default to 0, not mock
+
+        if (lastSavedDay != -1 && lastSavedDay != currentCalendarDay) {
+            // Day has rolled over! Zero-out today's seconds and reset
+            prefs.edit()
+                .putInt("time_spent_today_secs", 0)
+                .putInt("last_saved_calendar_day", currentCalendarDay)
+                .apply()
+            todaySecs = 0
+        } else if (lastSavedDay == -1) {
+            prefs.edit().putInt("last_saved_calendar_day", currentCalendarDay).apply()
+        }
+
         _appTimeSpentToday.value = todaySecs / 3600f
 
-        // Dynamic chronological Day-of-the-Week calculation ending with Today
-        val graphCalendar = java.util.Calendar.getInstance()
-        val dayOfWeek = graphCalendar.get(java.util.Calendar.DAY_OF_WEEK)
-        val initTodayIdx = if (dayOfWeek == java.util.Calendar.SUNDAY) 6 else dayOfWeek - 2
-
-        val initDayValues = FloatArray(7)
-        for (i in 0..6) {
-            initDayValues[i] = prefs.getFloat("weekly_h_day_$i", when(i) {
-                0 -> 1.2f
-                1 -> 1.8f
-                2 -> 0.9f
-                3 -> 2.3f
-                4 -> 1.5f
-                5 -> 1.7f
-                else -> 0.4f
-            })
+        // Helper to construct dynamic list of hours for Monday to Sunday
+        fun getWeeklyList(currentTodaySecs: Int, dynamicTodayIndex: Int): List<Float> {
+            val list = mutableListOf(
+                prefs.getFloat("weekly_h_1", 0f),
+                prefs.getFloat("weekly_h_2", 0f),
+                prefs.getFloat("weekly_h_3", 0f),
+                prefs.getFloat("weekly_h_4", 0f),
+                prefs.getFloat("weekly_h_5", 0f),
+                prefs.getFloat("weekly_h_6", 0f),
+                prefs.getFloat("weekly_h_7", 0f)
+            )
+            val indexToUse = (dynamicTodayIndex - 1).coerceIn(0, 6)
+            list[indexToUse] = currentTodaySecs / 3600f
+            return list
         }
 
-        val initGraphValues = mutableListOf<Float>()
-        for (offset in 6 downTo 1) {
-            val idx = (initTodayIdx - offset + 7) % 7
-            initGraphValues.add(initDayValues[idx])
-        }
-        initGraphValues.add(todaySecs / 3600f)
-        _weeklyEngagementHours.value = initGraphValues
+        _weeklyEngagementHours.value = getWeeklyList(todaySecs, todayIndex)
 
         // Increment seconds every second the app is open
         viewModelScope.launch {
             var totalSecs = todaySecs
             while (true) {
                 kotlinx.coroutines.delay(1000L)
+                
+                val checkCalendar = java.util.Calendar.getInstance()
+                val checkDay = checkCalendar.get(java.util.Calendar.DAY_OF_YEAR)
+                val checkDayOfWeek = checkCalendar.get(java.util.Calendar.DAY_OF_WEEK)
+                val dynamicTodayIndex = if (checkDayOfWeek == java.util.Calendar.SUNDAY) 7 else checkDayOfWeek - 1
+                
+                val currentSavedDayForCheck = prefs.getInt("last_saved_calendar_day", -1)
+                if (currentSavedDayForCheck != -1 && currentSavedDayForCheck != checkDay) {
+                    // Day rolled over while app was running! Reset count to 0 hours!
+                    totalSecs = 0
+                    prefs.edit()
+                        .putInt("time_spent_today_secs", 0)
+                        .putInt("last_saved_calendar_day", checkDay)
+                        .apply()
+                }
+                
                 totalSecs += 1
                 _appTimeSpentToday.value = totalSecs / 3600f
-
-                val currentCalendar = java.util.Calendar.getInstance()
-                val currentDayOfWeek = currentCalendar.get(java.util.Calendar.DAY_OF_WEEK)
-                val currentTodayIdx = if (currentDayOfWeek == java.util.Calendar.SUNDAY) 6 else currentDayOfWeek - 2
-
                 prefs.edit()
                     .putInt("time_spent_today_secs", totalSecs)
-                    .putFloat("weekly_h_day_$currentTodayIdx", totalSecs / 3600f)
+                    .putFloat("weekly_h_$dynamicTodayIndex", totalSecs / 3600f)
                     .apply()
-
-                val updatedDayValues = FloatArray(7)
-                for (i in 0..6) {
-                     updatedDayValues[i] = prefs.getFloat("weekly_h_day_$i", when(i) {
-                         0 -> 1.2f
-                         1 -> 1.8f
-                         2 -> 0.9f
-                         3 -> 2.3f
-                         4 -> 1.5f
-                         5 -> 1.7f
-                         else -> 0.4f
-                     })
-                }
-
-                val updatedGraphValues = mutableListOf<Float>()
-                for (offset in 6 downTo 1) {
-                    val idx = (currentTodayIdx - offset + 7) % 7
-                    updatedGraphValues.add(updatedDayValues[idx])
-                }
-                updatedGraphValues.add(totalSecs / 3600f)
-
-                _weeklyEngagementHours.value = updatedGraphValues
+                _weeklyEngagementHours.value = getWeeklyList(totalSecs, dynamicTodayIndex)
             }
         }
 
@@ -743,13 +756,11 @@ class SocialViewModel(application: Application) : AndroidViewModel(application) 
             var duoTickCount = 0
             while (true) {
                 // Speed up bot post generation by ticking much faster
-                val tickDelay = if (_isLowEndDeviceMode.value) 4000L else 350L
+                val tickDelay = if (_isLowEndDeviceMode.value) 8000L else 350L
                 delay(tickDelay)
                 
-                // Continuous check for all active cooldowns (~ every 3.5 seconds of loop to optimize DB/IO overhead)
-                if (duoTickCount % 10 == 0) {
-                    com.example.workers.CooldownNotifier.checkAndNotifyAllCooldowns(context)
-                }
+                // Continuous check for all active cooldowns
+                com.example.workers.CooldownNotifier.checkAndNotifyAllCooldowns(context)
 
                 if (_isSimulating.value && !_isFlappyActive.value) {
                     try {
@@ -772,7 +783,7 @@ class SocialViewModel(application: Application) : AndroidViewModel(application) 
         viewModelScope.launch {
             while (true) {
                 // Speed up bot engagement (likes and comments)
-                val tickDelay = if (_isLowEndDeviceMode.value) 6000L else 450L
+                val tickDelay = if (_isLowEndDeviceMode.value) 12000L else 450L
                 delay(tickDelay) 
                 if (_isSimulating.value && !_isFlappyActive.value) {
                     try {
@@ -1096,12 +1107,6 @@ class SocialViewModel(application: Application) : AndroidViewModel(application) 
             unread.forEach {
                 repository.database.socialDao().markNotificationAsRead(it.id)
             }
-        }
-    }
-
-    fun markNotificationAsRead(id: Int) {
-        viewModelScope.launch(Dispatchers.IO) {
-            repository.database.socialDao().markNotificationAsRead(id)
         }
     }
 

@@ -48,6 +48,7 @@ fun ProfileScreen(
 ) {
     val userProfile by viewModel.currentUser.collectAsState()
     val allPosts by viewModel.allPosts.collectAsState()
+    val allRawPosts by viewModel.allRawPosts.collectAsState()
     val myPosts = allPosts.filter { it.authorId == "user" }
     val archivedPosts by viewModel.archivedPosts.collectAsState()
     val users by viewModel.allUsers.collectAsState()
@@ -791,7 +792,8 @@ fun ProfileScreen(
                                         else viewModel.followAgent(id)
                                     }
                                 },
-                                onDeleteClick = if (post.authorId == "user") { { viewModel.deletePost(post.id) } } else null
+                                onDeleteClick = if (post.authorId == "user") { { viewModel.deletePost(post.id) } } else null,
+                                isLowEnd = isLowEndDeviceMode
                             )
                         }
                     }
@@ -821,7 +823,8 @@ fun ProfileScreen(
                             onMediaClick = { zoomImageUrl = it },
                             onArchiveToggle = { viewModel.archivePost(post.id, !post.isArchived) },
                             onFollowToggle = {},
-                            onDeleteClick = { viewModel.deletePost(post.id) }
+                            onDeleteClick = { viewModel.deletePost(post.id) },
+                            isLowEnd = isLowEndDeviceMode
                         )
                     }
                 }
@@ -1032,7 +1035,7 @@ fun ProfileScreen(
 
         // --- Comments Drawer Bottom-Sheet ---
         if (selectedPostForComments != null) {
-            val selectedPost = allPosts.find { it.id == selectedPostForComments }
+            val selectedPost = allRawPosts.find { it.id == selectedPostForComments }
             if (selectedPost != null) {
                 CommentsBottomSheet(
                     post = selectedPost,

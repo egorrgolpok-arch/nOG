@@ -70,13 +70,13 @@ fun FeedScreen(
     val currentUserFollowingIds by viewModel.currentUserFollowingIds.collectAsState()
     val activeUserDecId by viewModel.activeDecorationId.collectAsState()
     val allRawPosts by viewModel.allRawPosts.collectAsState()
+    val isLowEndDeviceMode by viewModel.isLowEndDeviceMode.collectAsState()
     
     val lazyListState = rememberLazyListState()
     val coroutineScope = rememberCoroutineScope()
     
     var showCreatePostDialog by remember { mutableStateOf(false) }
     var showFlappyBotGame by remember { mutableStateOf(false) }
-    var showNogAiChat by remember { mutableStateOf(false) }
     var showTamagotchiDialog by remember { mutableStateOf(false) }
     var showDecorationShopDialog by remember { mutableStateOf(false) }
     var zoomImageUrl by remember { mutableStateOf<String?>(null) }
@@ -444,7 +444,8 @@ fun FeedScreen(
                                                 if (isF) viewModel.unfollowAgent(post.authorId)
                                                 else viewModel.followAgent(post.authorId)
                                             }
-                                        }
+                                        },
+                                        isLowEnd = isLowEndDeviceMode
                                     )
                                 }
                             }
@@ -482,24 +483,6 @@ fun FeedScreen(
                     Icon(
                         imageVector = Icons.Filled.SportsEsports,
                         contentDescription = if (lang == "RU") "Играть во Флаппи-Бот" else "Play Flappy Bot"
-                    )
-                }
-
-                // --- nOG AI Chat FAB ---
-                FloatingActionButton(
-                    onClick = { showNogAiChat = true },
-                    containerColor = PureWhite,
-                    contentColor = PureBlack,
-                    shape = RoundedCornerShape(12.dp),
-                    modifier = Modifier
-                        .border(2.dp, PureBlack, RoundedCornerShape(12.dp))
-                        .testTag("nog_ai_chat_fab")
-                ) {
-                    Text(
-                        text = "AI",
-                        fontFamily = FontFamily.Monospace,
-                        fontWeight = FontWeight.ExtraBold,
-                        fontSize = 16.sp
                     )
                 }
 
@@ -587,14 +570,6 @@ fun FeedScreen(
                     viewModel.createNewUserPost(content, image, video, category)
                     showCreatePostDialog = false
                 }
-            )
-        }
-
-        // --- nOG AI Chat Dialog ---
-        if (showNogAiChat) {
-            NogAiChatDialog(
-                onDismiss = { showNogAiChat = false },
-                lang = lang
             )
         }
 
@@ -727,7 +702,8 @@ fun PostItem(
     onMediaClick: (String?) -> Unit,
     onArchiveToggle: () -> Unit,
     onFollowToggle: () -> Unit,
-    onDeleteClick: (() -> Unit)? = null
+    onDeleteClick: (() -> Unit)? = null,
+    isLowEnd: Boolean = false
 ) {
     Card(
         modifier = Modifier
@@ -753,7 +729,8 @@ fun PostItem(
                     avatarUrl = author?.avatarUrl ?: "https://robohash.org/unknown.png?size=200x200&set=set1",
                     decorationId = decorationId,
                     sizeDp = 42,
-                    borderWidthDp = 1
+                    borderWidthDp = 1,
+                    isLowEnd = isLowEnd
                 )
                 
                 Spacer(modifier = Modifier.width(12.dp))
@@ -1572,155 +1549,6 @@ fun CommentsBottomSheet(
                 fontWeight = FontWeight.Bold,
                 modifier = Modifier.padding(bottom = 12.dp)
             )
-
-            // Dynamic Live Parent Post Preview Card so users can see likes and content updates!
-            val likedPostIds by viewModel.likedPostIds.collectAsState()
-            val activeUserDecId by viewModel.activeDecorationId.collectAsState()
-
-            Card(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(bottom = 12.dp)
-                    .border(1.dp, BorderGray, RoundedCornerShape(4.dp)),
-                colors = CardDefaults.cardColors(containerColor = PureBlack),
-                shape = RoundedCornerShape(4.dp)
-            ) {
-                Column(modifier = Modifier.padding(12.dp)) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        AvatarWithDecoration(
-                            avatarUrl = author?.avatarUrl ?: "https://robohash.org/unknown.png?size=200x200&set=set1",
-                            decorationId = if (author?.id == "user") activeUserDecId else {
-                                val hash = java.lang.Math.abs((author?.id ?: "").hashCode())
-                                (hash % 210) + 1
-                            },
-                            sizeDp = 32,
-                            borderWidthDp = 1
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Column(modifier = Modifier.weight(1f)) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Text(
-                                    text = author?.username ?: (if (lang == "RU") "Силиконовая Нода" else "Silicon Node"),
-                                    color = PureWhite,
-                                    fontWeight = FontWeight.Bold,
-                                    fontSize = 12.sp
-                                )
-                                if (author?.id == "nOG_AI_SYSTEM" || author?.isVerified == true) {
-                                    Spacer(modifier = Modifier.width(4.dp))
-                                    Icon(
-                                        imageVector = Icons.Filled.CheckCircle,
-                                        contentDescription = "Verified",
-                                        tint = StarkWhite,
-                                        modifier = Modifier.size(12.dp)
-                                    )
-                                }
-                            }
-                            Text(
-                                text = author?.handle ?: "@silicon_node",
-                                color = TextGray,
-                                fontSize = 10.sp
-                            )
-                        }
-                        
-                        Surface(
-                            color = DeepGray,
-                            border = BorderStroke(1.dp, BorderGray),
-                            shape = RoundedCornerShape(2.dp)
-                        ) {
-                            Text(
-                                text = "${post.trustScore}%",
-                                color = if (post.trustScore >= 80) AlertGreen else if (post.trustScore >= 50) AlertYellow else AlertRed,
-                                fontSize = 9.sp,
-                                fontFamily = FontFamily.Monospace,
-                                modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp)
-                            )
-                        }
-                    }
-                    
-                    Spacer(modifier = Modifier.height(8.dp))
-                    
-                    androidx.compose.foundation.text.selection.SelectionContainer {
-                        LinkifyText(
-                            text = post.content,
-                            modifier = Modifier.fillMaxWidth()
-                        )
-                    }
-                    
-                    if (!post.mediaUrl.isNullOrEmpty()) {
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(120.dp)
-                                .background(DeepGray)
-                                .border(1.dp, BorderGray)
-                        ) {
-                            AsyncImage(
-                                model = post.mediaUrl,
-                                contentDescription = "Media Content",
-                                modifier = Modifier.fillMaxSize(),
-                                contentScale = ContentScale.Fit
-                            )
-                        }
-                    }
-                    
-                    Spacer(modifier = Modifier.height(8.dp))
-                    
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            val isLiked = likedPostIds.contains(post.id)
-                            Icon(
-                                imageVector = if (isLiked) Icons.Filled.Favorite else Icons.Outlined.FavoriteBorder,
-                                contentDescription = "Likes",
-                                tint = if (isLiked) AlertRed else TextGray,
-                                modifier = Modifier
-                                    .size(18.dp)
-                                    .clickable { viewModel.toggleLike(post.id) }
-                            )
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Text(
-                                text = post.likesCount.toString(),
-                                color = StarkWhite,
-                                fontSize = 11.sp,
-                                fontFamily = FontFamily.Monospace
-                            )
-                            
-                            Spacer(modifier = Modifier.width(16.dp))
-                            
-                            Icon(
-                                imageVector = Icons.Filled.Comment,
-                                contentDescription = "Comments",
-                                tint = TextGray,
-                                modifier = Modifier.size(16.dp)
-                            )
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Text(
-                                text = post.commentsCount.toString(),
-                                color = StarkWhite,
-                                fontSize = 11.sp,
-                                fontFamily = FontFamily.Monospace
-                            )
-                        }
-                        
-                        if (post.category != null) {
-                            Text(
-                                text = post.category.uppercase(),
-                                color = BorderGray,
-                                fontSize = 8.sp,
-                                fontFamily = FontFamily.Monospace,
-                                fontWeight = FontWeight.Bold
-                            )
-                        }
-                    }
-                }
-            }
             
             Divider(color = BorderGray, thickness = 1.dp)
 

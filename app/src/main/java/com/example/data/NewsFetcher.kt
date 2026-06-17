@@ -235,18 +235,10 @@ object NewsFetcher {
                             val xmlBody = response.body?.string()
                             if (response.isSuccessful && !xmlBody.isNullOrEmpty()) {
                                 val trimmedBody = xmlBody.trim()
-                                val parsed = if (trimmedBody.startsWith("<rss") || trimmedBody.startsWith("<feed") || trimmedBody.contains("<?xml")) {
+                                if (trimmedBody.startsWith("<rss") || trimmedBody.startsWith("<feed") || trimmedBody.contains("<?xml")) {
                                     parseRss(xmlBody, source).take(5)
                                 } else {
                                     emptyList()
-                                }
-                                parsed.map { item ->
-                                    val full = try {
-                                        fetchFullArticleContent(item.url)
-                                    } catch (e: Exception) {
-                                        ""
-                                    }
-                                    if (full.isNotEmpty()) item.copy(fullContent = full) else item
                                 }
                             } else {
                                 emptyList()

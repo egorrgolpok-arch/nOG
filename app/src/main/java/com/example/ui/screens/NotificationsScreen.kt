@@ -129,7 +129,6 @@ fun NotificationsScreen(
                 ) {
                     items(alerts, key = { it.id }) { item ->
                         AlertRow(notification = item, onRowClick = {
-                            viewModel.markNotificationAsRead(item.id)
                             if (item.postId != null) {
                                 viewModel.selectPostForComments(item.postId)
                                 viewModel.navigateTo(com.example.ui.Screen.Feed)

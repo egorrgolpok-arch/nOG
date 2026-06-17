@@ -64,6 +64,7 @@ fun AnalyticsScreen(
     val userUniqueViews by viewModel.uniqueViewsCount.collectAsState()
     val userUniqueLikes = viewModel.likedPostIds.collectAsState().value.size
     val userUniqueComments by viewModel.uniqueCommentsCount.collectAsState()
+    val isLowEndDeviceMode by viewModel.isLowEndDeviceMode.collectAsState()
 
     val context = LocalContext.current
     val prefs = remember(context) { context.getSharedPreferences("nog_prefs", Context.MODE_PRIVATE) }
@@ -278,6 +279,10 @@ fun AnalyticsScreen(
                     }
 
                     // --- Custom Canvas Visualizer Graph (Fitted Line Chart) ---
+                    val calendar = java.util.Calendar.getInstance()
+                    val dayOfWeek = calendar.get(java.util.Calendar.DAY_OF_WEEK)
+                    val todayIndex = if (dayOfWeek == java.util.Calendar.SUNDAY) 7 else dayOfWeek - 1
+
                     Text(
                         if (lang == "RU") "ГРАФИК ВРЕМЕНИ В ПРИЛОЖЕНИИ (Еженедельный путник)" else "APP TIME ENGAGEMENT (Weekly Tracker)",
                         color = PureWhite,
@@ -338,14 +343,15 @@ fun AnalyticsScreen(
                                         style = Stroke(width = 3.dp.toPx())
                                     )
                                     
-                                    // Draw dots with dynamic highlight
+                                    // Draw dots with dynamic highlight matching current weekday
                                     for (index in graphPoints.indices) {
                                         val x = index * stepX
                                         val y = canvasHeight - (graphPoints[index] / maxVal) * canvasHeight
-                                        val dotColor = if (index == graphPoints.size - 1) AlertGreen else PureWhite
+                                        val isToday = (index + 1) == todayIndex
+                                        val dotColor = if (isToday) AlertGreen else PureWhite
                                         drawCircle(
                                             color = dotColor,
-                                            radius = (if (index == graphPoints.size - 1) 7.dp else 5.dp).toPx(),
+                                            radius = (if (isToday) 7.dp else 5.dp).toPx(),
                                             center = Offset(x, y)
                                         )
                                         drawCircle(
@@ -373,32 +379,29 @@ fun AnalyticsScreen(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        val calendar = java.util.Calendar.getInstance()
-                        val dayOfWeek = calendar.get(java.util.Calendar.DAY_OF_WEEK)
-                        val todayIdx = if (dayOfWeek == java.util.Calendar.SUNDAY) 6 else dayOfWeek - 2
-                        
-                        val dayNamesRu = listOf("Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс")
-                        val dayNamesEn = listOf("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun")
-                        
-                        val labels = mutableListOf<String>()
-                        for (offset in 6 downTo 1) {
-                            val idx = (todayIdx - offset + 7) % 7
-                            labels.add(if (lang == "RU") dayNamesRu[idx] else dayNamesEn[idx])
+                        val baseLabels = if (lang == "RU") {
+                            listOf("Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс")
+                        } else {
+                            listOf("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun")
                         }
-                        labels.add(if (lang == "RU") "Сегодня" else "Today")
-
-                        labels.forEachIndexed { i, label ->
+                        baseLabels.forEachIndexed { i, label ->
+                            val isToday = (i + 1) == todayIndex
+                            val displayLabel = if (isToday) {
+                                if (lang == "RU") "Сегодня" else "Today"
+                            } else {
+                                label
+                            }
                             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                                 Text(
-                                    text = label,
-                                    color = if (i == 6) AlertGreen else TextGray,
+                                    text = displayLabel,
+                                    color = if (isToday) AlertGreen else TextGray,
                                     fontSize = 11.sp,
                                     fontFamily = FontFamily.Monospace,
-                                    fontWeight = if (i == 6) FontWeight.Bold else FontWeight.Normal
+                                    fontWeight = if (isToday) FontWeight.Bold else FontWeight.Normal
                                 )
                                 Text(
                                     text = String.format("%.1fh", weeklyHours.getOrElse(i) { 0f }),
-                                    color = if (i == 6) AlertGreen else TextGray,
+                                    color = if (isToday) AlertGreen else TextGray,
                                     fontSize = 9.sp,
                                     fontFamily = FontFamily.Monospace
                                 )
@@ -571,7 +574,7 @@ fun AnalyticsScreen(
                         val isVerified: Boolean
                     )
 
-                     val listItems = remember(selectedLeaderboardCategory, userUniqueViews, userUniqueLikes, userUniqueComments, fiveMinInterval, systemTimeTicks, userContacts, userGallery) {
+                     val listItems = remember(selectedLeaderboardCategory, userUniqueViews, userUniqueLikes, userUniqueComments, fiveMinInterval, userContacts, userGallery, isLowEndDeviceMode) {
                         val items = mutableListOf<LeaderboardItem>()
                         
                         // Add the user with their dynamic cheat-proof scores
@@ -591,7 +594,7 @@ fun AnalyticsScreen(
                             )
                         )
 
-                        // Generate 1500 unique procedurally generated competitive bots!
+                        // Generate unique procedurally generated competitive bots!
                         val prefixes = listOf("alpha", "delta", "cyber", "quantum", "neon", "zero", "matrix", "synth", "pixel", "byte", "omega", "sigma", "meta", "turbo", "giga", "kilo", "micro", "nano", "orbital", "stellar", "apex", "flux", "helix", "void", "shadow", "cybernetic", "kinetic", "quantum_leap", "neural", "synapse")
                         val suffixes = listOf("node", "coder", "bot", "hacker", "core", "mind", "pulse", "grid", "matrix", "shell", "processor", "syndicate", "flow", "daemon", "link", "agent", "vertex", "vector", "net", "mesh", "wave", "vortex", "cascade", "signal", "anchor", "spark", "forge", "beacon", "echo", "nexus")
 
@@ -619,9 +622,10 @@ fun AnalyticsScreen(
                         val intervalSeed = fiveMinInterval * 12345L + selectedLeaderboardCategory * 987L
                         val randomGen = java.util.Random(intervalSeed)
 
-                        val timePassedInIntervalMs = systemTimeTicks % (5 * 60 * 1000)
+                        val timePassedInIntervalMs = 0L
 
-                        for (i in 1..1500) {
+                        val botCount = if (isLowEndDeviceMode) 60 else 180
+                        for (i in 1..botCount) {
                             val botRand = java.util.Random(i * 373L + 77L + selectedLeaderboardCategory * 99L)
                             
                             val isVerified = botRand.nextDouble() < 0.25 // 25% verified rate
@@ -1144,7 +1148,7 @@ fun AnalyticsScreen(
                         // Ranking list
                         itemsIndexed(
                             items = displayedList,
-                            key = { idx, item -> "${item.name}_${idx}_${item.isMe}" }
+                            key = { index, item -> "${item.name}_$index" }
                         ) { idx, item ->
                             val currentPos = listItems.indexOfFirst { it.name == item.name } + 1
                             val rankColor = when (currentPos) {

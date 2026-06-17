@@ -169,7 +169,7 @@ fun FlappyBotGameDialog(
             var lastSpawnX = 400f
             while (isPlaying) {
                 // Gravity & Movement
-                birdVelocity += 0.32f // Gravity index
+                birdVelocity += 0.35f // Gravity index
                 birdY += birdVelocity
 
                 // Ground & Ceiling crash verification
@@ -244,7 +244,7 @@ fun FlappyBotGameDialog(
                     pipes.add(FlappyPipe(400f, nextGapY))
                 }
 
-                delay(20L)
+                kotlinx.coroutines.delay(16L)
             }
         }
     }
