@@ -2562,6 +2562,7 @@ fun CaseOpenerDialog(
                             )
                         }
                     }
+                }
                 } else if (optionSelected) {
                     // Option selected screen
                     Box(
