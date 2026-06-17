@@ -541,47 +541,45 @@ class SocialViewModel(application: Application) : AndroidViewModel(application) 
         val lastResetYear = prefs.getInt("last_monday_reset_year", -1)
         val isMonday = calendar.get(java.util.Calendar.DAY_OF_WEEK) == java.util.Calendar.MONDAY
 
-        if ((isMonday || currentWeekOfYear != lastResetWeek || currentYear != lastResetYear) && (lastResetWeek != -1)) {
-            if (isMonday && (lastResetWeek != currentWeekOfYear || lastResetYear != currentYear)) {
-                // Reset Views
-                prefs.edit().putString("viewed_post_ids_set", "").putInt("feed_views", 0).apply()
-                _uniqueViewsCount.value = 0
-                _feedViews.value = 0
+        if ((currentWeekOfYear != lastResetWeek || currentYear != lastResetYear) && (lastResetWeek != -1)) {
+            // Reset Views
+            prefs.edit().putString("viewed_post_ids_set", "").putInt("feed_views", 0).apply()
+            _uniqueViewsCount.value = 0
+            _feedViews.value = 0
 
-                // Reset Likes
-                prefs.edit().putStringSet("liked_posts", emptySet()).apply()
-                _likedPostIds.value = emptySet()
+            // Reset Likes
+            prefs.edit().putStringSet("liked_posts", emptySet()).apply()
+            _likedPostIds.value = emptySet()
 
-                // Reset Comments
-                viewModelScope.launch {
-                    repository.clearCommentsByAuthor("user")
-                }
+            // Reset Comments
+            viewModelScope.launch {
+                repository.clearCommentsByAuthor("user")
+            }
 
-                // Reset Weekly Hours Tracker to clean slate for the new week
-                prefs.edit()
-                    .putFloat("weekly_h_1", 0f)
-                    .putFloat("weekly_h_2", 0f)
-                    .putFloat("weekly_h_3", 0f)
-                    .putFloat("weekly_h_4", 0f)
-                    .putFloat("weekly_h_5", 0f)
-                    .putFloat("weekly_h_6", 0f)
-                    .putFloat("weekly_h_7", 0f)
-                    .putInt("time_spent_today_secs", 0)
-                    .apply()
+            // Reset Weekly Hours Tracker to clean slate for the new week
+            prefs.edit()
+                .putFloat("weekly_h_1", 0f)
+                .putFloat("weekly_h_2", 0f)
+                .putFloat("weekly_h_3", 0f)
+                .putFloat("weekly_h_4", 0f)
+                .putFloat("weekly_h_5", 0f)
+                .putFloat("weekly_h_6", 0f)
+                .putFloat("weekly_h_7", 0f)
+                .putInt("time_spent_today_secs", 0)
+                .apply()
 
-                // Record reset
-                prefs.edit()
-                    .putInt("last_monday_reset_week", currentWeekOfYear)
-                    .putInt("last_monday_reset_year", currentYear)
-                    .apply()
+            // Record reset
+            prefs.edit()
+                .putInt("last_monday_reset_week", currentWeekOfYear)
+                .putInt("last_monday_reset_year", currentYear)
+                .apply()
 
-                viewModelScope.launch {
-                    repository.insertNotification(
-                        title = if (savedLang == "RU") "Новый турнир начался! 🏆" else "New Tournament Started! 🏆",
-                        message = if (savedLang == "RU") "Понедельник наступил! Все ваши турнирные очки (просмотры, лайки, ответы) сброшены. Время покорять топ заново!" else "Monday is here! All your tournament points (views, likes, comments) have been reset. Time to conquer the top again!",
-                        type = "SYSTEM"
-                    )
-                }
+            viewModelScope.launch {
+                repository.insertNotification(
+                    title = if (savedLang == "RU") "Новый турнир начался! 🏆" else "New Tournament Started! 🏆",
+                    message = if (savedLang == "RU") "Все ваши прошлые еженедельные турнирные метрики (просмотры, лайки, ответы) обнулены. Вперед к Олимпу в новом цикле!" else "Your metrics (views, likes, comments) have been archived. A fresh cycle of the weekly nOG tournament has commenced!",
+                    type = "SYSTEM"
+                )
             }
         }
         if (lastResetWeek == -1) {
@@ -673,10 +671,14 @@ class SocialViewModel(application: Application) : AndroidViewModel(application) 
 
         if (lastSavedDay != -1 && lastSavedDay != currentCalendarDay) {
             // Day has rolled over! Zero-out today's seconds and reset
-            prefs.edit()
+            val editor = prefs.edit()
                 .putInt("time_spent_today_secs", 0)
                 .putInt("last_saved_calendar_day", currentCalendarDay)
-                .apply()
+            // Clear future days starting from todayIndex to purge leftover data
+            for (d in todayIndex..7) {
+                editor.putFloat("weekly_h_$d", 0f)
+            }
+            editor.apply()
             todaySecs = 0
         } else if (lastSavedDay == -1) {
             prefs.edit().putInt("last_saved_calendar_day", currentCalendarDay).apply()

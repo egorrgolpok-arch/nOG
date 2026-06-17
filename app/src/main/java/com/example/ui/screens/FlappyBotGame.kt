@@ -158,7 +158,7 @@ fun FlappyBotGameDialog(
     // Jump function
     fun onFlap() {
         if (isPlaying) {
-            birdVelocity = -6.5f // smooth fly acceleration
+            birdVelocity = -5.5f // smooth fly acceleration (easier than -6.5f)
             viewModel.vibrate(30)
         }
     }
@@ -169,7 +169,7 @@ fun FlappyBotGameDialog(
             var lastSpawnX = 400f
             while (isPlaying) {
                 // Gravity & Movement
-                birdVelocity += 0.35f // Gravity index
+                birdVelocity += 0.28f // Gravity index (slower than 0.35f)
                 birdY += birdVelocity
 
                 // Ground & Ceiling crash verification
@@ -195,7 +195,7 @@ fun FlappyBotGameDialog(
                 var triggeredPoint = false
 
                 for (pipe in pipes) {
-                    pipe.x -= 3.0f // scrolling speed
+                    pipe.x -= 2.0f // scrolling speed (easier than 3.0f)
 
                     // Collision checking (uses slightly trimmed hitbox radius for more satisfying, precise and rewarding passage)
                     val birdX = 120f

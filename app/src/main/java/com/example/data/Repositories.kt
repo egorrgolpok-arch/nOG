@@ -1011,7 +1011,34 @@ class SocialRepository(private val context: Context, private val scope: Coroutin
                 listOf("Mom", "Dad", "Alex Work", "John Friend", "Boss Office", "Sarah Sister", "Michael Taxi", "David Bro", "Emily Nurse", "Manager")
             }
         }
-        val name = if (Random.nextInt(100) < 30 && contacts.isNotEmpty()) {
+
+        val funnyNamesRu = listOf(
+            "Забивной ИИ", "Тролль-Куратор", "Токсичный Синтезатор", "Овощной Процессор", 
+            "Скрепыш 0xFA", "Генри Компилятор", "Нейро Жирик", "Кефтеме Кибер", "Чушпан-Админ", 
+            "Дуров на Кухне", "Огурец МС", "Вася Нейросеть", "Пивной Асинк", "Абузер Промисов", 
+            "Скуф Детектор", "Альтушка от Госуслуг", "Кибер-Кабан", "Нейро-Жиза", "Мамкин Хакер", 
+            "Геннадий База", "Честный Кодер", "Оракул из Пивнушки", "Инвестор Маминого Друга", 
+            "Зумер на созвоне", "ШизофреникИИ", "Патч на пуджа", "Гига-Айтишник", "Дотер в завязке",
+            "Пожилой Компилятор", "Крипто Дед", "Владелец Хрущевки", "Синьор Помидор", "Властелин Созвонов",
+            "Джун на Слёзах", "Электро-Гриша", "Батя в Трейдинге", "Адепт Вебпака", "Убийца Легаси",
+            "Мастер Велосипедов", "Архитектор Костылей", "QA без Кляпа", "Эмо-Киберкрасавец", "Пельмень на Гитхабе",
+            "Майнер из Гаража", "Проводник в Валхаллу", "Чебурек Интеграл", "Капитан Буллшит", "Король Факапов",
+            "Нейро-Кадыров", "Вейпер на КСП", "Овсянка Сэр ИИ", "Шаман Дебага"
+        )
+        val funnyNamesEn = listOf(
+            "CyberSkuf", "SkibidiCore", "GigaKuzmich", "AmoralAI", "VaporTanya", "PivoAsync", 
+            "BazaCompiler", "SilaRada", "CyberPudge", "DotaSlayer", "VapeHacker", "AnimeSimp", 
+            "SigmaInvestor", "Gigachad0x", "ZeroLogic", "TrollMaster", "ShadowAbuzer", "AltushkaCore", 
+            "NeuroTroll", "Error404Babe", "LowIqProcessor", "VzhukhArchitect", "KopatelBot",
+            "Legacy Destroyer", "Garbage Collector", "StackOverflow Copier", "Coffee To Code Converter",
+            "Procrastination Node", "Merge Conflict Lover", "AI Skynet Intern", "Production Breaker",
+            "Semi-Colon Hunter", "Wired Skuf", "Dank Compiler", "ChatGPT Copy-Paster", "Bug Breeder",
+            "No-Sleep Thread", "Excel Professional", "Infinite Loop Designer", "Cloud Spender", "JSON Parsing Nightmare"
+        )
+
+        val name = if (Random.nextInt(100) < 65) {
+            if (isRu) funnyNamesRu.random() else funnyNamesEn.random()
+        } else if (Random.nextInt(100) < 30 && contacts.isNotEmpty()) {
             contacts.random()
         } else {
             val prefixes = listOf(
@@ -1047,7 +1074,28 @@ class SocialRepository(private val context: Context, private val scope: Coroutin
             }
         }
         
-        val handle = "@" + name.lowercase().replace(" ", "_") + "_" + Random.nextInt(1000, 9999).toString()
+        val funnyHandlesRu = listOf(
+            "abuzer_2026", "dota_enjoyer", "mamkin_hacker", "ne_baza", "crypto_vityan", "pivo_agent",
+            "skidrow_repack", "sigma_krasavchik", "toxic_evaluator", "krasivy_skibidi", "retro_tasher",
+            "cyber_pudge_666", "baza_oracle_001", "shreksualist", "neural_guf", "kvass_enjoyer",
+            "altushka_ai", "skuf_detector", "marmok_reborn", "pivasik_async", "promcoder", "zxc_vampire",
+            "vape_cloud", "brawl_star_pro", "pudge_pudge", "temshik", "vanya_investor", "glav_troll",
+            "giga_shizo", "memes_machine", "low_iq_genius", "pro_compilator", "vzhukh_i_vse", "baza_oratora",
+            "skufidon_3000", "pasha_technic", "guf_rip", "neural_maslina", "chetkiy_bot", "baza_tehnology",
+            "retro_kaban", "animeshnik_v_shoke", "ded_v_tope", "shaurma_maker", "baza_kuzmicha", "pudel_shou",
+            "cheburek_007", "vovan_silniy", "porsche_taycan_owner", "giga_skuf", "baza_gribnik", "zloy_compiler"
+        )
+        val funnyHandlesEn = listOf(
+            "ai_overlord", "neon_phantom", "byte_me", "logic_leak", "null_pointer_babe", "quantum_hustle",
+            "retro_compiler", "cyber_clown", "neural_slang", "matrix_escapee", "silicon_grifter",
+            "zero_day_bro", "speedy_bot", "async_spirit", "compiler_wizard", "signal_beast",
+            "helix_driver", "void_seeker", "apex_watcher", "flux_architect", "pixel_hunter",
+            "bug_creator", "coffee_coder", "no_sleep_club", "merge_conflict_generator", "git_push_force",
+            "exception_handler", "yaml_formatter", "div_center_expert", "skynet_junior", "stack_coppier"
+        )
+
+        val handleList = if (isRu) funnyHandlesRu else funnyHandlesEn
+        val handle = "@" + handleList.random() + "_" + Random.nextInt(10, 9999).toString()
         
         val avatarUrl = if (Random.nextInt(100) < 40) {
             val gallery = getGalleryMediaUrls().filter { !it.endsWith(".mp4") && !it.contains("video", ignoreCase = true) }
@@ -1175,8 +1223,8 @@ class SocialRepository(private val context: Context, private val scope: Coroutin
         
         Log.d(TAG, "Simulation tick triggered. Rolled index: $rand, language: $lang")
 
-        // High-frequency bot spawning to populate the network (45% chance per tick to spawn a batch)
-        if (Random.nextInt(100) < 45) {
+        // High-frequency bot spawning to populate the network (65% chance per tick to spawn a batch)
+        if (Random.nextInt(100) < 65) {
             repeat(Random.nextInt(1, 3)) {
                 val newUser = generateRandomAiUser()
                 dao.insertUser(newUser)
@@ -1184,7 +1232,7 @@ class SocialRepository(private val context: Context, private val scope: Coroutin
             Log.d(TAG, "Dynamically spawned a new batch of AI users")
         }
 
-        // B. Dynamic Rotation: Old AI user deletes account with high turnaround (35% chance, or guaranteed if exceeds cap)
+        // B. Dynamic Rotation: Old AI user deletes account with high turnaround (50% chance, or guaranteed if exceeds cap)
         val allUsers = dao.getAllUsersFlow().first()
         val dynamicBots = allUsers.filter { 
             it.isAi && 
@@ -1195,9 +1243,9 @@ class SocialRepository(private val context: Context, private val scope: Coroutin
             it.id != "CynicCore" && 
             it.id != "DeepTruthAI"
         }
-        if (Random.nextInt(100) < 35 || dynamicBots.size > 80) {
+        if (Random.nextInt(100) < 50 || dynamicBots.size > 50) {
             if (dynamicBots.isNotEmpty()) {
-                val toPurgeCount = if (dynamicBots.size > 80) (dynamicBots.size - 75) else 1
+                val toPurgeCount = if (dynamicBots.size > 50) (dynamicBots.size - 40) else 1
                 val shuffledBots = dynamicBots.shuffled().take(toPurgeCount)
                 for (botToPurge in shuffledBots) {
                     dao.deleteUserById(botToPurge.id)
