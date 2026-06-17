@@ -1628,17 +1628,18 @@ fun RouletteGame(viewModel: SocialViewModel, userCoins: Int, isRu: Boolean) {
             }
             
             // Big Clear Winner color indicator badge (Request 5)
-            if (lastSpinNumber != null) {
+            val lastSpin = lastSpinNumber
+            if (lastSpin != null) {
                 val winColor = when {
-                    lastSpinNumber == 0 -> AlertGreen
-                    rouletteRedNumbers.contains(lastSpinNumber!!) -> Color(0xFFFF3B30)
+                    lastSpin == 0 -> AlertGreen
+                    rouletteRedNumbers.contains(lastSpin) -> Color(0xFFFF3B30)
                     else -> PureBlack
                 }
                 val winColorText = when {
-                    lastSpinNumber == 0 -> if (isRu) "ЗЕРО" else "ZERO"
-                    rouletteRedNumbers.contains(lastSpinNumber!!) -> if (isRu) "КРАСНОЕ" else "RED"
+                    lastSpin == 0 -> if (isRu) "ЗЕРО" else "ZERO"
+                    rouletteRedNumbers.contains(lastSpin) -> if (isRu) "КРАСНОЕ" else "RED"
                     else -> if (isRu) "ЧЕРНОЕ" else "BLACK"
-                }
+                }                
                 val winTextColor = PureWhite
                 
                 Surface(

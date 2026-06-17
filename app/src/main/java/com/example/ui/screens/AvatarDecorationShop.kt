@@ -1304,8 +1304,7 @@ fun AvatarDecorationShopDialog(
     }
 
     // Purchase Duration dialog popup
-    if (showPurchaseDialogForDec != null) {
-        val dec = showPurchaseDialogForDec!!
+    showPurchaseDialogForDec?.let { dec ->
         
         // Calculate prices scaled for 1 day, 3 days, 1 week
         val price1Day = dec.basePrice
@@ -1893,9 +1892,9 @@ fun CasesTab(viewModel: SocialViewModel, lang: String) {
         }
     }
 
-    if (selectedCaseForOpening != null) {
+    selectedCaseForOpening?.let { case ->
         CaseOpenerDialog(
-            caseItem = selectedCaseForOpening!!,
+            caseItem = case,
             viewModel = viewModel,
             userCoins = userCoins,
             lang = lang,
@@ -2348,7 +2347,7 @@ fun CaseOpenerDialog(
 
                 // Win Reveal & Recycler Screen!
                 if (wonDecoration != null && !optionSelected) {
-                    val win = wonDecoration!!
+                    wonDecoration?.let { win ->
                     val cardBorder = getRarityColor(win.rarity)
                     
                     val estSellValue = getEstimatedSellValue(win.rarity, win.id)
