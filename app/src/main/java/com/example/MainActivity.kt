@@ -497,10 +497,6 @@ fun NoInternetScreen(modifier: Modifier = Modifier) {
     }
 }
 
-object AppLifecycleTracker {
-    @Volatile
-    var isAppInForeground: Boolean = false
-}
 
 @Composable
 fun WelcomeScreen(viewModel: com.example.ui.SocialViewModel, modifier: Modifier = Modifier) {
