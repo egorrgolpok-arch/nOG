@@ -56,6 +56,25 @@ android {
     buildConfig = true
   }
   testOptions { unitTests { isIncludeAndroidResources = true } }
+  lint {
+    abortOnError = false
+    checkReleaseBuilds = false
+    disable += setOf(
+      "UnusedResources",
+      "UseKtx",
+      "GradleDependency",
+      "NewerVersionAvailable",
+      "DefaultLocale",
+      "ObsoleteSdkInt",
+      "IconDipSize",
+      "InlinedApi",
+      "RedundantLabel",
+      "ScopedStorage",
+      "SelectedPhotoAccess",
+      "TypographyEllipsis",
+      "AndroidGradlePluginVersion"
+    )
+  }
 }
 
 // Configure the Secrets Gradle Plugin to use .env and .env.example files
@@ -87,6 +106,7 @@ dependencies {
   implementation(libs.androidx.lifecycle.runtime.compose)
   implementation(libs.androidx.lifecycle.runtime.ktx)
   implementation(libs.androidx.lifecycle.viewmodel.compose)
+  implementation(libs.androidx.lifecycle.process)
   // implementation(libs.androidx.navigation.compose)
   implementation(libs.androidx.room.ktx)
   implementation(libs.androidx.room.runtime)

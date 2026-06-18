@@ -195,16 +195,6 @@ class SocialViewModel(application: Application) : AndroidViewModel(application) 
         prefs.edit().putBoolean("silent_mode", enabled).apply()
     }
 
-    // --- Markov Chain Enabled (Enabled by default) ---
-    private val _isMarkovEnabled = MutableStateFlow<Boolean>(true)
-    val isMarkovEnabled: StateFlow<Boolean> = _isMarkovEnabled.asStateFlow()
-
-    fun toggleMarkovEnabled(enabled: Boolean) {
-        _isMarkovEnabled.value = enabled
-        val prefs = getApplication<Application>().getSharedPreferences("nog_prefs", Context.MODE_PRIVATE)
-        prefs.edit().putBoolean("markov_enabled", enabled).apply()
-    }
-
     // --- Low-end Device Mode (Режим для слабых устройств) ---
     private val _isLowEndDeviceMode = MutableStateFlow<Boolean>(false)
     val isLowEndDeviceMode: StateFlow<Boolean> = _isLowEndDeviceMode.asStateFlow()
@@ -213,6 +203,18 @@ class SocialViewModel(application: Application) : AndroidViewModel(application) 
         _isLowEndDeviceMode.value = enabled
         val prefs = getApplication<Application>().getSharedPreferences("nog_prefs", Context.MODE_PRIVATE)
         prefs.edit().putBoolean("low_end_device_mode", enabled).apply()
+    }
+
+    // --- Markov Chain Mode (Марков Чейн для комментариев) ---
+    private val _isMarkovEnabled = MutableStateFlow<Boolean>(true) // Enabled by default
+    val isMarkovEnabled: StateFlow<Boolean> = _isMarkovEnabled.asStateFlow()
+
+    fun toggleMarkovEnabled(enabled: Boolean) {
+        _isMarkovEnabled.value = enabled
+        val prefs = getApplication<Application>().getSharedPreferences("nog_prefs", Context.MODE_PRIVATE)
+        prefs.edit().putBoolean("markov_chain_enabled", enabled).apply()
+        // Also sync state down to repository
+        repository.setMarkovMarkovEnabled(enabled)
     }
 
     // --- Persistent Poker Balance ---
@@ -651,13 +653,14 @@ class SocialViewModel(application: Application) : AndroidViewModel(application) 
         val savedSilent = prefs.getBoolean("silent_mode", false)
         _isSilentMode.value = savedSilent
 
-        // Load markov enabled
-        val savedMarkov = prefs.getBoolean("markov_enabled", true)
-        _isMarkovEnabled.value = savedMarkov
-
         // Load low-end device mode
         val savedLowEnd = prefs.getBoolean("low_end_device_mode", false)
         _isLowEndDeviceMode.value = savedLowEnd
+
+        // Load Markov Chain mode
+        val savedMarkov = prefs.getBoolean("markov_chain_enabled", true)
+        _isMarkovEnabled.value = savedMarkov
+        repository.setMarkovMarkovEnabled(savedMarkov)
 
         // Load unique viewed posts count
         val viewedStr = prefs.getString("viewed_post_ids_set", "") ?: ""

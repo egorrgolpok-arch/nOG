@@ -72,13 +72,6 @@ data class AnalyticsEntity(
     val timestamp: Long = System.currentTimeMillis()
 )
 
-@Entity(tableName = "training_data")
-data class TrainingDataEntity(
-    @PrimaryKey(autoGenerate = true) val id: Int = 0,
-    val text: String,
-    val timestamp: Long = System.currentTimeMillis()
-)
-
 @Dao
 interface SocialDao {
     // Users
@@ -100,6 +93,9 @@ interface SocialDao {
     // Posts
     @Query("SELECT * FROM posts ORDER BY timestamp DESC LIMIT :limit")
     suspend fun getRecentPosts(limit: Int): List<PostEntity>
+
+    @Query("SELECT * FROM posts ORDER BY timestamp DESC")
+    suspend fun getAllPosts(): List<PostEntity>
 
     @Query("SELECT * FROM posts ORDER BY timestamp DESC")
     fun getAllPostsFlow(): Flow<List<PostEntity>>
@@ -137,15 +133,11 @@ interface SocialDao {
     @Query("DELETE FROM users WHERE id = :userId")
     suspend fun deleteUserById(userId: String)
 
-    // Posts
-    @Query("SELECT * FROM posts")
-    suspend fun getAllPosts(): List<PostEntity>
-
     // Comments
     @Query("SELECT * FROM comments WHERE postId = :postId ORDER BY timestamp ASC")
     fun getCommentsForPostFlow(postId: Int): Flow<List<CommentEntity>>
 
-    @Query("SELECT * FROM comments")
+    @Query("SELECT * FROM comments ORDER BY timestamp ASC")
     suspend fun getAllComments(): List<CommentEntity>
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
@@ -198,13 +190,6 @@ interface SocialDao {
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertAnalytics(analytics: AnalyticsEntity)
-
-    // Training Data
-    @Query("SELECT text FROM training_data")
-    suspend fun getAllTrainingText(): List<String>
-
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun insertTrainingData(data: TrainingDataEntity)
 }
 
 @Database(
@@ -214,10 +199,9 @@ interface SocialDao {
         CommentEntity::class,
         FollowerEntity::class,
         NotificationEntity::class,
-        AnalyticsEntity::class,
-        TrainingDataEntity::class
+        AnalyticsEntity::class
     ],
-    version = 6,
+    version = 5,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {

@@ -48,6 +48,7 @@ import com.example.ui.screens.NotificationsScreen
 import com.example.ui.screens.ProfileScreen
 import com.example.ui.screens.AnalyticsScreen
 import com.example.ui.theme.*
+import com.example.AppLifecycleTracker
 
 import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
@@ -61,9 +62,17 @@ import com.example.workers.RetentionWorker
 class MainActivity : ComponentActivity() {
     private val viewModel: SocialViewModel by viewModels()
 
+    override fun attachBaseContext(newBase: android.content.Context) {
+        val attributionContext = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
+            newBase.createAttributionContext("nog_default_attribution")
+        } else {
+            newBase
+        }
+        super.attachBaseContext(attributionContext)
+    }
+
     override fun onStart() {
         super.onStart()
-        AppLifecycleTracker.isAppInForeground = true
         try {
             WorkManager.getInstance(applicationContext).cancelAllWorkByTag("RetentionWork")
         } catch (e: Exception) {
@@ -73,7 +82,6 @@ class MainActivity : ComponentActivity() {
 
     override fun onStop() {
         super.onStop()
-        AppLifecycleTracker.isAppInForeground = false
         try {
             val workManager = WorkManager.getInstance(applicationContext)
             
@@ -144,8 +152,16 @@ class MainActivity : ComponentActivity() {
         setContent {
             MyApplicationTheme(darkTheme = true) {
                 val isOnline by rememberConnectivityStatus()
+                var showWelcomeScreen by remember { mutableStateOf(true) }
                 
-                if (!isOnline) {
+                LaunchedEffect(Unit) {
+                    kotlinx.coroutines.delay(2500)
+                    showWelcomeScreen = false
+                }
+                
+                if (showWelcomeScreen) {
+                    WelcomeScreen(viewModel)
+                } else if (!isOnline) {
                     NoInternetScreen()
                 } else {
                     // Permission Request Logic
@@ -175,19 +191,9 @@ class MainActivity : ComponentActivity() {
                     val activeUserDecId by viewModel.activeDecorationId.collectAsState()
                     val currentUser by viewModel.currentUser.collectAsState()
                     
-                    var showWelcome by remember { mutableStateOf(true) }
-
                     // Count unread notifications to show numerical badge
                     val unreadAlertsCount = alerts.filter { !it.isRead }.size
     
-                    if (showWelcome) {
-                        com.example.ui.screens.WelcomeScreen(
-                            username = currentUser?.username,
-                            isVerified = currentUser?.isVerified ?: false,
-                            onDismiss = { showWelcome = false }
-                        )
-                    }
-
                     Scaffold(
                     modifier = Modifier
                         .fillMaxSize()
@@ -441,9 +447,9 @@ fun rememberConnectivityStatus(): State<Boolean> {
 }
 
 @Composable
-fun NoInternetScreen() {
+fun NoInternetScreen(modifier: Modifier = Modifier) {
     Box(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxSize()
             .background(PureBlack)
             .padding(24.dp),
@@ -477,6 +483,42 @@ fun NoInternetScreen() {
     }
 }
 
-object AppLifecycleTracker {
-    var isAppInForeground: Boolean = false
+
+@Composable
+fun WelcomeScreen(viewModel: com.example.ui.SocialViewModel, modifier: Modifier = Modifier) {
+    val currentUser by viewModel.currentUser.collectAsState()
+    
+    val hour = java.util.Calendar.getInstance().get(java.util.Calendar.HOUR_OF_DAY)
+    val greeting = when (hour) {
+        in 0..5 -> listOf("Доброй ночи", "Ночной хаос", "Спи давай", "Кибер-ночь", "Не спишь?", "Темнота – друг молодежи", "Время для рефакторинга", "Время багов", "Сладких снов", "Энергетик кончился?", "Питерская ночь", "Пора спать", "Режим совы активирован", "404 Сон не найден", "Никакого сна!", "Who needs sleep?").random()
+        in 6..11 -> listOf("Доброе утро", "Утро доброе", "Ку-ку", "Просыпайся", "Кофе готов?", "Время гриндить", "С добрым утром!", "Восстань!", "Пора за дело", "Бодрое утро", "Утренний чек", "Rise and shine", "Открываем глаза", "Ранняя пташка", "Утречко", "Let's go").random()
+        in 12..16 -> listOf("Добрый день", "Привет", "Приветствую", "Рабочий процесс", "Хеллоу", "Салют", "Как успехи?", "В эфире", "Вливайся", "Как оно?", "День в самом разгаре", "Не скучаем!", "Продуктивный день", "Связь установлена", "Готов к труду", "Все идет по плану", "Work work work").random()
+        else -> listOf("Добрый вечер", "Вечер в хату", "Здравствуйте", "Уже стемнело", "Добрый", "Привет-привет", "Отдыхаешь?", "Заходи, не бойся", "Удачи в ночи", "Хорошего вечера", "Тусовочный вайб", "Вечерние новости", "Вечерний чилл", "Ламповый вечер", "Пожалуй, отдохнем", "Что нового?").random()
+    }
+
+    Box(
+        modifier = modifier
+            .fillMaxSize()
+            .background(Color.Black),
+        contentAlignment = Alignment.Center
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                text = "$greeting, ${currentUser?.username ?: "Пользователь"}",
+                color = Color.White,
+                fontSize = 18.sp,
+                fontWeight = FontWeight.Bold,
+                fontFamily = FontFamily.Monospace
+            )
+            if (currentUser?.isVerified == true) {
+                Spacer(modifier = Modifier.width(6.dp))
+                Icon(
+                    imageVector = Icons.Default.CheckCircle,
+                    contentDescription = "Verified",
+                    tint = com.example.ui.theme.StarkWhite,
+                    modifier = Modifier.size(20.dp)
+                )
+            }
+        }
+    }
 }
