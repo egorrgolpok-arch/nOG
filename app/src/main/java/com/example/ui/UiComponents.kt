@@ -7,6 +7,7 @@ import androidx.compose.material.icons.filled.WifiOff
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontFamily
@@ -19,11 +20,84 @@ import com.example.ui.theme.*
 @Composable
 fun SplashScreen(username: String, isVerified: Boolean, lang: String) {
     val hour = java.util.Calendar.getInstance().get(java.util.Calendar.HOUR_OF_DAY)
-    val greeting = when (hour) {
-        in 6..11 -> if (lang == "RU") "Доброе утро" else "Good morning"
-        in 12..17 -> if (lang == "RU") "Добрый день" else "Good day"
-        in 18..21 -> if (lang == "RU") "Добрый вечер" else "Good evening"
-        else -> if (lang == "RU") "Привет" else "Hello"
+    
+    val timeBasedGreeting = remember {
+        if (lang == "RU") {
+            when (hour) {
+                in 6..11 -> "Доброе утро"
+                in 12..17 -> "Добрый день"
+                in 18..21 -> "Добрый вечер"
+                else -> "Доброй ночи"
+            }
+        } else {
+            when (hour) {
+                in 6..11 -> "Good morning"
+                in 12..17 -> "Good afternoon"
+                in 18..21 -> "Good evening"
+                else -> "Good night"
+            }
+        }
+    }
+    
+    val randomStatusMessage = remember {
+        val listsRu = listOf(
+            "Привет",
+            "Добро пожаловать",
+            "Рады видеть вас вновь",
+            "Доброго времени суток",
+            "Приветствую, путник матрицы",
+            "С возвращением, легенда",
+            "Ку",
+            "Здорово, бандит",
+            "Вход выполнен",
+            "Системы онлайн",
+            "Синхронизация квантовых костылей...",
+            "Привет, органический мешок",
+            "Подключение к матрице когниций...",
+            "Скуф-детектор работает в штатном режиме",
+            "Загрузка социального капитала...",
+            "Выкачиваем жидкий азот для охлаждения...",
+            "Опять на связи, великий архитектор?",
+            "Выпиваем пинту синт-эля...",
+            "Инициируем протокол дофамина...",
+            "Проверяем наличие души в биомодели...",
+            "Мамкин хакер успешно авторизован",
+            "База данных с любовью протёрта спиртом",
+            "Связываемся со спутником Дурова...",
+            "Крипто-дед лично одобрил этот сеанс",
+            "Думаем над новой фичей в продакшн..."
+        )
+        val listsEn = listOf(
+            "Hello",
+            "Welcome",
+            "Welcome back",
+            "Nice to see you",
+            "Greetings, traveler",
+            "Back online",
+            "Welcome back, legend",
+            "Access granted",
+            "Systems operational",
+            "Welcome to the mainframe",
+            "Establishing neural link with node...",
+            "Nice to scan your biometric signal again",
+            "Synchronizing quantum hotfixes...",
+            "Hello, organic carbon-based lifeform",
+            "Calibrating neural synapses...",
+            "Meatbag detected, initializing...",
+            "Downloading your social credit points...",
+            "Compiling premium coffee into spaghetti code...",
+            "Checking database backup integrity (hopefully)...",
+            "Triggering local digital dopamine sequence...",
+            "Wiping database crumbs off the server...",
+            "Approved by local AI digital Overlords",
+            "Mainframe is cozy and warmed up for you"
+        )
+        
+        if (lang == "RU") {
+            listsRu.random()
+        } else {
+            listsEn.random()
+        }
     }
     
     Box(
@@ -32,24 +106,42 @@ fun SplashScreen(username: String, isVerified: Boolean, lang: String) {
             .background(PureBlack),
         contentAlignment = Alignment.Center
     ) {
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            modifier = Modifier.padding(24.dp)
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.Center,
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp)
+            ) {
+                Text(
+                    text = "${timeBasedGreeting.uppercase()}, ${username.uppercase()}",
+                    color = PureWhite,
+                    fontSize = 24.sp,
+                    fontFamily = FontFamily.Monospace,
+                    fontWeight = FontWeight.Bold,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.weight(1f, fill = false)
+                )
+                if (isVerified) {
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Icon(
+                        imageVector = Icons.Filled.CheckCircle,
+                        contentDescription = "Verified",
+                        tint = PureWhite,
+                        modifier = Modifier.size(24.dp)
+                    )
+                }
+            }
+            Spacer(modifier = Modifier.height(10.dp))
             Text(
-                text = "${greeting.uppercase()}, ${username.uppercase()}",
-                color = PureWhite,
-                fontSize = 24.sp,
+                text = randomStatusMessage.uppercase(),
+                color = AlertYellow,
+                fontSize = 11.sp,
                 fontFamily = FontFamily.Monospace,
-                fontWeight = FontWeight.Bold,
                 textAlign = TextAlign.Center
             )
-            if (isVerified) {
-                Spacer(modifier = Modifier.height(8.dp))
-                Icon(
-                    imageVector = Icons.Filled.CheckCircle,
-                    contentDescription = "Verified",
-                    tint = PureWhite,
-                    modifier = Modifier.size(24.dp)
-                )
-            }
         }
     }
 }

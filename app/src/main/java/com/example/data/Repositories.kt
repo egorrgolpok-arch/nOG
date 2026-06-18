@@ -33,6 +33,34 @@ class SocialRepository(private val context: Context, private val scope: Coroutin
 
     private val dao: SocialDao by lazy { database.socialDao() }
     private val markovChain = MarkovChain(order = 2)
+
+    init {
+        scope.launch(Dispatchers.IO) {
+            delay(800)
+            trainMarkovChainFromDb()
+        }
+    }
+
+    suspend fun trainMarkovChainFromDb() = withContext(Dispatchers.IO) {
+        try {
+            val allPosts = dao.getAllPosts()
+            val allComments = dao.getAllComments()
+            
+            val postTexts = allPosts.map { it.content }
+            val commentTexts = allComments.map { it.content }
+            
+            markovChain.train(postTexts)
+            markovChain.train(commentTexts)
+            Log.d(TAG, "Markov Chain trained on ${postTexts.size} posts and ${commentTexts.size} comments from DB.")
+        } catch (e: Exception) {
+            Log.e(TAG, "Error training Markov Chain from DB", e)
+        }
+    }
+
+    fun generateMarkovText(): String {
+        return markovChain.generate()
+    }
+
     private val categoryCycleIndex = java.util.concurrent.atomic.AtomicInteger(0)
     private val sharedNetworkTrends = mutableListOf<TrendingTrendItem>()
     private var lastTrendFetchTime = 0L
@@ -230,6 +258,7 @@ class SocialRepository(private val context: Context, private val scope: Coroutin
     val analyticsFlow: Flow<List<AnalyticsEntity>> = dao.getAllAnalyticsFlow().flowOn(Dispatchers.IO)
     val trendingPostsFlow: Flow<List<PostEntity>> = dao.getTrendingPostsFlow().flowOn(Dispatchers.IO)
     val archivedPostsFlow: Flow<List<PostEntity>> = dao.getArchivedPostsFlow().flowOn(Dispatchers.IO)
+    val allCommentsFlow: Flow<List<CommentEntity>> = dao.getAllCommentsFlow().flowOn(Dispatchers.IO)
 
     fun commentsForPostFlow(postId: Int): Flow<List<CommentEntity>> =
         dao.getCommentsForPostFlow(postId).flowOn(Dispatchers.IO)

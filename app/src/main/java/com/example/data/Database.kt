@@ -137,6 +137,15 @@ interface SocialDao {
     @Query("SELECT * FROM comments WHERE postId = :postId ORDER BY timestamp ASC")
     fun getCommentsForPostFlow(postId: Int): Flow<List<CommentEntity>>
 
+    @Query("SELECT * FROM comments")
+    fun getAllCommentsFlow(): Flow<List<CommentEntity>>
+
+    @Query("SELECT * FROM comments")
+    suspend fun getAllComments(): List<CommentEntity>
+
+    @Query("SELECT * FROM posts")
+    suspend fun getAllPosts(): List<PostEntity>
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertComment(comment: CommentEntity): Long
 

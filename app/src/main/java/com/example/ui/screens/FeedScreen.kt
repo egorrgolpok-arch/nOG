@@ -131,29 +131,41 @@ fun FeedScreen(
 
     LaunchedEffect(lazyListState.isScrollInProgress) {
         if (lazyListState.isScrollInProgress) {
-            viewModel.recordScrollTelemetry()
-            while (true) {
-                val delayTime = if (viewModel.isLowEndDeviceMode.value) 8000L else 1000L
-                kotlinx.coroutines.delay(delayTime)
-                val state = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
-                    com.example.ui.screens.TamagotchiManager.loadState(context)
-                }
-                if (state.hasPet && !state.isDead) {
-                    val tickNow = System.currentTimeMillis()
-                    val deltaMs = tickNow - state.lastTickTime
-                    var newState = com.example.ui.screens.updateTamaStats(state, deltaMs, isAppActive = true)
-                    // Additional specific scroll boosting
-                    newState = newState.copy(
-                        mood = (newState.mood + 0.5f).coerceAtMost(100f) // extra joy during scroll
-                    )
-                    if (newState.isSick) {
-                        val clinicalHours = 0.05f 
-                        newState = newState.copy(sickTimeSpentToday = (newState.sickTimeSpentToday + clinicalHours).coerceAtMost(newState.sickHoursRequiredEachDay))
+            try {
+                viewModel.recordScrollTelemetry()
+                while (true) {
+                    val delayTime = if (viewModel.isLowEndDeviceMode.value) 8000L else 1000L
+                    kotlinx.coroutines.delay(delayTime)
+                    val state = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                        try {
+                            com.example.ui.screens.TamagotchiManager.loadState(context)
+                        } catch (e: Exception) {
+                            null
+                        }
                     }
-                    kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
-                        com.example.ui.screens.TamagotchiManager.saveState(context, newState)
+                    if (state != null && state.hasPet && !state.isDead) {
+                        val tickNow = System.currentTimeMillis()
+                        val deltaMs = tickNow - state.lastTickTime
+                        var newState = com.example.ui.screens.updateTamaStats(state, deltaMs, isAppActive = true)
+                        // Additional specific scroll boosting
+                        newState = newState.copy(
+                            mood = (newState.mood + 0.5f).coerceAtMost(100f) // extra joy during scroll
+                        )
+                        if (newState.isSick) {
+                            val clinicalHours = 0.05f 
+                            newState = newState.copy(sickTimeSpentToday = (newState.sickTimeSpentToday + clinicalHours).coerceAtMost(newState.sickHoursRequiredEachDay))
+                        }
+                        kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                            try {
+                                com.example.ui.screens.TamagotchiManager.saveState(context, newState)
+                            } catch (e: Exception) {
+                                // ignore
+                            }
+                        }
                     }
                 }
+            } catch (e: Exception) {
+                Log.e("FeedScreen", "Telemetry or Tamagotchi sync loop interrupted", e)
             }
         }
     }
@@ -245,7 +257,26 @@ fun FeedScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .pointerInput(selectedTab) {
-                    // Locked to feed tab
+                    detectHorizontalDragGestures(
+                        onDragEnd = {
+                            if (dragAmountSum < -150f) {
+                                if (selectedTab == 0) {
+                                    viewModel.vibrate(40)
+                                    selectedTab = 1
+                                }
+                            } else if (dragAmountSum > 150f) {
+                                if (selectedTab == 1) {
+                                    viewModel.vibrate(40)
+                                    selectedTab = 0
+                                }
+                            }
+                            dragAmountSum = 0f
+                        },
+                        onHorizontalDrag = { change, dragAmount ->
+                            change.consume()
+                            dragAmountSum += dragAmount
+                        }
+                    )
                 }
         ) {
             // --- TOP GLOBAL STATUS METABAR (Coins + Consecutive Streak indicator 🔥) ---
@@ -353,6 +384,62 @@ fun FeedScreen(
                 }
             }
                 
+            Spacer(modifier = Modifier.height(4.dp))
+
+            // --- Custom Cyberspace Tab Selector ---
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 4.dp)
+                    .background(DeepGray, RoundedCornerShape(8.dp))
+                    .border(1.dp, BorderGray, RoundedCornerShape(8.dp))
+                    .padding(4.dp)
+            ) {
+                // Tab 0: ЛЕНТА / FEED
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .clip(RoundedCornerShape(6.dp))
+                        .background(if (selectedTab == 0) PureWhite else Color.Transparent)
+                        .clickable {
+                            viewModel.vibrate(30)
+                            selectedTab = 0
+                        }
+                        .padding(vertical = 10.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = if (lang == "RU") "ЛЕНТА" else "FEED",
+                        color = if (selectedTab == 0) PureBlack else TextGray,
+                        fontSize = 11.sp,
+                        fontFamily = FontFamily.Monospace,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+
+                // Tab 1: НЕЙРОМАТРИЦА / SCANNER
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .clip(RoundedCornerShape(6.dp))
+                        .background(if (selectedTab == 1) PureWhite else Color.Transparent)
+                        .clickable {
+                            viewModel.vibrate(30)
+                            selectedTab = 1
+                        }
+                        .padding(vertical = 10.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = if (lang == "RU") "НЕЙРОМАТРИЦА" else "NEURAL MATRIX",
+                        color = if (selectedTab == 1) PureBlack else TextGray,
+                        fontSize = 11.sp,
+                        fontFamily = FontFamily.Monospace,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            }
+
             Spacer(modifier = Modifier.height(8.dp))
 
             // --- Post Feed Column ---
@@ -449,103 +536,97 @@ fun FeedScreen(
             }
         }
 
-        // --- Floating Action Buttons Section (Tab-dependent: Feed vs Scanner) ---
-        if (selectedTab == 0) {
-            Column(
+        // --- Floating Action Buttons Section (Permanent Compact Neon Dock) ---
+        Column(
+            modifier = Modifier
+                .align(Alignment.BottomEnd)
+                .padding(bottom = 16.dp, end = 16.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp),
+            horizontalAlignment = Alignment.End
+        ) {
+            // 1. --- Create Post FloatingActionButton (Prism White) ---
+            FloatingActionButton(
+                onClick = { showCreatePostDialog = true },
+                containerColor = PureWhite,
+                contentColor = PureBlack,
+                shape = RoundedCornerShape(12.dp),
                 modifier = Modifier
-                    .align(Alignment.BottomEnd)
-                    .padding(24.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp),
-                horizontalAlignment = Alignment.End
+                    .size(44.dp)
+                    .border(2.dp, PureBlack, RoundedCornerShape(12.dp))
+                    .testTag("create_post_button")
             ) {
-                // --- Flappy Bot Game FAB ---
-                FloatingActionButton(
-                    onClick = { showFlappyBotGame = true },
-                    containerColor = PureWhite,
-                    contentColor = PureBlack,
-                    shape = RoundedCornerShape(12.dp),
-                    modifier = Modifier
-                        .border(2.dp, PureBlack, RoundedCornerShape(12.dp))
-                        .testTag("flappy_bot_fab")
-                ) {
-                    Icon(
-                        imageVector = Icons.Filled.SportsEsports,
-                        contentDescription = if (lang == "RU") "Играть во Флаппи-Бот" else "Play Flappy Bot"
-                    )
-                }
-
-                // --- Create Post FloatingActionButton ---
-                FloatingActionButton(
-                    onClick = { showCreatePostDialog = true },
-                    containerColor = PureWhite,
-                    contentColor = PureBlack,
-                    shape = RoundedCornerShape(12.dp),
-                    modifier = Modifier
-                        .border(2.dp, PureBlack, RoundedCornerShape(12.dp))
-                        .testTag("create_post_button")
-                ) {
-                    Icon(Icons.Filled.Add, contentDescription = if (lang == "RU") "Создать новость" else "Create post")
-                }
+                Icon(Icons.Filled.Add, contentDescription = if (lang == "RU") "Создать новость" else "Create post")
             }
-        } else {
-            // --- Bottom Right Action Column (Decorations + Tamagotchi) ---
-            Column(
+
+            // 2. --- Tamagotchi (Neon Yellow FAB) ---
+            FloatingActionButton(
+                onClick = { showTamagotchiDialog = true },
+                containerColor = AlertYellow,
+                contentColor = PureBlack,
+                shape = RoundedCornerShape(12.dp),
                 modifier = Modifier
-                    .align(Alignment.BottomEnd)
-                    .padding(24.dp),
-                horizontalAlignment = Alignment.End,
-                verticalArrangement = Arrangement.spacedBy(16.dp)
+                    .size(44.dp)
+                    .border(2.dp, PureBlack, RoundedCornerShape(12.dp))
+                    .testTag("tamagotchi_fab")
             ) {
-                // --- Casino Screen Redirect FAB ---
-                FloatingActionButton(
-                    onClick = { 
-                        viewModel.vibrate(40)
-                        viewModel.navigateTo(Screen.Casino) 
-                    },
-                    containerColor = AlertYellow,
-                    contentColor = PureBlack,
-                    shape = RoundedCornerShape(12.dp),
-                    modifier = Modifier
-                        .border(2.dp, PureBlack, RoundedCornerShape(12.dp))
-                        .testTag("casino_quick_fab")
-                ) {
-                    Icon(
-                        imageVector = Icons.Filled.Casino,
-                        contentDescription = if (lang == "RU") "Казино" else "Casino"
-                    )
-                }
+                Icon(
+                    imageVector = Icons.Filled.Pets,
+                    contentDescription = if (lang == "RU") "Тамагочи" else "Tamagotchi"
+                )
+            }
 
-                // --- Avatar Decorations Shop FAB (Worn Styles Shop Button) ---
-                FloatingActionButton(
-                    onClick = { showDecorationShopDialog = true },
-                    containerColor = AlertYellow,
-                    contentColor = PureBlack,
-                    shape = RoundedCornerShape(12.dp),
-                    modifier = Modifier
-                        .border(2.dp, PureBlack, RoundedCornerShape(12.dp))
-                        .testTag("decorations_shop_fab")
-                ) {
-                    Icon(
-                        imageVector = Icons.Filled.AutoAwesome,
-                        contentDescription = if (lang == "RU") "Украшения аватарок" else "Avatar Upgrades"
-                    )
-                }
+            // 3. --- Avatar Decorations Shop FAB ---
+            FloatingActionButton(
+                onClick = { showDecorationShopDialog = true },
+                containerColor = AlertYellow,
+                contentColor = PureBlack,
+                shape = RoundedCornerShape(12.dp),
+                modifier = Modifier
+                    .size(44.dp)
+                    .border(2.dp, PureBlack, RoundedCornerShape(12.dp))
+                    .testTag("decorations_shop_fab")
+            ) {
+                Icon(
+                    imageVector = Icons.Filled.AutoAwesome,
+                    contentDescription = if (lang == "RU") "Украшения аватарок" else "Avatar Upgrades"
+                )
+            }
 
-                // --- Scanner Tab: Single Yellow Tamagotchi FAB ---
-                FloatingActionButton(
-                    onClick = { showTamagotchiDialog = true },
-                    containerColor = AlertYellow,
-                    contentColor = PureBlack,
-                    shape = RoundedCornerShape(12.dp),
-                    modifier = Modifier
-                        .border(2.dp, PureBlack, RoundedCornerShape(12.dp))
-                        .testTag("tamagotchi_fab")
-                ) {
-                    Icon(
-                        imageVector = Icons.Filled.Pets,
-                        contentDescription = if (lang == "RU") "Тамагочи" else "Tamagotchi"
-                    )
-                }
+            // 4. --- Flappy Bot Game FAB ---
+            FloatingActionButton(
+                onClick = { showFlappyBotGame = true },
+                containerColor = PureWhite,
+                contentColor = PureBlack,
+                shape = RoundedCornerShape(12.dp),
+                modifier = Modifier
+                    .size(44.dp)
+                    .border(2.dp, PureBlack, RoundedCornerShape(12.dp))
+                    .testTag("flappy_bot_fab")
+            ) {
+                Icon(
+                    imageVector = Icons.Filled.SportsEsports,
+                    contentDescription = if (lang == "RU") "Играть во Флаппи-Бот" else "Play Flappy Bot"
+                )
+            }
+
+            // 5. --- Casino Screen Redirect FAB ---
+            FloatingActionButton(
+                onClick = { 
+                    viewModel.vibrate(40)
+                    viewModel.navigateTo(Screen.Casino) 
+                },
+                containerColor = AlertYellow,
+                contentColor = PureBlack,
+                shape = RoundedCornerShape(12.dp),
+                modifier = Modifier
+                    .size(44.dp)
+                    .border(2.dp, PureBlack, RoundedCornerShape(12.dp))
+                    .testTag("casino_quick_fab")
+            ) {
+                Icon(
+                    imageVector = Icons.Filled.Casino,
+                    contentDescription = if (lang == "RU") "Казино" else "Casino"
+                )
             }
         }
 

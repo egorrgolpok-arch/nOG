@@ -111,12 +111,16 @@ class SocialViewModel(application: Application) : AndroidViewModel(application) 
             initialValue = emptyList()
         )
 
-    val allRawPosts = repository.postsFlow
-        .stateIn(
-            scope = viewModelScope,
-            started = SharingStarted.WhileSubscribed(5000),
-            initialValue = emptyList()
-        )
+    val allRawPosts = repository.postsFlow.combine(repository.allCommentsFlow) { posts, comments ->
+        val commentsGrouped = comments.groupBy { it.postId }
+        posts.map { post ->
+            post.copy(commentsCount = commentsGrouped[post.id]?.size ?: 0)
+        }
+    }.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5000),
+        initialValue = emptyList()
+    )
 
     // Unread Community Posts Count
     val unreadCommunityPostsCount = combine(allRawPosts, lastCommunityViewTime) { posts, lastViewTime ->
@@ -146,7 +150,34 @@ class SocialViewModel(application: Application) : AndroidViewModel(application) 
                 author?.handle?.contains(query, ignoreCase = true) == true
             }
         }
-        filtered
+
+        val bots = users.filter { it.isAi }
+        if (bots.isNotEmpty() && filtered.isNotEmpty() && query.isBlank() && category == null) {
+            val resultList = mutableListOf<PostEntity>()
+            filtered.forEachIndexed { index, post ->
+                resultList.add(post)
+                if ((index + 1) % 6 == 0) {
+                    val randomBot = bots.random()
+                    val markovContent = repository.generateMarkovText()
+                    val botPost = PostEntity(
+                        id = -(index + 1) - 1000000,
+                        authorId = randomBot.id,
+                        content = markovContent,
+                        timestamp = post.timestamp - 1000L,
+                        likesCount = Random.nextInt(15, 300),
+                        commentsCount = 0,
+                        trustScore = Random.nextInt(70, 100),
+                        sourceName = if (_selectedLanguage.value == "RU") "Генератор Маркова" else "Markov Generator",
+                        isTrend = Random.nextBoolean(),
+                        category = category ?: "Markov"
+                    )
+                    resultList.add(botPost)
+                }
+            }
+            resultList
+        } else {
+            filtered
+        }
     }.stateIn(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(5000),
@@ -751,7 +782,11 @@ class SocialViewModel(application: Application) : AndroidViewModel(application) 
 
         // Initialize basic database entries
         viewModelScope.launch(Dispatchers.IO) {
-            repository.initDatabaseIfNeeded()
+            try {
+                repository.initDatabaseIfNeeded()
+            } catch (e: Exception) {
+                Log.e("SocialViewModel", "Failed to initialize base database state", e)
+            }
         }
 
         // Automatic vibration on receiving new notifications
