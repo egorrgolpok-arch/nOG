@@ -18,6 +18,7 @@ import java.util.UUID
 import kotlin.random.Random
 import okhttp3.OkHttpClient
 import okhttp3.Request
+import com.example.AppLifecycleTracker
 
 data class TrendingTrendItem(
     val topic: String,
@@ -713,7 +714,7 @@ class SocialRepository(private val context: Context, private val scope: Coroutin
             Log.d(TAG, "Silent Mode is enabled, skipping system notification popup")
             return
         }
-        if (com.example.AppLifecycleTracker.isAppInForeground) {
+        if (AppLifecycleTracker.isAppInForeground) {
             Log.d(TAG, "App is in foreground, skipping system notification popup")
             return
         }

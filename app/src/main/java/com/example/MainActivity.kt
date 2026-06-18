@@ -48,6 +48,7 @@ import com.example.ui.screens.NotificationsScreen
 import com.example.ui.screens.ProfileScreen
 import com.example.ui.screens.AnalyticsScreen
 import com.example.ui.theme.*
+import com.example.AppLifecycleTracker
 
 import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
