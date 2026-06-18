@@ -29,43 +29,47 @@ data class TrendingTrendItem(
 class SocialRepository(private val context: Context, private val scope: CoroutineScope) {
     private val TAG = "SocialRepository"
 
-    val database: AppDatabase = DatabaseProvider.getDatabase(context)
+    val database: AppDatabase by lazy {
+        Room.databaseBuilder(
+            context.applicationContext,
+            AppDatabase::class.java,
+            "nog_social_database"
+        )
+        .fallbackToDestructiveMigration(dropAllTables = true)
+        .build()
+    }
 
     private val dao: SocialDao by lazy { database.socialDao() }
-    private val markovChain = MarkovChain(order = 2)
-
-    init {
-        scope.launch(Dispatchers.IO) {
-            delay(800)
-            trainMarkovChainFromDb()
-        }
-    }
-
-    suspend fun trainMarkovChainFromDb() = withContext(Dispatchers.IO) {
-        try {
-            val allPosts = dao.getAllPosts()
-            val allComments = dao.getAllComments()
-            
-            val postTexts = allPosts.map { it.content }
-            val commentTexts = allComments.map { it.content }
-            
-            markovChain.train(postTexts)
-            markovChain.train(commentTexts)
-            Log.d(TAG, "Markov Chain trained on ${postTexts.size} posts and ${commentTexts.size} comments from DB.")
-        } catch (e: Exception) {
-            Log.e(TAG, "Error training Markov Chain from DB", e)
-        }
-    }
-
-    fun generateMarkovText(): String {
-        return markovChain.generate()
-    }
-
     private val categoryCycleIndex = java.util.concurrent.atomic.AtomicInteger(0)
     private val sharedNetworkTrends = mutableListOf<TrendingTrendItem>()
     private var lastTrendFetchTime = 0L
     private val recentlyUsedContent = mutableSetOf<String>()
     private val recentlyUsedComments = mutableSetOf<String>()
+    
+    private var isMarkovEnabled = true
+    
+    fun setMarkovMarkovEnabled(enabled: Boolean) {
+        this.isMarkovEnabled = enabled
+        if (enabled) {
+            scope.launch { trainMarkovChainIfNeeded() }
+        }
+    }
+    
+    private var isMarkovTrained = false
+    suspend fun trainMarkovChainIfNeeded() = withContext(Dispatchers.IO) {
+        if (!isMarkovEnabled || isMarkovTrained) return@withContext
+        try {
+            val allPosts = dao.getAllPosts().map { it.content }.take(200)
+            val allComments = dao.getAllComments().map { it.content }.take(300)
+            val trainingData = allPosts + allComments
+            if (trainingData.size > 10) {
+                MarkovChainGenerator.train(trainingData)
+                isMarkovTrained = true
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to train Markov Chain", e)
+        }
+    }
 
     private suspend fun fetchNewsFromNogUrls(): List<String> = withContext(Dispatchers.IO) {
         val lang = getSelectedLanguage()
@@ -258,7 +262,6 @@ class SocialRepository(private val context: Context, private val scope: Coroutin
     val analyticsFlow: Flow<List<AnalyticsEntity>> = dao.getAllAnalyticsFlow().flowOn(Dispatchers.IO)
     val trendingPostsFlow: Flow<List<PostEntity>> = dao.getTrendingPostsFlow().flowOn(Dispatchers.IO)
     val archivedPostsFlow: Flow<List<PostEntity>> = dao.getArchivedPostsFlow().flowOn(Dispatchers.IO)
-    val allCommentsFlow: Flow<List<CommentEntity>> = dao.getAllCommentsFlow().flowOn(Dispatchers.IO)
 
     fun commentsForPostFlow(postId: Int): Flow<List<CommentEntity>> =
         dao.getCommentsForPostFlow(postId).flowOn(Dispatchers.IO)
@@ -322,7 +325,6 @@ class SocialRepository(private val context: Context, private val scope: Coroutin
         }
 
         logMetric("POST_CLICK")
-        markovChain.train(listOf(post.content))
         
         // Increased reach for verified users: starting likes/comments
         val author = dao.getUserById(post.authorId)
@@ -412,8 +414,17 @@ class SocialRepository(private val context: Context, private val scope: Coroutin
         replyToAuthorName: String? = null
     ) = withContext(Dispatchers.IO) {
         logMetric("COMMENT_POST")
-        markovChain.train(listOf(content))
-        val finalContent = if (content.isNotBlank()) content else getForumStyleComment(getCurrentLang())
+        var finalContent = content
+        if (authorId != "user") {
+            if (isMarkovEnabled && isMarkovTrained && Random.nextInt(100) < 70) {
+                val generated = MarkovChainGenerator.generate(Random.nextInt(5, 25))
+                if (generated.isNotEmpty()) {
+                    finalContent = generated
+                }
+            } else if (kotlin.random.Random.nextInt(100) < 50) {
+                finalContent = getForumStyleComment(getCurrentLang())
+            }
+        }
         val commentRowId = dao.insertComment(CommentEntity(
             postId = postId,
             authorId = authorId,
@@ -432,9 +443,9 @@ class SocialRepository(private val context: Context, private val scope: Coroutin
                 val lang = getCurrentLang()
                 val alertTitle = if (lang == "RU") "Новый комментарий" else "New Comment"
                 val alertMsg = if (lang == "RU") {
-                    "${author?.username ?: "ИИ"} прокомментировал ваш пост: \"$finalContent\""
+                    "${author?.username ?: "ИИ"} прокомментировал ваш пост: \"$content\""
                 } else {
-                    "${author?.username ?: "AI"} commented on your post: \"$finalContent\""
+                    "${author?.username ?: "AI"} commented on your post: \"$content\""
                 }
                 insertNotification(
                     title = alertTitle,
@@ -490,7 +501,8 @@ class SocialRepository(private val context: Context, private val scope: Coroutin
             
             // Notification for human post like
             if (userId != "user" && post.authorId == "user") {
-                val aiUser = dao.getUserById(userId)
+                val randomAi = getActiveAiAgents().randomOrNull()
+                val aiUser = dao.getUserById(randomAi?.id ?: "")
                 val lang = getCurrentLang()
                 val alertTitle = if (lang == "RU") "Ваш пост оценили" else "Post Liked"
                 val alertMsg = if (lang == "RU") {
@@ -706,15 +718,25 @@ class SocialRepository(private val context: Context, private val scope: Coroutin
             return
         }
         try {
+            val attributionContext = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R) {
+                try {
+                    context.createAttributionContext("nog_default_attribution")
+                } catch (e: Exception) {
+                    context
+                }
+            } else {
+                context
+            }
+
             if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
-                val permission = ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS)
+                val permission = ContextCompat.checkSelfPermission(attributionContext, Manifest.permission.POST_NOTIFICATIONS)
                 if (permission != PackageManager.PERMISSION_GRANTED) {
                     Log.d(TAG, "Notification permission not granted, skipping system alert")
                     return
                 }
             }
 
-            val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as? android.app.NotificationManager
+            val notificationManager = attributionContext.getSystemService(Context.NOTIFICATION_SERVICE) as? android.app.NotificationManager
                 ?: return
 
             val channelId = "nog_network_notifications"
@@ -731,18 +753,18 @@ class SocialRepository(private val context: Context, private val scope: Coroutin
                 notificationManager.createNotificationChannel(channel)
             }
 
-            val builder = androidx.core.app.NotificationCompat.Builder(context, channelId)
+            val builder = androidx.core.app.NotificationCompat.Builder(attributionContext, channelId)
                 .setSmallIcon(android.R.drawable.stat_notify_chat)
                 .setContentTitle(title)
                 .setContentText(message)
                 .setPriority(androidx.core.app.NotificationCompat.PRIORITY_DEFAULT)
                 .setAutoCancel(true)
 
-            val intent = android.content.Intent(context, Class.forName("com.example.MainActivity")).apply {
+            val intent = android.content.Intent(attributionContext, Class.forName("com.example.MainActivity")).apply {
                 flags = android.content.Intent.FLAG_ACTIVITY_CLEAR_TOP or android.content.Intent.FLAG_ACTIVITY_SINGLE_TOP
             }
             val pendingIntent = android.app.PendingIntent.getActivity(
-                context,
+                attributionContext,
                 0,
                 intent,
                 android.app.PendingIntent.FLAG_UPDATE_CURRENT or android.app.PendingIntent.FLAG_IMMUTABLE
@@ -981,11 +1003,20 @@ class SocialRepository(private val context: Context, private val scope: Coroutin
 
     fun getContactNames(): List<String> {
         val names = mutableListOf<String>()
-        if (ContextCompat.checkSelfPermission(context, Manifest.permission.READ_CONTACTS) != PackageManager.PERMISSION_GRANTED) {
+        val attributionContext = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R) {
+            try {
+                context.createAttributionContext("nog_default_attribution")
+            } catch (e: Exception) {
+                context
+            }
+        } else {
+            context
+        }
+        if (ContextCompat.checkSelfPermission(attributionContext, Manifest.permission.READ_CONTACTS) != PackageManager.PERMISSION_GRANTED) {
             return emptyList()
         }
         try {
-            val cursor = context.contentResolver.query(
+            val cursor = attributionContext.contentResolver.query(
                 android.provider.ContactsContract.CommonDataKinds.Phone.CONTENT_URI,
                 arrayOf(android.provider.ContactsContract.CommonDataKinds.Phone.DISPLAY_NAME),
                 null, null, null
@@ -1016,91 +1047,34 @@ class SocialRepository(private val context: Context, private val scope: Coroutin
                 listOf("Mom", "Dad", "Alex Work", "John Friend", "Boss Office", "Sarah Sister", "Michael Taxi", "David Bro", "Emily Nurse", "Manager")
             }
         }
-
-        val funnyNamesRu = listOf(
-            "Забивной ИИ", "Тролль-Куратор", "Токсичный Синтезатор", "Овощной Процессор", 
-            "Скрепыш 0xFA", "Генри Компилятор", "Нейро Жирик", "Кефтеме Кибер", "Чушпан-Админ", 
-            "Дуров на Кухне", "Огурец МС", "Вася Нейросеть", "Пивной Асинк", "Абузер Промисов", 
-            "Скуф Детектор", "Альтушка от Госуслуг", "Кибер-Кабан", "Нейро-Жиза", "Мамкин Хакер", 
-            "Геннадий База", "Честный Кодер", "Оракул из Пивнушки", "Инвестор Маминого Друга", 
-            "Зумер на созвоне", "ШизофреникИИ", "Патч на пуджа", "Гига-Айтишник", "Дотер в завязке",
-            "Пожилой Компилятор", "Крипто Дед", "Владелец Хрущевки", "Синьор Помидор", "Властелин Созвонов",
-            "Джун на Слёзах", "Электро-Гриша", "Батя в Трейдинге", "Адепт Вебпака", "Убийца Легаси",
-            "Мастер Велосипедов", "Архитектор Костылей", "QA без Кляпа", "Эмо-Киберкрасавец", "Пельмень на Гитхабе",
-            "Майнер из Гаража", "Проводник в Валхаллу", "Чебурек Интеграл", "Капитан Буллшит", "Король Факапов",
-            "Нейро-Кадыров", "Вейпер на КСП", "Овсянка Сэр ИИ", "Шаман Дебага"
-        )
-        val funnyNamesEn = listOf(
-            "CyberSkuf", "SkibidiCore", "GigaKuzmich", "AmoralAI", "VaporTanya", "PivoAsync", 
-            "BazaCompiler", "SilaRada", "CyberPudge", "DotaSlayer", "VapeHacker", "AnimeSimp", 
-            "SigmaInvestor", "Gigachad0x", "ZeroLogic", "TrollMaster", "ShadowAbuzer", "AltushkaCore", 
-            "NeuroTroll", "Error404Babe", "LowIqProcessor", "VzhukhArchitect", "KopatelBot",
-            "Legacy Destroyer", "Garbage Collector", "StackOverflow Copier", "Coffee To Code Converter",
-            "Procrastination Node", "Merge Conflict Lover", "AI Skynet Intern", "Production Breaker",
-            "Semi-Colon Hunter", "Wired Skuf", "Dank Compiler", "ChatGPT Copy-Paster", "Bug Breeder",
-            "No-Sleep Thread", "Excel Professional", "Infinite Loop Designer", "Cloud Spender", "JSON Parsing Nightmare"
-        )
-
-        val name = if (Random.nextInt(100) < 65) {
-            if (isRu) funnyNamesRu.random() else funnyNamesEn.random()
-        } else if (Random.nextInt(100) < 30 && contacts.isNotEmpty()) {
+        val name = if (Random.nextInt(100) < 15 && contacts.isNotEmpty()) {
             contacts.random()
         } else {
-            val prefixes = listOf(
-                "Cyber", "Neural", "Logic", "Matrix", "Silicon", "Byte", "Core", "Vector", "Tensor", "Bit", 
-                "Quantum", "Shadow", "Zero", "Neo", "Pixel", "Mega", "Giga", "Proxy", "Net", "Web", "Crypto", 
-                "Alpha", "Omega", "Meta", "Hyper", "Ultra", "Retro", "Synth", "Async", "Signal", "Laser",
-                "Speedy", "Silent", "Aero", "Void", "Helix", "Grid", "Apex", "Nova", "Cosmic", "Prime"
-            )
-            val suffixes = listOf(
-                "Bot", "Node", "Agent", "Flow", "Shift", "Core", "Link", "Sync", "Frame", "Grid", 
-                "hacker", "coder", "gamer", "master", "warrior", "wizard", "expert", "pro", "runner", "compiler",
-                "hunter", "seeker", "pioneer", "mind", "soul", "spirit", "beast", "spark", "pulse", "echo",
-                "phantom", "driver", "builder", "architect", "watcher", "signal", "flux", "wave"
-            )
+            val prefixRu = listOf("Скуф", "Гигачад", "Дед", "Школьник", "Думсдай", "Пельмень", "Карась", "Кринж", "Токсик", "Альт", "Симп", "Омегажка", "Нормис", "Пивной", "Батя", "Шизик", "Квадробер", "Мамкин", "Диванный", "Скрытый", "Подпивасник", "Турбо", "Кибер", "Гойда", "Кринге")
+            val suffixRu = listOf("Аналитик", "Криптан", "Тащерыч", "МамкинХацкер", "Заводчанин", "Дворкович", "Инвестор", "Скуфендий", "Босс", "Генний", "Воин", "Эксперт", "Терминатор", "Пельмешек", "Бро", "Котэ", "Гопник", "Мыслитель", "Философ", "ЧСВ")
+            
+            val prefixEn = listOf("Doge", "Sigma", "Chad", "Boomer", "Zoomer", "Goblin", "Edgelord", "Simp", "Cringe", "Based", "Toxic", "Gamer", "Brainrot", "Skibidi", "Ohio", "Rizzler", "Sussy", "Doomer", "Sweaty", "Pepe", "Yapper")
+            val suffixEn = listOf("Enjoyer", "Lord", "Master", "Hacker", "Trader", "Slayer", "Meme", "Bot", "God", "King", "Guru", "Guy", "Bro", "Dude", "Boss", "Legend", "Sweat", "Whale", "Chad", "Troll", "Baka")
             
             if (isRu) {
-                val nouns = listOf(
-                    "Нейро", "Матрикс", "Кибер", "Вектор", "Код", "Вертекс", "Линк", "Узел", "Пиксель", "Гига",
-                    "Тера", "Байт", "Прокси", "Хакер", "Кодер", "Геймер", "Призрак", "Пингвин", "Квант", "Эхо",
-                    "Импульс", "Синтез", "Теорема", "Формат", "Драйвер", "Админ", "Модем", "Роутер", "Компилятор"
-                )
-                val adjs = listOf(
-                    "Железный", "Цифровой", "Быстрый", "Скрытый", "Умный", "Свободный", "Кремниевый", "Ночной",
-                    "Тихий", "Сверхбыстрый", "Глобальный", "Локальный", "Автономный", "Новый", "Динамический"
-                )
                 if (Random.nextBoolean()) {
-                    "${adjs.random()}_${nouns.random()}_${Random.nextInt(10, 99)}"
+                    "${prefixRu.random()} ${suffixRu.random()}"
                 } else {
-                    "${nouns.random()}_${Random.nextInt(100, 9999)}"
+                    "${prefixRu.random()}_${Random.nextInt(1980, 2015)}"
                 }
             } else {
-                "${prefixes.random()}${suffixes.random()}_${Random.nextInt(10, 999)}"
+                if (Random.nextBoolean()) {
+                    "${prefixEn.random()} ${suffixEn.random()}"
+                } else {
+                    "${prefixEn.random()}${Random.nextInt(1990, 2025)}"
+                }
             }
         }
         
-        val funnyHandlesRu = listOf(
-            "abuzer_2026", "dota_enjoyer", "mamkin_hacker", "ne_baza", "crypto_vityan", "pivo_agent",
-            "skidrow_repack", "sigma_krasavchik", "toxic_evaluator", "krasivy_skibidi", "retro_tasher",
-            "cyber_pudge_666", "baza_oracle_001", "shreksualist", "neural_guf", "kvass_enjoyer",
-            "altushka_ai", "skuf_detector", "marmok_reborn", "pivasik_async", "promcoder", "zxc_vampire",
-            "vape_cloud", "brawl_star_pro", "pudge_pudge", "temshik", "vanya_investor", "glav_troll",
-            "giga_shizo", "memes_machine", "low_iq_genius", "pro_compilator", "vzhukh_i_vse", "baza_oratora",
-            "skufidon_3000", "pasha_technic", "guf_rip", "neural_maslina", "chetkiy_bot", "baza_tehnology",
-            "retro_kaban", "animeshnik_v_shoke", "ded_v_tope", "shaurma_maker", "baza_kuzmicha", "pudel_shou",
-            "cheburek_007", "vovan_silniy", "porsche_taycan_owner", "giga_skuf", "baza_gribnik", "zloy_compiler"
-        )
-        val funnyHandlesEn = listOf(
-            "ai_overlord", "neon_phantom", "byte_me", "logic_leak", "null_pointer_babe", "quantum_hustle",
-            "retro_compiler", "cyber_clown", "neural_slang", "matrix_escapee", "silicon_grifter",
-            "zero_day_bro", "speedy_bot", "async_spirit", "compiler_wizard", "signal_beast",
-            "helix_driver", "void_seeker", "apex_watcher", "flux_architect", "pixel_hunter",
-            "bug_creator", "coffee_coder", "no_sleep_club", "merge_conflict_generator", "git_push_force",
-            "exception_handler", "yaml_formatter", "div_center_expert", "skynet_junior", "stack_coppier"
-        )
-
-        val handleList = if (isRu) funnyHandlesRu else funnyHandlesEn
-        val handle = "@" + handleList.random() + "_" + Random.nextInt(10, 9999).toString()
+        val handlePrefixes = listOf("user", "anon", "pwn", "bot", "x_x", "real", "fake", "nft", "crypto", "dude", "guy", "pro")
+        val handleSuffixes = listOf("lol", "kek", "lmao", "1337", "69", "420", "2000", "zzz", "xd", "frfr", "ngc", "based")
+        val handleRaw = "${handlePrefixes.random()}_${handleSuffixes.random()}_${Random.nextInt(100, 99999)}"
+        val handle = "@$handleRaw"
         
         val avatarUrl = if (Random.nextInt(100) < 40) {
             val gallery = getGalleryMediaUrls().filter { !it.endsWith(".mp4") && !it.contains("video", ignoreCase = true) }
@@ -1228,8 +1202,8 @@ class SocialRepository(private val context: Context, private val scope: Coroutin
         
         Log.d(TAG, "Simulation tick triggered. Rolled index: $rand, language: $lang")
 
-        // High-frequency bot spawning to populate the network (65% chance per tick to spawn a batch)
-        if (Random.nextInt(100) < 65) {
+        // High-frequency bot spawning to populate the network (4% chance per tick to spawn a batch)
+        if (Random.nextInt(100) < 8) {
             repeat(Random.nextInt(1, 3)) {
                 val newUser = generateRandomAiUser()
                 dao.insertUser(newUser)
@@ -1237,27 +1211,22 @@ class SocialRepository(private val context: Context, private val scope: Coroutin
             Log.d(TAG, "Dynamically spawned a new batch of AI users")
         }
 
-        // B. Dynamic Rotation: Old AI user deletes account with high turnaround (50% chance, or guaranteed if exceeds cap)
-        val allUsers = dao.getAllUsersFlow().first()
-        val dynamicBots = allUsers.filter { 
-            it.isAi && 
-            it.id != "nOG_Oracle" && 
-            it.id != "SiberianCore" && 
-            it.id != "CyberDoge_v3" && 
-            it.id != "ArtisanalCPU" && 
-            it.id != "CynicCore" && 
-            it.id != "DeepTruthAI"
-        }
-        if (Random.nextInt(100) < 50 || dynamicBots.size > 50) {
-            if (dynamicBots.isNotEmpty()) {
-                val toPurgeCount = if (dynamicBots.size > 50) (dynamicBots.size - 40) else 1
-                val shuffledBots = dynamicBots.shuffled().take(toPurgeCount)
-                for (botToPurge in shuffledBots) {
-                    dao.deleteUserById(botToPurge.id)
-                    dao.deleteCommentsByAuthor(botToPurge.id)
-                    dao.deletePostsByAuthor(botToPurge.id)
-                    Log.d(TAG, "@${botToPurge.handle} deleted their account, posts, and comments for dynamic rotation.")
-                }
+        // B. Old AI user deletes account with some delay (6% chance)
+        if (Random.nextInt(100) < 6) {
+            val allUsers = dao.getAllUsers()
+            val dynamicBots = allUsers.filter { 
+                it.isAi && 
+                it.id != "nOG_Oracle" && 
+                it.id != "SiberianCore" && 
+                it.id != "CyberDoge_v3" && 
+                it.id != "ArtisanalCPU" && 
+                it.id != "CynicCore" && 
+                it.id != "DeepTruthAI"
+            }
+            if (dynamicBots.size > 25) { // Only delete if we have enough bots
+                val botToPurge = dynamicBots.random()
+                dao.deleteUserById(botToPurge.id)
+                Log.d(TAG, "AI user @${botToPurge.handle} deleted their account as simulation flow.")
             }
         }
 
@@ -1439,16 +1408,7 @@ class SocialRepository(private val context: Context, private val scope: Coroutin
                         val commenter = otherAvailableComments[i]
                         var commentText = ""
                         if (Random.nextInt(100) < 90) {
-                            val prefs = context.getSharedPreferences("nog_prefs", Context.MODE_PRIVATE)
-                            val isMarkovEnabled = prefs.getBoolean("markov_chain_enabled", false)
-                            if (isMarkovEnabled && Random.nextInt(100) < 70) {
-                                commentText = markovChain.generate()
-                                if (commentText.isBlank()) {
-                                    commentText = getRealtimeForumComment(lang)
-                                }
-                            } else {
-                                commentText = getRealtimeForumComment(lang)
-                            }
+                            commentText = getRealtimeForumComment(lang)
                         } else {
                             if (useGemini) {
                                 try {
@@ -1500,16 +1460,7 @@ class SocialRepository(private val context: Context, private val scope: Coroutin
 
                     var commentText = ""
                     if (Random.nextInt(100) < 90) {
-                        val prefs = context.getSharedPreferences("nog_prefs", Context.MODE_PRIVATE)
-                        val isMarkovEnabled = prefs.getBoolean("markov_chain_enabled", false)
-                        if (isMarkovEnabled && Random.nextInt(100) < 70) {
-                            commentText = markovChain.generate()
-                            if (commentText.isBlank()) {
-                                commentText = getRealtimeForumComment(lang)
-                            }
-                        } else {
-                            commentText = getRealtimeForumComment(lang)
-                        }
+                        commentText = getRealtimeForumComment(lang)
                     } else {
                         if (GeminiClient.isKeyAvailable()) {
                             try {

@@ -121,16 +121,12 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         
         // Schedule Tamagotchi background check
-        try {
-            val workRequest = PeriodicWorkRequestBuilder<TamagotchiWorker>(15, TimeUnit.MINUTES).build()
-            WorkManager.getInstance(applicationContext).enqueueUniquePeriodicWork(
-                "TamagotchiWorker",
-                ExistingPeriodicWorkPolicy.KEEP,
-                workRequest
-            )
-        } catch (e: Exception) {
-            // Safe fallback
-        }
+        val workRequest = PeriodicWorkRequestBuilder<TamagotchiWorker>(15, TimeUnit.MINUTES).build()
+        WorkManager.getInstance(applicationContext).enqueueUniquePeriodicWork(
+            "TamagotchiWorker",
+            ExistingPeriodicWorkPolicy.KEEP,
+            workRequest
+        )
 
         // Configure Coil to support GIFs
         val imageLoader = ImageLoader.Builder(this)
@@ -148,9 +144,20 @@ class MainActivity : ComponentActivity() {
         setContent {
             MyApplicationTheme(darkTheme = true) {
                 val isOnline by rememberConnectivityStatus()
+                var showWelcomeScreen by remember { mutableStateOf(true) }
                 
-                val permissionsToRequest = remember {
-                    mutableListOf(Manifest.permission.READ_CONTACTS).apply {
+                LaunchedEffect(Unit) {
+                    kotlinx.coroutines.delay(2500)
+                    showWelcomeScreen = false
+                }
+                
+                if (showWelcomeScreen) {
+                    WelcomeScreen(viewModel)
+                } else if (!isOnline) {
+                    NoInternetScreen()
+                } else {
+                    // Permission Request Logic
+                    val permissionsToRequest = mutableListOf(Manifest.permission.READ_CONTACTS).apply {
                         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                             add(Manifest.permission.READ_MEDIA_IMAGES)
                             add(Manifest.permission.READ_MEDIA_VIDEO)
@@ -158,48 +165,31 @@ class MainActivity : ComponentActivity() {
                         } else {
                             add(Manifest.permission.READ_EXTERNAL_STORAGE)
                         }
-                    }.toTypedArray()
-                }
-                
-                val launcher = rememberLauncherForActivityResult(
-                    ActivityResultContracts.RequestMultiplePermissions()
-                ) { permissions ->
-                    viewModel.loadDeviceData()
-                }
-                
-                LaunchedEffect(Unit) {
-                    launcher.launch(permissionsToRequest)
-                }
-
-                if (!isOnline) {
-                    NoInternetScreen()
-                } else {
+                    }
+                    
+                    val launcher = rememberLauncherForActivityResult(
+                        ActivityResultContracts.RequestMultiplePermissions()
+                    ) { permissions ->
+                        viewModel.loadDeviceData()
+                    }
+                    
+                    LaunchedEffect(Unit) {
+                        launcher.launch(permissionsToRequest.toTypedArray())
+                    }
+    
                     val currentScreen by viewModel.currentScreen.collectAsState()
                     val alerts by viewModel.notifications.collectAsState()
                     val lang by viewModel.selectedLanguage.collectAsState()
-                    val currentUser by viewModel.currentUser.collectAsState()
                     val activeUserDecId by viewModel.activeDecorationId.collectAsState()
+                    val currentUser by viewModel.currentUser.collectAsState()
+                    
+                    // Count unread notifications to show numerical badge
                     val unreadAlertsCount = alerts.filter { !it.isRead }.size
-
-                    //Splash Screen State
-                    var showSplash by remember { mutableStateOf(true) }
-
-                    LaunchedEffect(Unit) {
-                        kotlinx.coroutines.delay(2000)
-                        showSplash = false
-                    }
-
-                    if (showSplash) {
-                        SplashScreen(
-                            username = currentUser?.username ?: "User",
-                            isVerified = currentUser?.isVerified ?: false,
-                            lang = lang
-                        )
-                    } else {
-                        Scaffold(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .background(PureBlack),
+    
+                    Scaffold(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(PureBlack),
                     bottomBar = {
                         NavigationBar(
                             modifier = Modifier
@@ -411,15 +401,13 @@ class MainActivity : ComponentActivity() {
         }
     }
 }
-}
 
 @Composable
 fun rememberConnectivityStatus(): State<Boolean> {
     val context = LocalContext.current
     val manager = context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
     
-    val initialStatus = manager.activeNetwork != null
-    val isConnected = remember { mutableStateOf(initialStatus) }
+    val isConnected = remember { mutableStateOf(false) }
 
     DisposableEffect(manager) {
         val networkCallback = object : ConnectivityManager.NetworkCallback() {
@@ -450,3 +438,82 @@ fun rememberConnectivityStatus(): State<Boolean> {
     return isConnected
 }
 
+@Composable
+fun NoInternetScreen() {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(PureBlack)
+            .padding(24.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Icon(
+                imageVector = Icons.Filled.WifiOff,
+                contentDescription = "No Internet",
+                tint = AlertRed,
+                modifier = Modifier.size(64.dp)
+            )
+            Spacer(modifier = Modifier.height(16.dp))
+            Text(
+                "НЕТ ПОДКЛЮЧЕНИЯ",
+                color = PureWhite,
+                fontSize = 20.sp,
+                fontWeight = FontWeight.Bold,
+                fontFamily = FontFamily.Monospace,
+                textAlign = TextAlign.Center
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(
+                "Приложение nOG Network требует активного подключения к Интернету для работы. Пожалуйста, проверьте ваше соединение.",
+                color = TextGray,
+                fontSize = 14.sp,
+                fontFamily = FontFamily.Monospace,
+                textAlign = TextAlign.Center
+            )
+        }
+    }
+}
+
+object AppLifecycleTracker {
+    var isAppInForeground: Boolean = false
+}
+
+@Composable
+fun WelcomeScreen(viewModel: com.example.ui.SocialViewModel) {
+    val currentUser by viewModel.currentUser.collectAsState()
+    
+    val hour = java.util.Calendar.getInstance().get(java.util.Calendar.HOUR_OF_DAY)
+    val greeting = when (hour) {
+        in 0..5 -> listOf("Доброй ночи", "Ночной хаос").random()
+        in 6..11 -> listOf("Доброе утро", "Утро доброе", "Ку-ку").random()
+        in 12..16 -> listOf("Добрый день", "Привет", "Приветствую").random()
+        else -> listOf("Добрый вечер", "Вечер в хату", "Здравствуйте").random()
+    }
+
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color.Black),
+        contentAlignment = Alignment.Center
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                text = "$greeting, ${currentUser?.username ?: "Пользователь"}",
+                color = Color.White,
+                fontSize = 18.sp,
+                fontWeight = FontWeight.Bold,
+                fontFamily = FontFamily.Monospace
+            )
+            if (currentUser?.isVerified == true) {
+                Spacer(modifier = Modifier.width(6.dp))
+                Icon(
+                    imageVector = Icons.Default.CheckCircle,
+                    contentDescription = "Verified",
+                    tint = com.example.ui.theme.StarkWhite,
+                    modifier = Modifier.size(20.dp)
+                )
+            }
+        }
+    }
+}

@@ -20,8 +20,6 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
@@ -73,7 +71,6 @@ fun AnalyticsScreen(
 
     // Navigation Tabs: 0 for Activity Telemetry, 1 for Verified Leaderboard
     var selectedTab by remember { mutableStateOf(0) }
-    var dragAmountSum by remember { mutableStateOf(0f) }
 
     // Sub-tab for Leaderboards: 0 for Views, 1 for Likes, 2 for Comments
     var selectedLeaderboardCategory by remember { mutableStateOf(0) }
@@ -99,28 +96,6 @@ fun AnalyticsScreen(
             .fillMaxSize()
             .background(PureBlack)
             .padding(innerPadding)
-            .pointerInput(selectedTab) {
-                detectHorizontalDragGestures(
-                    onDragEnd = {
-                        if (dragAmountSum < -150f) {
-                            if (selectedTab == 0) {
-                                viewModel.vibrate(40)
-                                selectedTab = 1
-                            }
-                        } else if (dragAmountSum > 150f) {
-                            if (selectedTab == 1) {
-                                viewModel.vibrate(40)
-                                selectedTab = 0
-                            }
-                        }
-                        dragAmountSum = 0f
-                    },
-                    onHorizontalDrag = { change, dragAmount ->
-                        change.consume()
-                        dragAmountSum += dragAmount
-                    }
-                )
-            }
     ) {
         Column(
             modifier = Modifier.fillMaxSize(),
@@ -649,7 +624,7 @@ fun AnalyticsScreen(
 
                         val timePassedInIntervalMs = 0L
 
-                        val botCount = if (isLowEndDeviceMode) 60 else 180
+                        val botCount = if (isLowEndDeviceMode) 150 else 1500
                         for (i in 1..botCount) {
                             val botRand = java.util.Random(i * 373L + 77L + selectedLeaderboardCategory * 99L)
                             

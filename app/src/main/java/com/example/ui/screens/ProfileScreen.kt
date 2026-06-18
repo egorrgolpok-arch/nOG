@@ -58,7 +58,6 @@ fun ProfileScreen(
     val followingIds by viewModel.currentUserFollowingIds.collectAsState()
     val isSilentMode by viewModel.isSilentMode.collectAsState()
     val isLowEndDeviceMode by viewModel.isLowEndDeviceMode.collectAsState()
-    val isMarkovChainEnabled by viewModel.isMarkovChainEnabled.collectAsState()
     val selectedPostForComments by viewModel.activePostIdForComments.collectAsState()
     val activeUserDecId by viewModel.activeDecorationId.collectAsState()
     val decorationExpiry by viewModel.decorationExpiry.collectAsState()
@@ -106,22 +105,6 @@ fun ProfileScreen(
     var showTempVerificationDialog by remember { mutableStateOf(false) }
     var showFollowingList by remember { mutableStateOf(false) }
     val context = LocalContext.current
-
-    val photoPickerLauncher = rememberLauncherForActivityResult(
-        ActivityResultContracts.PickVisualMedia()
-    ) { uri ->
-        if (uri != null) {
-            try {
-                context.contentResolver.takePersistableUriPermission(
-                    uri,
-                    Intent.FLAG_GRANT_READ_URI_PERMISSION
-                )
-            } catch (e: Exception) {
-                android.util.Log.e("Profile", "Persistable permission error", e)
-            }
-            tempAvatarUrl = uri.toString()
-        }
-    }
 
     // Synchronize form values on loaded
     LaunchedEffect(userProfile) {
@@ -578,9 +561,9 @@ fun ProfileScreen(
                                 )
                             )
                         }
-                        
+
                         Spacer(modifier = Modifier.height(14.dp))
-                        
+
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.SpaceBetween,
@@ -588,14 +571,14 @@ fun ProfileScreen(
                         ) {
                             Column(modifier = Modifier.weight(1f)) {
                                 Text(
-                                    text = if (lang == "RU") "Markov Chain боты" else "Markov Chain bots",
+                                    text = if (lang == "RU") "Генерация Markov Chain" else "Markov Chain algorithms",
                                     color = PureWhite,
                                     fontSize = 11.sp,
                                     fontFamily = FontFamily.Monospace,
                                     fontWeight = FontWeight.Bold
                                 )
                                 Text(
-                                    text = if (lang == "RU") "70% комментариев ботов генерируются Markov Chain" else "70% of bot comments are generated with Markov Chain",
+                                    text = if (lang == "RU") "Генерация комментариев с помощью цепей Маркова на базе логов." else "Generate bot comments organically utilizing markov chains on trained logs.",
                                     color = TextGray,
                                     fontSize = 10.sp,
                                     lineHeight = 13.sp
@@ -603,8 +586,8 @@ fun ProfileScreen(
                             }
                             Spacer(modifier = Modifier.width(8.dp))
                             Switch(
-                                checked = isMarkovChainEnabled,
-                                onCheckedChange = { viewModel.toggleMarkovChainEnabled(it) },
+                                checked = viewModel.isMarkovEnabled.collectAsState().value,
+                                onCheckedChange = { viewModel.toggleMarkovEnabled(it) },
                                 colors = SwitchDefaults.colors(
                                     checkedThumbColor = PureBlack,
                                     checkedTrackColor = PureWhite,
@@ -727,6 +710,22 @@ fun ProfileScreen(
                                 textStyle = TextStyle(fontSize = 11.sp, fontFamily = FontFamily.Monospace)
                             )
                             
+                            val photoPickerLauncher = rememberLauncherForActivityResult(
+                                ActivityResultContracts.PickVisualMedia()
+                            ) { uri ->
+                                if (uri != null) {
+                                    try {
+                                        context.contentResolver.takePersistableUriPermission(
+                                            uri,
+                                            Intent.FLAG_GRANT_READ_URI_PERMISSION
+                                        )
+                                    } catch (e: Exception) {
+                                        android.util.Log.e("Profile", "Persistable permission error", e)
+                                    }
+                                    tempAvatarUrl = uri.toString()
+                                }
+                            }
+
                             Spacer(modifier = Modifier.height(4.dp))
                             
                             Button(

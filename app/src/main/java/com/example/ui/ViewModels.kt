@@ -111,16 +111,12 @@ class SocialViewModel(application: Application) : AndroidViewModel(application) 
             initialValue = emptyList()
         )
 
-    val allRawPosts = repository.postsFlow.combine(repository.allCommentsFlow) { posts, comments ->
-        val commentsGrouped = comments.groupBy { it.postId }
-        posts.map { post ->
-            post.copy(commentsCount = commentsGrouped[post.id]?.size ?: 0)
-        }
-    }.stateIn(
-        scope = viewModelScope,
-        started = SharingStarted.WhileSubscribed(5000),
-        initialValue = emptyList()
-    )
+    val allRawPosts = repository.postsFlow
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5000),
+            initialValue = emptyList()
+        )
 
     // Unread Community Posts Count
     val unreadCommunityPostsCount = combine(allRawPosts, lastCommunityViewTime) { posts, lastViewTime ->
@@ -150,34 +146,7 @@ class SocialViewModel(application: Application) : AndroidViewModel(application) 
                 author?.handle?.contains(query, ignoreCase = true) == true
             }
         }
-
-        val bots = users.filter { it.isAi }
-        if (bots.isNotEmpty() && filtered.isNotEmpty() && query.isBlank() && category == null) {
-            val resultList = mutableListOf<PostEntity>()
-            filtered.forEachIndexed { index, post ->
-                resultList.add(post)
-                if ((index + 1) % 6 == 0) {
-                    val randomBot = bots.random()
-                    val markovContent = repository.generateMarkovText()
-                    val botPost = PostEntity(
-                        id = -(index + 1) - 1000000,
-                        authorId = randomBot.id,
-                        content = markovContent,
-                        timestamp = post.timestamp - 1000L,
-                        likesCount = Random.nextInt(15, 300),
-                        commentsCount = 0,
-                        trustScore = Random.nextInt(70, 100),
-                        sourceName = if (_selectedLanguage.value == "RU") "Генератор Маркова" else "Markov Generator",
-                        isTrend = Random.nextBoolean(),
-                        category = category ?: "Markov"
-                    )
-                    resultList.add(botPost)
-                }
-            }
-            resultList
-        } else {
-            filtered
-        }
+        filtered
     }.stateIn(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(5000),
@@ -236,14 +205,16 @@ class SocialViewModel(application: Application) : AndroidViewModel(application) 
         prefs.edit().putBoolean("low_end_device_mode", enabled).apply()
     }
 
-    // --- Markov Chain toggle ---
-    private val _isMarkovChainEnabled = MutableStateFlow<Boolean>(false)
-    val isMarkovChainEnabled: StateFlow<Boolean> = _isMarkovChainEnabled.asStateFlow()
+    // --- Markov Chain Mode (Марков Чейн для комментариев) ---
+    private val _isMarkovEnabled = MutableStateFlow<Boolean>(true) // Enabled by default
+    val isMarkovEnabled: StateFlow<Boolean> = _isMarkovEnabled.asStateFlow()
 
-    fun toggleMarkovChainEnabled(enabled: Boolean) {
-        _isMarkovChainEnabled.value = enabled
+    fun toggleMarkovEnabled(enabled: Boolean) {
+        _isMarkovEnabled.value = enabled
         val prefs = getApplication<Application>().getSharedPreferences("nog_prefs", Context.MODE_PRIVATE)
         prefs.edit().putBoolean("markov_chain_enabled", enabled).apply()
+        // Also sync state down to repository
+        repository.setMarkovMarkovEnabled(enabled)
     }
 
     // --- Persistent Poker Balance ---
@@ -582,45 +553,35 @@ class SocialViewModel(application: Application) : AndroidViewModel(application) 
         val lastResetYear = prefs.getInt("last_monday_reset_year", -1)
         val isMonday = calendar.get(java.util.Calendar.DAY_OF_WEEK) == java.util.Calendar.MONDAY
 
-        if ((currentWeekOfYear != lastResetWeek || currentYear != lastResetYear) && (lastResetWeek != -1)) {
-            // Reset Views
-            prefs.edit().putString("viewed_post_ids_set", "").putInt("feed_views", 0).apply()
-            _uniqueViewsCount.value = 0
-            _feedViews.value = 0
+        if ((isMonday || currentWeekOfYear != lastResetWeek || currentYear != lastResetYear) && (lastResetWeek != -1)) {
+            if (isMonday && (lastResetWeek != currentWeekOfYear || lastResetYear != currentYear)) {
+                // Reset Views
+                prefs.edit().putString("viewed_post_ids_set", "").putInt("feed_views", 0).apply()
+                _uniqueViewsCount.value = 0
+                _feedViews.value = 0
 
-            // Reset Likes
-            prefs.edit().putStringSet("liked_posts", emptySet()).apply()
-            _likedPostIds.value = emptySet()
+                // Reset Likes
+                prefs.edit().putStringSet("liked_posts", emptySet()).apply()
+                _likedPostIds.value = emptySet()
 
-            // Reset Comments
-            viewModelScope.launch {
-                repository.clearCommentsByAuthor("user")
-            }
+                // Reset Comments
+                viewModelScope.launch {
+                    repository.clearCommentsByAuthor("user")
+                }
 
-            // Reset Weekly Hours Tracker to clean slate for the new week
-            prefs.edit()
-                .putFloat("weekly_h_1", 0f)
-                .putFloat("weekly_h_2", 0f)
-                .putFloat("weekly_h_3", 0f)
-                .putFloat("weekly_h_4", 0f)
-                .putFloat("weekly_h_5", 0f)
-                .putFloat("weekly_h_6", 0f)
-                .putFloat("weekly_h_7", 0f)
-                .putInt("time_spent_today_secs", 0)
-                .apply()
+                // Record reset
+                prefs.edit()
+                    .putInt("last_monday_reset_week", currentWeekOfYear)
+                    .putInt("last_monday_reset_year", currentYear)
+                    .apply()
 
-            // Record reset
-            prefs.edit()
-                .putInt("last_monday_reset_week", currentWeekOfYear)
-                .putInt("last_monday_reset_year", currentYear)
-                .apply()
-
-            viewModelScope.launch {
-                repository.insertNotification(
-                    title = if (savedLang == "RU") "Новый турнир начался! 🏆" else "New Tournament Started! 🏆",
-                    message = if (savedLang == "RU") "Все ваши прошлые еженедельные турнирные метрики (просмотры, лайки, ответы) обнулены. Вперед к Олимпу в новом цикле!" else "Your metrics (views, likes, comments) have been archived. A fresh cycle of the weekly nOG tournament has commenced!",
-                    type = "SYSTEM"
-                )
+                viewModelScope.launch {
+                    repository.insertNotification(
+                        title = if (savedLang == "RU") "Новый турнир начался! 🏆" else "New Tournament Started! 🏆",
+                        message = if (savedLang == "RU") "Понедельник наступил! Все ваши турнирные очки (просмотры, лайки, ответы) сброшены. Время покорять топ заново!" else "Monday is here! All your tournament points (views, likes, comments) have been reset. Time to conquer the top again!",
+                        type = "SYSTEM"
+                    )
+                }
             }
         }
         if (lastResetWeek == -1) {
@@ -696,9 +657,10 @@ class SocialViewModel(application: Application) : AndroidViewModel(application) 
         val savedLowEnd = prefs.getBoolean("low_end_device_mode", false)
         _isLowEndDeviceMode.value = savedLowEnd
 
-        // Load MarkovChain toggle
+        // Load Markov Chain mode
         val savedMarkov = prefs.getBoolean("markov_chain_enabled", true)
-        _isMarkovChainEnabled.value = savedMarkov
+        _isMarkovEnabled.value = savedMarkov
+        repository.setMarkovMarkovEnabled(savedMarkov)
 
         // Load unique viewed posts count
         val viewedStr = prefs.getString("viewed_post_ids_set", "") ?: ""
@@ -712,18 +674,14 @@ class SocialViewModel(application: Application) : AndroidViewModel(application) 
 
         val currentCalendarDay = currentCalendar.get(java.util.Calendar.DAY_OF_YEAR)
         val lastSavedDay = prefs.getInt("last_saved_calendar_day", -1)
-        var todaySecs = prefs.getInt("time_spent_today_secs", 0) // Default to 0, not mock
+        var todaySecs = prefs.getInt("time_spent_today_secs", 1440)
 
         if (lastSavedDay != -1 && lastSavedDay != currentCalendarDay) {
             // Day has rolled over! Zero-out today's seconds and reset
-            val editor = prefs.edit()
+            prefs.edit()
                 .putInt("time_spent_today_secs", 0)
                 .putInt("last_saved_calendar_day", currentCalendarDay)
-            // Clear future days starting from todayIndex to purge leftover data
-            for (d in todayIndex..7) {
-                editor.putFloat("weekly_h_$d", 0f)
-            }
-            editor.apply()
+                .apply()
             todaySecs = 0
         } else if (lastSavedDay == -1) {
             prefs.edit().putInt("last_saved_calendar_day", currentCalendarDay).apply()
@@ -732,61 +690,40 @@ class SocialViewModel(application: Application) : AndroidViewModel(application) 
         _appTimeSpentToday.value = todaySecs / 3600f
 
         // Helper to construct dynamic list of hours for Monday to Sunday
-        fun getWeeklyList(currentTodaySecs: Int, dynamicTodayIndex: Int): List<Float> {
+        fun getWeeklyList(currentTodaySecs: Int): List<Float> {
             val list = mutableListOf(
-                prefs.getFloat("weekly_h_1", 0f),
-                prefs.getFloat("weekly_h_2", 0f),
-                prefs.getFloat("weekly_h_3", 0f),
-                prefs.getFloat("weekly_h_4", 0f),
-                prefs.getFloat("weekly_h_5", 0f),
-                prefs.getFloat("weekly_h_6", 0f),
-                prefs.getFloat("weekly_h_7", 0f)
+                prefs.getFloat("weekly_h_1", 1.2f),
+                prefs.getFloat("weekly_h_2", 1.8f),
+                prefs.getFloat("weekly_h_3", 0.9f),
+                prefs.getFloat("weekly_h_4", 2.3f),
+                prefs.getFloat("weekly_h_5", 1.5f),
+                prefs.getFloat("weekly_h_6", 1.7f),
+                prefs.getFloat("weekly_h_7", 0.8f)
             )
-            val indexToUse = (dynamicTodayIndex - 1).coerceIn(0, 6)
-            list[indexToUse] = currentTodaySecs / 3600f
+            list[todayIndex - 1] = currentTodaySecs / 3600f
             return list
         }
 
-        _weeklyEngagementHours.value = getWeeklyList(todaySecs, todayIndex)
+        _weeklyEngagementHours.value = getWeeklyList(todaySecs)
 
         // Increment seconds every second the app is open
         viewModelScope.launch {
             var totalSecs = todaySecs
             while (true) {
                 kotlinx.coroutines.delay(1000L)
-                
-                val checkCalendar = java.util.Calendar.getInstance()
-                val checkDay = checkCalendar.get(java.util.Calendar.DAY_OF_YEAR)
-                val checkDayOfWeek = checkCalendar.get(java.util.Calendar.DAY_OF_WEEK)
-                val dynamicTodayIndex = if (checkDayOfWeek == java.util.Calendar.SUNDAY) 7 else checkDayOfWeek - 1
-                
-                val currentSavedDayForCheck = prefs.getInt("last_saved_calendar_day", -1)
-                if (currentSavedDayForCheck != -1 && currentSavedDayForCheck != checkDay) {
-                    // Day rolled over while app was running! Reset count to 0 hours!
-                    totalSecs = 0
-                    prefs.edit()
-                        .putInt("time_spent_today_secs", 0)
-                        .putInt("last_saved_calendar_day", checkDay)
-                        .apply()
-                }
-                
                 totalSecs += 1
                 _appTimeSpentToday.value = totalSecs / 3600f
                 prefs.edit()
                     .putInt("time_spent_today_secs", totalSecs)
-                    .putFloat("weekly_h_$dynamicTodayIndex", totalSecs / 3600f)
+                    .putFloat("weekly_h_$todayIndex", totalSecs / 3600f)
                     .apply()
-                _weeklyEngagementHours.value = getWeeklyList(totalSecs, dynamicTodayIndex)
+                _weeklyEngagementHours.value = getWeeklyList(totalSecs)
             }
         }
 
         // Initialize basic database entries
         viewModelScope.launch(Dispatchers.IO) {
-            try {
-                repository.initDatabaseIfNeeded()
-            } catch (e: Exception) {
-                Log.e("SocialViewModel", "Failed to initialize base database state", e)
-            }
+            repository.initDatabaseIfNeeded()
         }
 
         // Automatic vibration on receiving new notifications
@@ -807,7 +744,7 @@ class SocialViewModel(application: Application) : AndroidViewModel(application) 
             var duoTickCount = 0
             while (true) {
                 // Speed up bot post generation by ticking much faster
-                val tickDelay = if (_isLowEndDeviceMode.value) 8000L else 350L
+                val tickDelay = if (_isLowEndDeviceMode.value) 4000L else 350L
                 delay(tickDelay)
                 
                 // Continuous check for all active cooldowns
@@ -834,7 +771,7 @@ class SocialViewModel(application: Application) : AndroidViewModel(application) 
         viewModelScope.launch {
             while (true) {
                 // Speed up bot engagement (likes and comments)
-                val tickDelay = if (_isLowEndDeviceMode.value) 12000L else 450L
+                val tickDelay = if (_isLowEndDeviceMode.value) 6000L else 450L
                 delay(tickDelay) 
                 if (_isSimulating.value && !_isFlappyActive.value) {
                     try {

@@ -76,41 +76,6 @@ fun FeedScreen(
     val coroutineScope = rememberCoroutineScope()
     
     var showCreatePostDialog by remember { mutableStateOf(false) }
-    
-    var tempCreatePostText by remember { mutableStateOf("") }
-    var tempCreatePostImage by remember { mutableStateOf<String?>(null) }
-    var tempCreatePostVideo by remember { mutableStateOf<String?>(null) }
-    var tempCreatePostGif by remember { mutableStateOf<String?>(null) }
-    
-    val imagePickerLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.GetContent()
-    ) { uri ->
-        if (uri != null) {
-            tempCreatePostImage = uri.toString()
-            tempCreatePostVideo = null
-            tempCreatePostGif = null
-        }
-    }
-
-    val videoPickerLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.GetContent()
-    ) { uri ->
-        if (uri != null) {
-            tempCreatePostVideo = uri.toString()
-            tempCreatePostImage = null
-            tempCreatePostGif = null
-        }
-    }
-
-    val gifPickerLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.GetContent()
-    ) { uri ->
-        if (uri != null) {
-            tempCreatePostGif = uri.toString()
-            tempCreatePostImage = null
-            tempCreatePostVideo = null
-        }
-    }
     var showFlappyBotGame by remember { mutableStateOf(false) }
     var showTamagotchiDialog by remember { mutableStateOf(false) }
     var showDecorationShopDialog by remember { mutableStateOf(false) }
@@ -131,41 +96,29 @@ fun FeedScreen(
 
     LaunchedEffect(lazyListState.isScrollInProgress) {
         if (lazyListState.isScrollInProgress) {
-            try {
-                viewModel.recordScrollTelemetry()
-                while (true) {
-                    val delayTime = if (viewModel.isLowEndDeviceMode.value) 8000L else 1000L
-                    kotlinx.coroutines.delay(delayTime)
-                    val state = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
-                        try {
-                            com.example.ui.screens.TamagotchiManager.loadState(context)
-                        } catch (e: Exception) {
-                            null
-                        }
+            viewModel.recordScrollTelemetry()
+            while (true) {
+                val delayTime = if (viewModel.isLowEndDeviceMode.value) 8000L else 1000L
+                kotlinx.coroutines.delay(delayTime)
+                val state = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                    com.example.ui.screens.TamagotchiManager.loadState(context)
+                }
+                if (state.hasPet && !state.isDead) {
+                    val tickNow = System.currentTimeMillis()
+                    val deltaMs = tickNow - state.lastTickTime
+                    var newState = com.example.ui.screens.updateTamaStats(state, deltaMs, isAppActive = true)
+                    // Additional specific scroll boosting
+                    newState = newState.copy(
+                        mood = (newState.mood + 0.5f).coerceAtMost(100f) // extra joy during scroll
+                    )
+                    if (newState.isSick) {
+                        val clinicalHours = 0.05f 
+                        newState = newState.copy(sickTimeSpentToday = (newState.sickTimeSpentToday + clinicalHours).coerceAtMost(newState.sickHoursRequiredEachDay))
                     }
-                    if (state != null && state.hasPet && !state.isDead) {
-                        val tickNow = System.currentTimeMillis()
-                        val deltaMs = tickNow - state.lastTickTime
-                        var newState = com.example.ui.screens.updateTamaStats(state, deltaMs, isAppActive = true)
-                        // Additional specific scroll boosting
-                        newState = newState.copy(
-                            mood = (newState.mood + 0.5f).coerceAtMost(100f) // extra joy during scroll
-                        )
-                        if (newState.isSick) {
-                            val clinicalHours = 0.05f 
-                            newState = newState.copy(sickTimeSpentToday = (newState.sickTimeSpentToday + clinicalHours).coerceAtMost(newState.sickHoursRequiredEachDay))
-                        }
-                        kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
-                            try {
-                                com.example.ui.screens.TamagotchiManager.saveState(context, newState)
-                            } catch (e: Exception) {
-                                // ignore
-                            }
-                        }
+                    kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                        com.example.ui.screens.TamagotchiManager.saveState(context, newState)
                     }
                 }
-            } catch (e: Exception) {
-                Log.e("FeedScreen", "Telemetry or Tamagotchi sync loop interrupted", e)
             }
         }
     }
@@ -258,24 +211,17 @@ fun FeedScreen(
                 .fillMaxSize()
                 .pointerInput(selectedTab) {
                     detectHorizontalDragGestures(
+                        onDragStart = { dragAmountSum = 0f },
                         onDragEnd = {
-                            if (dragAmountSum < -150f) {
-                                if (selectedTab == 0) {
-                                    viewModel.vibrate(40)
-                                    selectedTab = 1
-                                }
-                            } else if (dragAmountSum > 150f) {
-                                if (selectedTab == 1) {
-                                    viewModel.vibrate(40)
-                                    selectedTab = 0
-                                }
+                            if (dragAmountSum > 140f && selectedTab == 1) { // Swipe Right
+                                selectedTab = 0
+                                viewModel.vibrate(25)
+                            } else if (dragAmountSum < -140f && selectedTab == 0) { // Swipe Left
+                                selectedTab = 1
+                                viewModel.vibrate(25)
                             }
-                            dragAmountSum = 0f
                         },
-                        onHorizontalDrag = { change, dragAmount ->
-                            change.consume()
-                            dragAmountSum += dragAmount
-                        }
+                        onHorizontalDrag = { _, dragAmount -> dragAmountSum += dragAmount }
                     )
                 }
         ) {
@@ -384,63 +330,42 @@ fun FeedScreen(
                 }
             }
                 
-            Spacer(modifier = Modifier.height(4.dp))
+            Spacer(modifier = Modifier.height(16.dp))
 
-            // --- Custom Cyberspace Tab Selector ---
+            // --- Recommendation Engine Sub-Tabs ---
+            val tabs = if (lang == "RU") {
+                listOf("ЭФИР 🌐", "СКАНЕР 🤖")
+            } else {
+                listOf("FEED 🌐", "SCANNER 🤖")
+            }
+            
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 4.dp)
-                    .background(DeepGray, RoundedCornerShape(8.dp))
-                    .border(1.dp, BorderGray, RoundedCornerShape(8.dp))
-                    .padding(4.dp)
+                    .background(PureBlack)
+                    .border(1.dp, BorderGray)
             ) {
-                // Tab 0: ЛЕНТА / FEED
-                Box(
-                    modifier = Modifier
-                        .weight(1f)
-                        .clip(RoundedCornerShape(6.dp))
-                        .background(if (selectedTab == 0) PureWhite else Color.Transparent)
-                        .clickable {
-                            viewModel.vibrate(30)
-                            selectedTab = 0
-                        }
-                        .padding(vertical = 10.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(
-                        text = if (lang == "RU") "ЛЕНТА" else "FEED",
-                        color = if (selectedTab == 0) PureBlack else TextGray,
-                        fontSize = 11.sp,
-                        fontFamily = FontFamily.Monospace,
-                        fontWeight = FontWeight.Bold
-                    )
-                }
-
-                // Tab 1: НЕЙРОМАТРИЦА / SCANNER
-                Box(
-                    modifier = Modifier
-                        .weight(1f)
-                        .clip(RoundedCornerShape(6.dp))
-                        .background(if (selectedTab == 1) PureWhite else Color.Transparent)
-                        .clickable {
-                            viewModel.vibrate(30)
-                            selectedTab = 1
-                        }
-                        .padding(vertical = 10.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(
-                        text = if (lang == "RU") "НЕЙРОМАТРИЦА" else "NEURAL MATRIX",
-                        color = if (selectedTab == 1) PureBlack else TextGray,
-                        fontSize = 11.sp,
-                        fontFamily = FontFamily.Monospace,
-                        fontWeight = FontWeight.Bold
-                    )
+                tabs.forEachIndexed { index, title ->
+                    val isSelected = selectedTab == index
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .clickable { selectedTab = index }
+                            .background(if (isSelected) DeepGray else PureBlack)
+                            .border(1.dp, if (isSelected) PureWhite else Color.Transparent)
+                            .padding(vertical = 12.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = title,
+                            color = if (isSelected) PureWhite else TextGray,
+                            fontSize = 11.sp,
+                            fontFamily = FontFamily.Monospace,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
                 }
             }
-
-            Spacer(modifier = Modifier.height(8.dp))
 
             // --- Post Feed Column ---
             if (posts.isEmpty()) {
@@ -536,97 +461,103 @@ fun FeedScreen(
             }
         }
 
-        // --- Floating Action Buttons Section (Permanent Compact Neon Dock) ---
-        Column(
-            modifier = Modifier
-                .align(Alignment.BottomEnd)
-                .padding(bottom = 16.dp, end = 16.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp),
-            horizontalAlignment = Alignment.End
-        ) {
-            // 1. --- Create Post FloatingActionButton (Prism White) ---
-            FloatingActionButton(
-                onClick = { showCreatePostDialog = true },
-                containerColor = PureWhite,
-                contentColor = PureBlack,
-                shape = RoundedCornerShape(12.dp),
+        // --- Floating Action Buttons Section (Tab-dependent: Feed vs Scanner) ---
+        if (selectedTab == 0) {
+            Column(
                 modifier = Modifier
-                    .size(44.dp)
-                    .border(2.dp, PureBlack, RoundedCornerShape(12.dp))
-                    .testTag("create_post_button")
+                    .align(Alignment.BottomEnd)
+                    .padding(24.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+                horizontalAlignment = Alignment.End
             ) {
-                Icon(Icons.Filled.Add, contentDescription = if (lang == "RU") "Создать новость" else "Create post")
-            }
+                // --- Flappy Bot Game FAB ---
+                FloatingActionButton(
+                    onClick = { showFlappyBotGame = true },
+                    containerColor = PureWhite,
+                    contentColor = PureBlack,
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier
+                        .border(2.dp, PureBlack, RoundedCornerShape(12.dp))
+                        .testTag("flappy_bot_fab")
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.SportsEsports,
+                        contentDescription = if (lang == "RU") "Играть во Флаппи-Бот" else "Play Flappy Bot"
+                    )
+                }
 
-            // 2. --- Tamagotchi (Neon Yellow FAB) ---
-            FloatingActionButton(
-                onClick = { showTamagotchiDialog = true },
-                containerColor = AlertYellow,
-                contentColor = PureBlack,
-                shape = RoundedCornerShape(12.dp),
-                modifier = Modifier
-                    .size(44.dp)
-                    .border(2.dp, PureBlack, RoundedCornerShape(12.dp))
-                    .testTag("tamagotchi_fab")
-            ) {
-                Icon(
-                    imageVector = Icons.Filled.Pets,
-                    contentDescription = if (lang == "RU") "Тамагочи" else "Tamagotchi"
-                )
+                // --- Create Post FloatingActionButton ---
+                FloatingActionButton(
+                    onClick = { showCreatePostDialog = true },
+                    containerColor = PureWhite,
+                    contentColor = PureBlack,
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier
+                        .border(2.dp, PureBlack, RoundedCornerShape(12.dp))
+                        .testTag("create_post_button")
+                ) {
+                    Icon(Icons.Filled.Add, contentDescription = if (lang == "RU") "Создать новость" else "Create post")
+                }
             }
-
-            // 3. --- Avatar Decorations Shop FAB ---
-            FloatingActionButton(
-                onClick = { showDecorationShopDialog = true },
-                containerColor = AlertYellow,
-                contentColor = PureBlack,
-                shape = RoundedCornerShape(12.dp),
+        } else {
+            // --- Bottom Right Action Column (Decorations + Tamagotchi) ---
+            Column(
                 modifier = Modifier
-                    .size(44.dp)
-                    .border(2.dp, PureBlack, RoundedCornerShape(12.dp))
-                    .testTag("decorations_shop_fab")
+                    .align(Alignment.BottomEnd)
+                    .padding(24.dp),
+                horizontalAlignment = Alignment.End,
+                verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                Icon(
-                    imageVector = Icons.Filled.AutoAwesome,
-                    contentDescription = if (lang == "RU") "Украшения аватарок" else "Avatar Upgrades"
-                )
-            }
+                // --- Casino Screen Redirect FAB ---
+                FloatingActionButton(
+                    onClick = { 
+                        viewModel.vibrate(40)
+                        viewModel.navigateTo(Screen.Casino) 
+                    },
+                    containerColor = AlertYellow,
+                    contentColor = PureBlack,
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier
+                        .border(2.dp, PureBlack, RoundedCornerShape(12.dp))
+                        .testTag("casino_quick_fab")
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.Casino,
+                        contentDescription = if (lang == "RU") "Казино" else "Casino"
+                    )
+                }
 
-            // 4. --- Flappy Bot Game FAB ---
-            FloatingActionButton(
-                onClick = { showFlappyBotGame = true },
-                containerColor = PureWhite,
-                contentColor = PureBlack,
-                shape = RoundedCornerShape(12.dp),
-                modifier = Modifier
-                    .size(44.dp)
-                    .border(2.dp, PureBlack, RoundedCornerShape(12.dp))
-                    .testTag("flappy_bot_fab")
-            ) {
-                Icon(
-                    imageVector = Icons.Filled.SportsEsports,
-                    contentDescription = if (lang == "RU") "Играть во Флаппи-Бот" else "Play Flappy Bot"
-                )
-            }
+                // --- Avatar Decorations Shop FAB (Worn Styles Shop Button) ---
+                FloatingActionButton(
+                    onClick = { showDecorationShopDialog = true },
+                    containerColor = AlertYellow,
+                    contentColor = PureBlack,
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier
+                        .border(2.dp, PureBlack, RoundedCornerShape(12.dp))
+                        .testTag("decorations_shop_fab")
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.AutoAwesome,
+                        contentDescription = if (lang == "RU") "Украшения аватарок" else "Avatar Upgrades"
+                    )
+                }
 
-            // 5. --- Casino Screen Redirect FAB ---
-            FloatingActionButton(
-                onClick = { 
-                    viewModel.vibrate(40)
-                    viewModel.navigateTo(Screen.Casino) 
-                },
-                containerColor = AlertYellow,
-                contentColor = PureBlack,
-                shape = RoundedCornerShape(12.dp),
-                modifier = Modifier
-                    .size(44.dp)
-                    .border(2.dp, PureBlack, RoundedCornerShape(12.dp))
-                    .testTag("casino_quick_fab")
-            ) {
-                Icon(
-                    imageVector = Icons.Filled.Casino,
-                    contentDescription = if (lang == "RU") "Казино" else "Casino"
-                )
+                // --- Scanner Tab: Single Yellow Tamagotchi FAB ---
+                FloatingActionButton(
+                    onClick = { showTamagotchiDialog = true },
+                    containerColor = AlertYellow,
+                    contentColor = PureBlack,
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier
+                        .border(2.dp, PureBlack, RoundedCornerShape(12.dp))
+                        .testTag("tamagotchi_fab")
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.Pets,
+                        contentDescription = if (lang == "RU") "Тамагочи" else "Tamagotchi"
+                    )
+                }
             }
         }
 
@@ -638,22 +569,7 @@ fun FeedScreen(
                 onSubmit = { content, image, video, category ->
                     viewModel.createNewUserPost(content, image, video, category)
                     showCreatePostDialog = false
-                    tempCreatePostText = ""
-                    tempCreatePostImage = null
-                    tempCreatePostVideo = null
-                    tempCreatePostGif = null
-                },
-                text = tempCreatePostText,
-                onTextChange = { tempCreatePostText = it },
-                attachedImage = tempCreatePostImage,
-                attachedVideo = tempCreatePostVideo,
-                attachedGif = tempCreatePostGif,
-                onClearVideo = { tempCreatePostVideo = null },
-                onClearImage = { tempCreatePostImage = null },
-                onClearGif = { tempCreatePostGif = null },
-                onLaunchImagePicker = { imagePickerLauncher.launch("image/*") },
-                onLaunchVideoPicker = { videoPickerLauncher.launch("video/*") },
-                onLaunchGifPicker = { gifPickerLauncher.launch("image/gif") }
+                }
             )
         }
 
@@ -1282,19 +1198,43 @@ fun PostItem(
 fun CreatePostDialog(
     lang: String,
     onDismiss: () -> Unit,
-    onSubmit: (content: String, image: String?, video: String?, category: String) -> Unit,
-    text: String,
-    onTextChange: (String) -> Unit,
-    attachedImage: String?,
-    attachedVideo: String?,
-    attachedGif: String?,
-    onClearVideo: () -> Unit,
-    onClearImage: () -> Unit,
-    onClearGif: () -> Unit,
-    onLaunchImagePicker: () -> Unit,
-    onLaunchVideoPicker: () -> Unit,
-    onLaunchGifPicker: () -> Unit
+    onSubmit: (content: String, image: String?, video: String?, category: String) -> Unit
 ) {
+    var text by remember { mutableStateOf("") }
+    var attachedImage by remember { mutableStateOf<String?>(null) }
+    var attachedVideo by remember { mutableStateOf<String?>(null) }
+    var attachedGif by remember { mutableStateOf<String?>(null) }
+    
+    val imagePickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri ->
+        if (uri != null) {
+            attachedImage = uri.toString()
+            attachedVideo = null
+            attachedGif = null
+        }
+    }
+
+    val videoPickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri ->
+        if (uri != null) {
+            attachedVideo = uri.toString()
+            attachedImage = null
+            attachedGif = null
+        }
+    }
+
+    val gifPickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri ->
+        if (uri != null) {
+            attachedGif = uri.toString()
+            attachedImage = null
+            attachedVideo = null
+        }
+    }
+    
     val imageOptions = listOf(
         "abstract_geometry" to "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=600&q=80",
         "glitch_sphere" to "https://images.unsplash.com/photo-1579546929518-9e396f3cc809?auto=format&fit=crop&w=600&q=80",
@@ -1324,7 +1264,7 @@ fun CreatePostDialog(
             Column(modifier = Modifier.fillMaxWidth()) {
                 OutlinedTextField(
                     value = text,
-                    onValueChange = onTextChange,
+                    onValueChange = { text = it },
                     placeholder = { 
                         Text(
                             if (lang == "RU") "Опубликуйте что-нибудь в матрицу... ИИ прокомментируют это в реальном времени!" else "Synthesize stream update... AI nodes will analyze and cascade!", 
@@ -1354,7 +1294,7 @@ fun CreatePostDialog(
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     Button(
-                        onClick = onLaunchImagePicker,
+                        onClick = { imagePickerLauncher.launch("image/*") },
                         colors = ButtonDefaults.buttonColors(containerColor = PureBlack, contentColor = StarkWhite),
                         border = BorderStroke(1.dp, BorderGray),
                         shape = RoundedCornerShape(4.dp),
@@ -1370,7 +1310,7 @@ fun CreatePostDialog(
                     }
 
                     Button(
-                        onClick = onLaunchVideoPicker,
+                        onClick = { videoPickerLauncher.launch("video/*") },
                         colors = ButtonDefaults.buttonColors(containerColor = PureBlack, contentColor = StarkWhite),
                         border = BorderStroke(1.dp, BorderGray),
                         shape = RoundedCornerShape(4.dp),
@@ -1386,7 +1326,7 @@ fun CreatePostDialog(
                     }
 
                     Button(
-                        onClick = onLaunchGifPicker,
+                        onClick = { gifPickerLauncher.launch("image/gif") },
                         colors = ButtonDefaults.buttonColors(containerColor = PureBlack, contentColor = StarkWhite),
                         border = BorderStroke(1.dp, BorderGray),
                         shape = RoundedCornerShape(4.dp),
@@ -1405,7 +1345,7 @@ fun CreatePostDialog(
                         onClick = {
                             val r = Random.nextInt(100, 999)
                             val link = " https://nog.network/rss/intel_$r"
-                            onTextChange(text + link)
+                            text = text + link
                         },
                         colors = ButtonDefaults.buttonColors(containerColor = PureBlack, contentColor = AlertYellow),
                         border = BorderStroke(1.dp, BorderGray),
@@ -1440,7 +1380,7 @@ fun CreatePostDialog(
                             error = rememberVectorPainter(Icons.Filled.BrokenImage)
                         )
                         IconButton(
-                            onClick = onClearImage,
+                            onClick = { attachedImage = null },
                             modifier = Modifier
                                 .align(Alignment.TopEnd)
                                 .padding(4.dp)
@@ -1485,7 +1425,7 @@ fun CreatePostDialog(
                             )
                         }
                         IconButton(
-                            onClick = onClearVideo,
+                            onClick = { attachedVideo = null },
                             modifier = Modifier.size(24.dp)
                         ) {
                             Icon(
@@ -1515,7 +1455,7 @@ fun CreatePostDialog(
                             error = rememberVectorPainter(Icons.Filled.BrokenImage)
                         )
                         IconButton(
-                            onClick = onClearGif,
+                            onClick = { attachedGif = null },
                             modifier = Modifier
                                 .align(Alignment.TopEnd)
                                 .padding(4.dp)
@@ -1575,13 +1515,6 @@ fun CommentsBottomSheet(
     var commentText by remember { mutableStateOf("") }
     var replyToCommentId by remember { mutableStateOf<Int?>(null) }
     var replyToAuthorName by remember { mutableStateOf<String?>(null) }
-
-    // Collect variables needed for rich PostItem display
-    val likedPostIds by viewModel.likedPostIds.collectAsState()
-    val currentUserFollowingIds by viewModel.currentUserFollowingIds.collectAsState()
-    val activeUserDecId by viewModel.activeDecorationId.collectAsState()
-    val isLowEndDeviceMode by viewModel.isLowEndDeviceMode.collectAsState()
-    var zoomImageUrl by remember { mutableStateOf<String?>(null) }
     
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     
@@ -1600,346 +1533,211 @@ fun CommentsBottomSheet(
             )
         }
     ) {
-        Box(modifier = Modifier.fillMaxSize()) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .fillMaxHeight(0.95f)
-                    .padding(horizontal = 16.dp)
-            ) {
-                
-                // Post reference in comments header
-                Text(
-                    text = if (lang == "RU") "ОБСУЖДЕНИЕ ПОСТА ОТ ${author?.username ?: "Node"}" else "REACTIONS IN THREAD BY ${author?.username ?: "Node"}",
-                    color = PureWhite,
-                    fontSize = 12.sp,
-                    fontFamily = FontFamily.Monospace,
-                    fontWeight = FontWeight.Bold,
-                    modifier = Modifier.padding(bottom = 12.dp)
-                )
-                
-                Divider(color = BorderGray, thickness = 1.dp)
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .fillMaxHeight(0.85f)
+                .padding(horizontal = 16.dp)
+        ) {
+            
+            // Post reference in comments header
+            Text(
+                text = if (lang == "RU") "ОБСУЖДЕНИЕ ПОСТА ОТ ${author?.username ?: "Node"}" else "REACTIONS IN THREAD BY ${author?.username ?: "Node"}",
+                color = PureWhite,
+                fontSize = 12.sp,
+                fontFamily = FontFamily.Monospace,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.padding(bottom = 12.dp)
+            )
+            
+            Divider(color = BorderGray, thickness = 1.dp)
 
-                // Comments list
-                LazyColumn(
-                    modifier = Modifier
-                        .weight(1f)
-                        .fillMaxWidth()
-                        .padding(vertical = 12.dp),
-                    verticalArrangement = Arrangement.spacedBy(16.dp)
-                ) {
-                    // Show parent PostItem directly as the first header item so the user sees ALL updates (likes / media / categories)
+            // Comments list
+            LazyColumn(
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxWidth()
+                    .padding(vertical = 12.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                if (comments.isEmpty()) {
                     item {
-                        val isF = currentUserFollowingIds.contains(post.authorId)
-                        val resolvedDecId = remember(author, activeUserDecId) {
-                            if (author?.id == "user") {
-                                activeUserDecId
-                            } else if (author?.isAi == true) {
-                                val hash = java.lang.Math.abs(author.id.hashCode())
-                                (hash % 210) + 1
-                            } else {
-                                null
-                            }
-                        }
-                        
-                        Card(
+                        Box(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .border(1.dp, BorderGray)
-                                .padding(2.dp),
-                            shape = RoundedCornerShape(4.dp),
-                            colors = CardDefaults.cardColors(containerColor = PureBlack)
+                                .height(150.dp),
+                            contentAlignment = Alignment.Center
                         ) {
-                            PostItem(
-                                post = post,
-                                author = author,
-                                lang = lang,
-                                isLiked = likedPostIds.contains(post.id),
-                                isFollowing = isF,
-                                decorationId = resolvedDecId,
-                                onLikeClick = { viewModel.toggleLike(post.id) },
-                                onCommentClick = { /* Already in details sheet */ },
-                                onMediaClick = { zoomImageUrl = it },
-                                onArchiveToggle = { viewModel.archivePost(post.id, !post.isArchived) },
-                                onFollowToggle = {
-                                    if (author != null) {
-                                        if (isF) viewModel.unfollowAgent(post.authorId)
-                                        else viewModel.followAgent(post.authorId)
-                                    }
-                                },
-                                isLowEnd = isLowEndDeviceMode
+                            Text(
+                                if (lang == "RU") "Пока нет ответов в этой ноде. Будь первым, кто запустит алгоритм!" else "No node answers compiled. Be the first to feed variables!",
+                                color = TextGray,
+                                fontSize = 11.sp,
+                                fontFamily = FontFamily.Monospace,
+                                textAlign = TextAlign.Center,
+                                modifier = Modifier.padding(24.dp)
                             )
                         }
-                        
-                        Spacer(modifier = Modifier.height(16.dp))
-                        Text(
-                            text = if (lang == "RU") "РЕПЛИКИ И АНАЛИЗ:" else "REPLIES & ANALYSIS:",
-                            color = AlertYellow,
-                            fontSize = 11.sp,
-                            fontFamily = FontFamily.Monospace,
-                            fontWeight = FontWeight.Bold,
-                            modifier = Modifier.padding(vertical = 4.dp)
-                        )
-                        Divider(color = BorderGray, thickness = 1.dp)
-                        Spacer(modifier = Modifier.height(8.dp))
                     }
-
-                    if (comments.isEmpty()) {
-                        item {
-                            Box(
+                } else {
+                    items(comments) { comment ->
+                        val commenter = users.find { it.id == comment.authorId }
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.Top
+                        ) {
+                            AsyncImage(
+                                model = commenter?.avatarUrl ?: "https://i.pravatar.cc/150?u=${comment.authorId}",
+                                contentDescription = commenter?.username,
                                 modifier = Modifier
-                                    .fillMaxWidth()
-                                    .height(120.dp),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Text(
-                                    if (lang == "RU") "Пока нет ответов в этой ноде. Будь первым, кто запустит алгоритм!" else "No node answers compiled. Be the first to feed variables!",
-                                    color = TextGray,
-                                    fontSize = 11.sp,
-                                    fontFamily = FontFamily.Monospace,
-                                    textAlign = TextAlign.Center,
-                                    modifier = Modifier.padding(24.dp)
-                                )
-                            }
-                        }
-                    } else {
-                        items(comments) { comment ->
-                            val commenter = users.find { it.id == comment.authorId }
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                verticalAlignment = Alignment.Top
-                            ) {
-                                AsyncImage(
-                                    model = commenter?.avatarUrl ?: "https://i.pravatar.cc/150?u=${comment.authorId}",
-                                    contentDescription = commenter?.username,
-                                    modifier = Modifier
-                                        .size(32.dp)
-                                        .clip(CircleShape)
-                                        .border(1.dp, PureWhite, CircleShape),
-                                    contentScale = ContentScale.Crop,
-                                    error = rememberVectorPainter(Icons.Filled.AccountCircle),
-                                    placeholder = rememberVectorPainter(Icons.Filled.AccountCircle)
-                                )
-                                Spacer(modifier = Modifier.width(12.dp))
-                                Column {
-                                    Row(verticalAlignment = Alignment.CenterVertically) {
-                                        Text(
-                                            text = commenter?.username ?: (if (lang == "RU") "Агент" else "Agent"),
-                                            color = PureWhite,
-                                            fontSize = 12.sp,
-                                            fontWeight = FontWeight.Bold
+                                    .size(32.dp)
+                                    .clip(CircleShape)
+                                    .border(1.dp, PureWhite, CircleShape),
+                                contentScale = ContentScale.Crop,
+                                error = rememberVectorPainter(Icons.Filled.AccountCircle),
+                                placeholder = rememberVectorPainter(Icons.Filled.AccountCircle)
+                            )
+                            Spacer(modifier = Modifier.width(12.dp))
+                            Column {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Text(
+                                        text = commenter?.username ?: (if (lang == "RU") "Агент" else "Agent"),
+                                        color = PureWhite,
+                                        fontSize = 12.sp,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                    if (commenter?.isVerified == true) {
+                                        Spacer(modifier = Modifier.width(4.dp))
+                                        Icon(
+                                            imageVector = Icons.Filled.CheckCircle,
+                                            contentDescription = "Verified",
+                                            tint = StarkWhite,
+                                            modifier = Modifier.size(10.dp)
                                         )
-                                        if (commenter?.isVerified == true) {
-                                            Spacer(modifier = Modifier.width(4.dp))
-                                            Icon(
-                                                imageVector = Icons.Filled.CheckCircle,
-                                                contentDescription = "Verified",
-                                                tint = StarkWhite,
-                                                modifier = Modifier.size(10.dp)
-                                            )
-                                        }
-                                        if (comment.replyToAuthorName != null) {
-                                            Spacer(modifier = Modifier.width(6.dp))
-                                            Text(
-                                                text = "➔ @${comment.replyToAuthorName}",
-                                                color = AlertYellow,
-                                                fontSize = 10.sp,
-                                                fontFamily = FontFamily.Monospace,
-                                                fontWeight = FontWeight.SemiBold
-                                            )
-                                        }
                                     }
-                                    Text(
-                                        text = comment.content,
-                                        color = StarkWhite,
-                                        fontSize = 13.sp,
-                                        modifier = Modifier.padding(top = 4.dp)
-                                    )
-                                    Spacer(modifier = Modifier.height(4.dp))
-                                    Text(
-                                        text = if (lang == "RU") "ОТВЕТИТЬ ➔" else "REPLY ➔",
-                                        color = TextGray,
-                                        fontSize = 9.sp,
-                                        fontFamily = FontFamily.Monospace,
-                                        fontWeight = FontWeight.Bold,
-                                        modifier = Modifier
-                                            .clickable {
-                                                replyToCommentId = comment.id
-                                                replyToAuthorName = commenter?.username ?: "Agent"
-                                            }
-                                            .padding(vertical = 4.dp, horizontal = 2.dp)
-                                    )
+                                    if (comment.replyToAuthorName != null) {
+                                        Spacer(modifier = Modifier.width(6.dp))
+                                        Text(
+                                            text = "➔ @${comment.replyToAuthorName}",
+                                            color = AlertYellow,
+                                            fontSize = 10.sp,
+                                            fontFamily = FontFamily.Monospace,
+                                            fontWeight = FontWeight.SemiBold
+                                        )
+                                    }
                                 }
+                                Text(
+                                    text = comment.content,
+                                    color = StarkWhite,
+                                    fontSize = 13.sp,
+                                    modifier = Modifier.padding(top = 4.dp)
+                                )
+                                Spacer(modifier = Modifier.height(4.dp))
+                                Text(
+                                    text = if (lang == "RU") "ОТВЕТИТЬ ➔" else "REPLY ➔",
+                                    color = TextGray,
+                                    fontSize = 9.sp,
+                                    fontFamily = FontFamily.Monospace,
+                                    fontWeight = FontWeight.Bold,
+                                    modifier = Modifier
+                                        .clickable {
+                                            replyToCommentId = comment.id
+                                            replyToAuthorName = commenter?.username ?: "Agent"
+                                        }
+                                        .padding(vertical = 4.dp, horizontal = 2.dp)
+                                )
                             }
                         }
-                    }
-                }
-
-                // Replying indicator banner
-                if (replyToCommentId != null && replyToAuthorName != null) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .background(DeepGray)
-                            .padding(horizontal = 12.dp, vertical = 8.dp)
-                            .border(1.dp, BorderGray, RoundedCornerShape(4.dp)),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            text = if (lang == "RU") "Ответ пользователю @$replyToAuthorName" else "Replying to @$replyToAuthorName",
-                            color = AlertYellow,
-                            fontSize = 11.sp,
-                            fontFamily = FontFamily.Monospace
-                        )
-                        Text(
-                            text = "[ ОТМЕНА / CANCEL ]",
-                            color = AlertRed,
-                            fontSize = 10.sp,
-                            fontFamily = FontFamily.Monospace,
-                            fontWeight = FontWeight.Bold,
-                            modifier = Modifier.clickable {
-                                replyToCommentId = null
-                                replyToAuthorName = null
-                            }
-                        )
-                    }
-                    Spacer(modifier = Modifier.height(4.dp))
-                }
-
-                Divider(color = BorderGray, thickness = 1.dp)
-
-                // Comment Input bar
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(top = 24.dp, bottom = 24.dp)
-                        .navigationBarsPadding(),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    OutlinedTextField(
-                        value = commentText,
-                        onValueChange = { commentText = it },
-                        placeholder = { 
-                            Text(
-                                if (lang == "RU") "Написать комментарий..." else "Log reaction response...", 
-                                color = TextGray, 
-                                fontSize = 12.sp
-                            ) 
-                        },
-                        modifier = Modifier.weight(1f),
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedTextColor = PureWhite,
-                            unfocusedTextColor = StarkWhite,
-                            focusedBorderColor = PureWhite,
-                            unfocusedBorderColor = BorderGray,
-                            cursorColor = PureWhite
-                        )
-                    )
-                    
-                    Spacer(modifier = Modifier.width(12.dp))
-                    
-                    IconButton(
-                        onClick = {
-                            if (commentText.isNotBlank()) {
-                                viewModel.submitCommentToPost(
-                                    postId = post.id,
-                                    content = commentText,
-                                    replyToCommentId = replyToCommentId,
-                                    replyToAuthorName = replyToAuthorName
-                                )
-                                commentText = ""
-                                replyToCommentId = null
-                                replyToAuthorName = null
-                            }
-                        },
-                        modifier = Modifier
-                            .size(48.dp)
-                            .background(PureWhite, RoundedCornerShape(4.dp))
-                    ) {
-                        Icon(
-                            Icons.Filled.Send,
-                            contentDescription = if (lang == "RU") "Отправить комментарий" else "Send reply",
-                            tint = PureBlack
-                        )
                     }
                 }
             }
 
-            // Zoom view supporting dialog inside bottom sheet for complete alignment
-            if (zoomImageUrl != null) {
-                val isVideoInZoom = zoomImageUrl?.endsWith(".mp4", ignoreCase = true) == true || 
-                                    zoomImageUrl?.contains("video", ignoreCase = true) == true ||
-                                    zoomImageUrl?.contains("gtv-videos-bucket", ignoreCase = true) == true
-
-                androidx.compose.ui.window.Dialog(
-                    onDismissRequest = { zoomImageUrl = null },
-                    properties = androidx.compose.ui.window.DialogProperties(usePlatformDefaultWidth = false)
+            // Replying indicator banner
+            if (replyToCommentId != null && replyToAuthorName != null) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(DeepGray)
+                        .padding(horizontal = 12.dp, vertical = 8.dp)
+                        .border(1.dp, BorderGray, RoundedCornerShape(4.dp)),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .background(Color.Black.copy(alpha = 0.95f)),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .clickable { zoomImageUrl = null }
-                        )
-
-                        if (isVideoInZoom) {
-                            androidx.compose.ui.viewinterop.AndroidView(
-                                factory = { ctx ->
-                                    android.widget.VideoView(ctx).apply {
-                                        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
-                                            setAudioFocusRequest(android.media.AudioManager.AUDIOFOCUS_NONE)
-                                        }
-                                        setVideoURI(android.net.Uri.parse(zoomImageUrl))
-                                        val mc = android.widget.MediaController(ctx)
-                                        mc.setAnchorView(this)
-                                        setMediaController(mc)
-                                        setOnPreparedListener { mp ->
-                                            mp.isLooping = true
-                                            mp.setVolume(1.0f, 1.0f)
-                                            start()
-                                        }
-                                    }
-                                },
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .aspectRatio(16/9f)
-                                    .padding(horizontal = 16.dp, vertical = 24.dp)
-                                    .clickable(enabled = false) {},
-                                update = { view ->
-                                    if (!view.isPlaying) {
-                                        view.start()
-                                    }
-                                }
-                            )
-                        } else {
-                            AsyncImage(
-                                model = zoomImageUrl,
-                                contentDescription = "Zoomed Media",
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(16.dp)
-                                    .clickable(enabled = false) {},
-                                contentScale = ContentScale.Fit
-                            )
+                    Text(
+                        text = if (lang == "RU") "Ответ пользователю @$replyToAuthorName" else "Replying to @$replyToAuthorName",
+                        color = AlertYellow,
+                        fontSize = 11.sp,
+                        fontFamily = FontFamily.Monospace
+                    )
+                    Text(
+                        text = "[ ОТМЕНА / CANCEL ]",
+                        color = AlertRed,
+                        fontSize = 10.sp,
+                        fontFamily = FontFamily.Monospace,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.clickable {
+                            replyToCommentId = null
+                            replyToAuthorName = null
                         }
+                    )
+                }
+                Spacer(modifier = Modifier.height(4.dp))
+            }
 
-                        // Close Button overlays
-                        IconButton(
-                            onClick = { zoomImageUrl = null },
-                            modifier = Modifier
-                                .align(Alignment.TopEnd)
-                                .padding(top = 36.dp, end = 24.dp)
-                                .background(Color.Black.copy(alpha = 0.5f), CircleShape)
-                        ) {
-                            Icon(Icons.Filled.Close, contentDescription = "Close Zoom", tint = PureWhite)
+            Divider(color = BorderGray, thickness = 1.dp)
+
+            // Comment Input bar
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 16.dp)
+                    .navigationBarsPadding(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                OutlinedTextField(
+                    value = commentText,
+                    onValueChange = { commentText = it },
+                    placeholder = { 
+                        Text(
+                            if (lang == "RU") "Написать комментарий..." else "Log reaction response...", 
+                            color = TextGray, 
+                            fontSize = 12.sp
+                        ) 
+                    },
+                    modifier = Modifier.weight(1f),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedTextColor = PureWhite,
+                        unfocusedTextColor = StarkWhite,
+                        focusedBorderColor = PureWhite,
+                        unfocusedBorderColor = BorderGray,
+                        cursorColor = PureWhite
+                    )
+                )
+                
+                Spacer(modifier = Modifier.width(12.dp))
+                
+                IconButton(
+                    onClick = {
+                        if (commentText.isNotBlank()) {
+                            viewModel.submitCommentToPost(
+                                postId = post.id,
+                                content = commentText,
+                                replyToCommentId = replyToCommentId,
+                                replyToAuthorName = replyToAuthorName
+                            )
+                            commentText = ""
+                            replyToCommentId = null
+                            replyToAuthorName = null
                         }
-                    }
+                    },
+                    modifier = Modifier
+                        .size(48.dp)
+                        .background(PureWhite, RoundedCornerShape(4.dp))
+                ) {
+                    Icon(
+                        Icons.Filled.Send,
+                        contentDescription = if (lang == "RU") "Отправить комментарий" else "Send reply",
+                        tint = PureBlack
+                    )
                 }
             }
         }

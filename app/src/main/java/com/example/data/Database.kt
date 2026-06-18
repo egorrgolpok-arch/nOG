@@ -95,6 +95,9 @@ interface SocialDao {
     suspend fun getRecentPosts(limit: Int): List<PostEntity>
 
     @Query("SELECT * FROM posts ORDER BY timestamp DESC")
+    suspend fun getAllPosts(): List<PostEntity>
+
+    @Query("SELECT * FROM posts ORDER BY timestamp DESC")
     fun getAllPostsFlow(): Flow<List<PostEntity>>
 
     @Query("SELECT * FROM posts WHERE id = :postId LIMIT 1")
@@ -130,21 +133,12 @@ interface SocialDao {
     @Query("DELETE FROM users WHERE id = :userId")
     suspend fun deleteUserById(userId: String)
 
-    @Query("DELETE FROM posts WHERE authorId = :userId")
-    suspend fun deletePostsByAuthor(userId: String)
-
     // Comments
     @Query("SELECT * FROM comments WHERE postId = :postId ORDER BY timestamp ASC")
     fun getCommentsForPostFlow(postId: Int): Flow<List<CommentEntity>>
 
-    @Query("SELECT * FROM comments")
-    fun getAllCommentsFlow(): Flow<List<CommentEntity>>
-
-    @Query("SELECT * FROM comments")
+    @Query("SELECT * FROM comments ORDER BY timestamp ASC")
     suspend fun getAllComments(): List<CommentEntity>
-
-    @Query("SELECT * FROM posts")
-    suspend fun getAllPosts(): List<PostEntity>
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertComment(comment: CommentEntity): Long

@@ -262,7 +262,6 @@ fun DurakGameComponent(
         trump: String,
         isAttack: Boolean
     ): String {
-        if (cards.isEmpty()) return ""
         if (cards.size == 1) return cards[0]
         
         val activeDiff = if (isCasinoMode) "Hard" else difficulty
