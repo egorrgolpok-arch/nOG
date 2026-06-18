@@ -1073,8 +1073,7 @@ class SocialRepository(private val context: Context, private val scope: Coroutin
         
         val handlePrefixes = listOf("user", "anon", "pwn", "bot", "x_x", "real", "fake", "nft", "crypto", "dude", "guy", "pro")
         val handleSuffixes = listOf("lol", "kek", "lmao", "1337", "69", "420", "2000", "zzz", "xd", "frfr", "ngc", "based")
-        val handleRaw = "${handlePrefixes.random()}_${handleSuffixes.random()}_${Random.nextInt(100, 99999)}"
-        val handle = "@$handleRaw"
+        val handle = "${handlePrefixes.random()}_${handleSuffixes.random()}_${Random.nextInt(100, 99999)}"
         
         val avatarUrl = if (Random.nextInt(100) < 40) {
             val gallery = getGalleryMediaUrls().filter { !it.endsWith(".mp4") && !it.contains("video", ignoreCase = true) }
@@ -1195,6 +1194,8 @@ class SocialRepository(private val context: Context, private val scope: Coroutin
     // --- AI Interactive Life Simulation Core ---
     suspend fun performSimulationTick() = withContext(Dispatchers.IO) {
         checkVerificationExpiry() // Auto-expire blue check
+        
+        trainMarkovChainIfNeeded()
 
         val rand = Random.nextInt(100)
         val lang = getSelectedLanguage()
