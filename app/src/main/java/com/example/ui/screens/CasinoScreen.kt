@@ -7,7 +7,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.*
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -159,7 +159,7 @@ fun CasinoScreen(
                         GameCardData("blackjack", if (isRu) "♠️ Блекджек (21)" else "♠️ Blackjack (21)", if (isRu) "Играй против дилера-бота до 21 очка. Выплаты 1.5x за блекджек." else "Standard 21 against terminal bot dealer. Payouts 3:2.", Icons.Default.Casino),
                         GameCardData("poker", if (isRu) "♦️ Техасский Покер" else "♦️ Texas Hold'em", if (isRu) "Дуэль один на один против кибер-бота. Полные круги ставок и комбинаций." else "Heads-up Texas Hold'em duel against adaptive AI bot.", Icons.Default.Style),
                         GameCardData("durak", if (isRu) "♣️ Дурак с ботами" else "♣️ Durak Card Game", if (isRu) "Легендарная русская игра. Атакуй, защищайся козырем и переиграй интеллект." else "Legendary Russian card game. Offend, defend, trump up to beat the bot.", Icons.Default.SportsEsports),
-                        GameCardData("racing", if (isRu) "🏇 Скачки рандом-ботов" else "🏇 Synaptic Horse Races", if (isRu) "Ставь на одного из электронных скакунов. Котировки и заезды в реальном времени!" else "Choose your virtual horse bot runner. Unbiased telemetry curves.", Icons.Default.DirectionsRun),
+                        GameCardData("racing", if (isRu) "🏇 Скачки рандом-ботов" else "🏇 Synaptic Horse Races", if (isRu) "Ставь на одного из электронных скакунов. Котировки и заезды в реальном времени!" else "Choose your virtual horse bot runner. Unbiased telemetry curves.", Icons.AutoMirrored.Filled.DirectionsRun),
                         GameCardData("roulette", if (isRu) "🎡 Монохромная Рулетка" else "🎡 Monochrome Roulette", if (isRu) "Испытай судьбу на колесе. Числа (0-36), четное/нечетное, белое/черное." else "Make your bets on 0-36. White/Black, Low/High, Odds/Evens.", Icons.Default.Cached),
                         GameCardData("slots", if (isRu) "🎰 Cypher-слоты" else "🎰 Cypher Slot Machine", if (isRu) "Прокрути три барабана и сорви куш в 1,000,000 монет. Шансы близки к реальным!" else "3-reel spin machine. Hit combinations to claim the jackpot.", Icons.Default.ViewWeek)
                     )

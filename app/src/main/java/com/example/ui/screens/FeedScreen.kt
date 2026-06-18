@@ -17,6 +17,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.graphics.vector.rememberVectorPainter
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.*
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
@@ -810,7 +811,7 @@ fun PostItem(
                     
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Icon(
-                            Icons.Filled.FactCheck,
+                            Icons.AutoMirrored.Filled.FactCheck,
                             contentDescription = if (lang == "RU") "Рейтинг Доверия" else "Trust Score",
                             tint = trustColor,
                             modifier = Modifier.size(14.dp)
@@ -1159,7 +1160,7 @@ fun PostItem(
                 // AI Sources Verification Flag
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(
-                        if (post.isTrend) Icons.Filled.TrendingUp else Icons.Outlined.Info,
+                        if (post.isTrend) Icons.AutoMirrored.Filled.TrendingUp else Icons.Outlined.Info,
                         contentDescription = if (lang == "RU") "Тренд" else "Trend",
                         tint = if (post.isTrend) PureWhite else BorderGray,
                         modifier = Modifier.size(16.dp)
@@ -1734,7 +1735,7 @@ fun CommentsBottomSheet(
                         .background(PureWhite, RoundedCornerShape(4.dp))
                 ) {
                     Icon(
-                        Icons.Filled.Send,
+                        Icons.AutoMirrored.Filled.Send,
                         contentDescription = if (lang == "RU") "Отправить комментарий" else "Send reply",
                         tint = PureBlack
                     )
