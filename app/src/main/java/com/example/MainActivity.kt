@@ -58,8 +58,30 @@ import java.util.concurrent.TimeUnit
 import com.example.workers.TamagotchiWorker
 import com.example.workers.RetentionWorker
 
+import android.app.Application
+
+class MyCustomApplication : Application() {
+    override fun attachBaseContext(base: Context) {
+        val attributionContext = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            base.createAttributionContext("nog_default_attribution")
+        } else {
+            base
+        }
+        super.attachBaseContext(attributionContext)
+    }
+}
+
 class MainActivity : ComponentActivity() {
     private val viewModel: SocialViewModel by viewModels()
+
+    override fun attachBaseContext(newBase: android.content.Context) {
+        val attributionContext = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
+            newBase.createAttributionContext("nog_default_attribution")
+        } else {
+            newBase
+        }
+        super.attachBaseContext(attributionContext)
+    }
 
     override fun onStart() {
         super.onStart()
@@ -439,9 +461,9 @@ fun rememberConnectivityStatus(): State<Boolean> {
 }
 
 @Composable
-fun NoInternetScreen() {
+fun NoInternetScreen(modifier: Modifier = Modifier) {
     Box(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxSize()
             .background(PureBlack)
             .padding(24.dp),
@@ -476,19 +498,20 @@ fun NoInternetScreen() {
 }
 
 object AppLifecycleTracker {
+    @Volatile
     var isAppInForeground: Boolean = false
 }
 
 @Composable
-fun WelcomeScreen(viewModel: com.example.ui.SocialViewModel) {
+fun WelcomeScreen(viewModel: com.example.ui.SocialViewModel, modifier: Modifier = Modifier) {
     val currentUser by viewModel.currentUser.collectAsState()
     
     val hour = java.util.Calendar.getInstance().get(java.util.Calendar.HOUR_OF_DAY)
     val greeting = when (hour) {
-        in 0..5 -> listOf("Доброй ночи", "Ночной хаос", "Спи давай", "Кибер-ночь", "Не спишь?", "Темнота – друг молодежи", "Время для рефакторинга", "Время багов", "Сладких снов").random()
-        in 6..11 -> listOf("Доброе утро", "Утро доброе", "Ку-ку", "Просыпайся", "Кофе готов?", "Время гриндить", "С добрым утром!", "Восстань!", "Пора за дело").random()
-        in 12..16 -> listOf("Добрый день", "Привет", "Приветствую", "Рабочий процесс", "Хеллоу", "Салют", "Как успехи?", "В эфире", "Вливайся", "Как оно?").random()
-        else -> listOf("Добрый вечер", "Вечер в хату", "Здравствуйте", "Уже стемнело", "Добрый", "Привет-привет", "Отдыхаешь?", "Заходи, не бойся", "Удачи в ночи", "Хорошего вечера").random()
+        in 0..5 -> listOf("Доброй ночи", "Ночной хаос", "Спи давай", "Кибер-ночь", "Не спишь?", "Темнота – друг молодежи", "Время для рефакторинга", "Время багов", "Сладких снов", "Энергетик кончился?", "Питерская ночь", "Пора спать", "Режим совы активирован", "404 Сон не найден", "Никакого сна!", "Who needs sleep?").random()
+        in 6..11 -> listOf("Доброе утро", "Утро доброе", "Ку-ку", "Просыпайся", "Кофе готов?", "Время гриндить", "С добрым утром!", "Восстань!", "Пора за дело", "Бодрое утро", "Утренний чек", "Rise and shine", "Открываем глаза", "Ранняя пташка", "Утречко", "Let's go").random()
+        in 12..16 -> listOf("Добрый день", "Привет", "Приветствую", "Рабочий процесс", "Хеллоу", "Салют", "Как успехи?", "В эфире", "Вливайся", "Как оно?", "День в самом разгаре", "Не скучаем!", "Продуктивный день", "Связь установлена", "Готов к труду", "Все идет по плану", "Work work work").random()
+        else -> listOf("Добрый вечер", "Вечер в хату", "Здравствуйте", "Уже стемнело", "Добрый", "Привет-привет", "Отдыхаешь?", "Заходи, не бойся", "Удачи в ночи", "Хорошего вечера", "Тусовочный вайб", "Вечерние новости", "Вечерний чилл", "Ламповый вечер", "Пожалуй, отдохнем", "Что нового?").random()
     }
 
     Box(
