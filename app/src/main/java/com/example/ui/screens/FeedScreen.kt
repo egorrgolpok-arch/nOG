@@ -17,7 +17,6 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.graphics.vector.rememberVectorPainter
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.*
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
@@ -71,7 +70,6 @@ fun FeedScreen(
     val currentUserFollowingIds by viewModel.currentUserFollowingIds.collectAsState()
     val activeUserDecId by viewModel.activeDecorationId.collectAsState()
     val allRawPosts by viewModel.allRawPosts.collectAsState()
-    val isLowEndDeviceMode by viewModel.isLowEndDeviceMode.collectAsState()
     
     val lazyListState = rememberLazyListState()
     val coroutineScope = rememberCoroutineScope()
@@ -445,8 +443,7 @@ fun FeedScreen(
                                                 if (isF) viewModel.unfollowAgent(post.authorId)
                                                 else viewModel.followAgent(post.authorId)
                                             }
-                                        },
-                                        isLowEnd = isLowEndDeviceMode
+                                        }
                                     )
                                 }
                             }
@@ -703,8 +700,7 @@ fun PostItem(
     onMediaClick: (String?) -> Unit,
     onArchiveToggle: () -> Unit,
     onFollowToggle: () -> Unit,
-    onDeleteClick: (() -> Unit)? = null,
-    isLowEnd: Boolean = false
+    onDeleteClick: (() -> Unit)? = null
 ) {
     Card(
         modifier = Modifier
@@ -730,8 +726,7 @@ fun PostItem(
                     avatarUrl = author?.avatarUrl ?: "https://robohash.org/unknown.png?size=200x200&set=set1",
                     decorationId = decorationId,
                     sizeDp = 42,
-                    borderWidthDp = 1,
-                    isLowEnd = isLowEnd
+                    borderWidthDp = 1
                 )
                 
                 Spacer(modifier = Modifier.width(12.dp))
@@ -811,7 +806,7 @@ fun PostItem(
                     
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Icon(
-                            Icons.AutoMirrored.Filled.FactCheck,
+                            Icons.Filled.FactCheck,
                             contentDescription = if (lang == "RU") "Рейтинг Доверия" else "Trust Score",
                             tint = trustColor,
                             modifier = Modifier.size(14.dp)
@@ -1160,7 +1155,7 @@ fun PostItem(
                 // AI Sources Verification Flag
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(
-                        if (post.isTrend) Icons.AutoMirrored.Filled.TrendingUp else Icons.Outlined.Info,
+                        if (post.isTrend) Icons.Filled.TrendingUp else Icons.Outlined.Info,
                         contentDescription = if (lang == "RU") "Тренд" else "Trend",
                         tint = if (post.isTrend) PureWhite else BorderGray,
                         modifier = Modifier.size(16.dp)
@@ -1551,8 +1546,8 @@ fun CommentsBottomSheet(
                 modifier = Modifier.padding(bottom = 12.dp)
             )
             
-            HorizontalDivider(color = BorderGray, thickness = 1.dp)
-            
+            Divider(color = BorderGray, thickness = 1.dp)
+
             // Comments list
             LazyColumn(
                 modifier = Modifier
@@ -1684,8 +1679,8 @@ fun CommentsBottomSheet(
                 Spacer(modifier = Modifier.height(4.dp))
             }
 
-            HorizontalDivider(color = BorderGray, thickness = 1.dp)
-            
+            Divider(color = BorderGray, thickness = 1.dp)
+
             // Comment Input bar
             Row(
                 modifier = Modifier
@@ -1735,7 +1730,7 @@ fun CommentsBottomSheet(
                         .background(PureWhite, RoundedCornerShape(4.dp))
                 ) {
                     Icon(
-                        Icons.AutoMirrored.Filled.Send,
+                        Icons.Filled.Send,
                         contentDescription = if (lang == "RU") "Отправить комментарий" else "Send reply",
                         tint = PureBlack
                     )

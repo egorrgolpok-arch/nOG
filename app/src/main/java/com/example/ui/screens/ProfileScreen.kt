@@ -561,43 +561,6 @@ fun ProfileScreen(
                                 )
                             )
                         }
-
-                        Spacer(modifier = Modifier.height(14.dp))
-
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text(
-                                    text = if (lang == "RU") "Генерация Markov Chain" else "Markov Chain algorithms",
-                                    color = PureWhite,
-                                    fontSize = 11.sp,
-                                    fontFamily = FontFamily.Monospace,
-                                    fontWeight = FontWeight.Bold
-                                )
-                                Text(
-                                    text = if (lang == "RU") "Генерация комментариев с помощью цепей Маркова на базе логов." else "Generate bot comments organically utilizing markov chains on trained logs.",
-                                    color = TextGray,
-                                    fontSize = 10.sp,
-                                    lineHeight = 13.sp
-                                )
-                            }
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Switch(
-                                checked = viewModel.isMarkovEnabled.collectAsState().value,
-                                onCheckedChange = { viewModel.toggleMarkovEnabled(it) },
-                                colors = SwitchDefaults.colors(
-                                    checkedThumbColor = PureBlack,
-                                    checkedTrackColor = PureWhite,
-                                    uncheckedThumbColor = TextGray,
-                                    uncheckedTrackColor = DeepGray,
-                                    checkedBorderColor = PureWhite,
-                                    uncheckedBorderColor = BorderGray
-                                )
-                            )
-                        }
                     }
                 }
 
@@ -829,8 +792,7 @@ fun ProfileScreen(
                                         else viewModel.followAgent(id)
                                     }
                                 },
-                                onDeleteClick = if (post.authorId == "user") { { viewModel.deletePost(post.id) } } else null,
-                                isLowEnd = isLowEndDeviceMode
+                                onDeleteClick = if (post.authorId == "user") { { viewModel.deletePost(post.id) } } else null
                             )
                         }
                     }
@@ -860,8 +822,7 @@ fun ProfileScreen(
                             onMediaClick = { zoomImageUrl = it },
                             onArchiveToggle = { viewModel.archivePost(post.id, !post.isArchived) },
                             onFollowToggle = {},
-                            onDeleteClick = { viewModel.deletePost(post.id) },
-                            isLowEnd = isLowEndDeviceMode
+                            onDeleteClick = { viewModel.deletePost(post.id) }
                         )
                     }
                 }

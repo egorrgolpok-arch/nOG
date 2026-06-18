@@ -1,4 +1,4 @@
-<resources xmlns:tools="http://schemas.android.com/tools" tools:ignore="MissingTranslation">
+<resources>
     <string name="app_name">nOG Network</string>
     <string name="casino_game_blackjack">Blackjack</string>
     <string name="casino_game_poker">Texas Hold\'em Poker</string>

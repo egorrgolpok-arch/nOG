@@ -232,8 +232,7 @@ fun AvatarWithDecoration(
     decorationId: Int?,
     modifier: Modifier = Modifier,
     sizeDp: Int = 48,
-    borderWidthDp: Int = 1,
-    isLowEnd: Boolean = false
+    borderWidthDp: Int = 1
 ) {
     Box(
         modifier = modifier
@@ -255,58 +254,46 @@ fun AvatarWithDecoration(
 
         // Draw custom decoration if active
         if (decorationId != null && decorationId > 0) {
+            val infiniteTransition = rememberInfiniteTransition(label = "avatar_dec")
+            
+            // Standard small avatars only run ONE smooth rotation to save battery & prevent lag!
             val isSmall = sizeDp <= 56
             
-            val angleRotation: Float
-            val scalePulse: Float
-            val breatheAlpha: Float
-            
-            if (isLowEnd) {
-                angleRotation = 0f
-                scalePulse = 1f
-                breatheAlpha = 0.9f
+            val angleRotation by infiniteTransition.animateFloat(
+                initialValue = 0f,
+                targetValue = 360f,
+                animationSpec = infiniteRepeatable(
+                    animation = tween(if (isSmall) 6000 else 4000, easing = LinearEasing)
+                ),
+                label = "rot"
+            )
+
+            val scalePulse by if (isSmall) {
+                remember { mutableStateOf(100f / 100f) }
             } else {
-                val infiniteTransition = rememberInfiniteTransition(label = "avatar_dec")
-                
-                val rotationState = infiniteTransition.animateFloat(
-                    initialValue = 0f,
-                    targetValue = 360f,
+                infiniteTransition.animateFloat(
+                    initialValue = 0.96f,
+                    targetValue = 1.04f,
                     animationSpec = infiniteRepeatable(
-                        animation = tween(if (isSmall) 6000 else 4000, easing = LinearEasing)
+                        animation = tween(1200, easing = FastOutSlowInEasing),
+                        repeatMode = RepeatMode.Reverse
                     ),
-                    label = "rot"
+                    label = "scale"
                 )
-                angleRotation = rotationState.value
+            }
 
-                val scaleState = if (isSmall) {
-                    null
-                } else {
-                    infiniteTransition.animateFloat(
-                        initialValue = 0.96f,
-                        targetValue = 1.04f,
-                        animationSpec = infiniteRepeatable(
-                            animation = tween(1200, easing = FastOutSlowInEasing),
-                            repeatMode = RepeatMode.Reverse
-                        ),
-                        label = "scale"
-                    )
-                }
-                scalePulse = scaleState?.value ?: 1f
-
-                val alphaState = if (isSmall) {
-                    null
-                } else {
-                    infiniteTransition.animateFloat(
-                        initialValue = 0.6f,
-                        targetValue = 1.0f,
-                        animationSpec = infiniteRepeatable(
-                            animation = tween(1000, easing = LinearEasing),
-                            repeatMode = RepeatMode.Reverse
-                        ),
-                        label = "alpha"
-                    )
-                }
-                breatheAlpha = alphaState?.value ?: 0.9f
+            val breatheAlpha by if (isSmall) {
+                remember { mutableStateOf(0.9f) }
+            } else {
+                infiniteTransition.animateFloat(
+                    initialValue = 0.6f,
+                    targetValue = 1.0f,
+                    animationSpec = infiniteRepeatable(
+                        animation = tween(1000, easing = LinearEasing),
+                        repeatMode = RepeatMode.Reverse
+                    ),
+                    label = "alpha"
+                )
             }
 
             Canvas(

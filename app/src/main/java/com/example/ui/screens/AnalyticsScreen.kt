@@ -64,7 +64,6 @@ fun AnalyticsScreen(
     val userUniqueViews by viewModel.uniqueViewsCount.collectAsState()
     val userUniqueLikes = viewModel.likedPostIds.collectAsState().value.size
     val userUniqueComments by viewModel.uniqueCommentsCount.collectAsState()
-    val isLowEndDeviceMode by viewModel.isLowEndDeviceMode.collectAsState()
 
     val context = LocalContext.current
     val prefs = remember(context) { context.getSharedPreferences("nog_prefs", Context.MODE_PRIVATE) }
@@ -279,10 +278,6 @@ fun AnalyticsScreen(
                     }
 
                     // --- Custom Canvas Visualizer Graph (Fitted Line Chart) ---
-                    val calendar = java.util.Calendar.getInstance()
-                    val dayOfWeek = calendar.get(java.util.Calendar.DAY_OF_WEEK)
-                    val todayIndex = if (dayOfWeek == java.util.Calendar.SUNDAY) 7 else dayOfWeek - 1
-
                     Text(
                         if (lang == "RU") "ГРАФИК ВРЕМЕНИ В ПРИЛОЖЕНИИ (Еженедельный путник)" else "APP TIME ENGAGEMENT (Weekly Tracker)",
                         color = PureWhite,
@@ -303,6 +298,10 @@ fun AnalyticsScreen(
                                 .fillMaxSize()
                                 .padding(12.dp)
                         ) {
+                            val calendar = java.util.Calendar.getInstance()
+                            val dayOfWeek = calendar.get(java.util.Calendar.DAY_OF_WEEK)
+                            val todayIndex = if (dayOfWeek == java.util.Calendar.SUNDAY) 7 else dayOfWeek - 1
+
                             val graphPoints = weeklyHours
                             
                             Canvas(modifier = Modifier.fillMaxSize()) {
@@ -384,6 +383,7 @@ fun AnalyticsScreen(
                         } else {
                             listOf("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun")
                         }
+                        val todayIndex = java.time.LocalDate.now().dayOfWeek.value
                         baseLabels.forEachIndexed { i, label ->
                             val isToday = (i + 1) == todayIndex
                             val displayLabel = if (isToday) {
@@ -489,7 +489,7 @@ fun AnalyticsScreen(
                                     lineHeight = 18.sp
                                 )
 
-                                HorizontalDivider(color = BorderGray, thickness = 1.dp)
+                                Divider(color = BorderGray, thickness = 1.dp)
 
                                 Row(
                                     verticalAlignment = Alignment.CenterVertically,
@@ -574,7 +574,7 @@ fun AnalyticsScreen(
                         val isVerified: Boolean
                     )
 
-                     val listItems = remember(selectedLeaderboardCategory, userUniqueViews, userUniqueLikes, userUniqueComments, fiveMinInterval, userContacts, userGallery, isLowEndDeviceMode) {
+                     val listItems = remember(selectedLeaderboardCategory, userUniqueViews, userUniqueLikes, userUniqueComments, fiveMinInterval, systemTimeTicks, userContacts, userGallery) {
                         val items = mutableListOf<LeaderboardItem>()
                         
                         // Add the user with their dynamic cheat-proof scores
@@ -594,7 +594,7 @@ fun AnalyticsScreen(
                             )
                         )
 
-                        // Generate unique procedurally generated competitive bots!
+                        // Generate 1500 unique procedurally generated competitive bots!
                         val prefixes = listOf("alpha", "delta", "cyber", "quantum", "neon", "zero", "matrix", "synth", "pixel", "byte", "omega", "sigma", "meta", "turbo", "giga", "kilo", "micro", "nano", "orbital", "stellar", "apex", "flux", "helix", "void", "shadow", "cybernetic", "kinetic", "quantum_leap", "neural", "synapse")
                         val suffixes = listOf("node", "coder", "bot", "hacker", "core", "mind", "pulse", "grid", "matrix", "shell", "processor", "syndicate", "flow", "daemon", "link", "agent", "vertex", "vector", "net", "mesh", "wave", "vortex", "cascade", "signal", "anchor", "spark", "forge", "beacon", "echo", "nexus")
 
@@ -622,10 +622,9 @@ fun AnalyticsScreen(
                         val intervalSeed = fiveMinInterval * 12345L + selectedLeaderboardCategory * 987L
                         val randomGen = java.util.Random(intervalSeed)
 
-                        val timePassedInIntervalMs = 0L
+                        val timePassedInIntervalMs = systemTimeTicks % (5 * 60 * 1000)
 
-                        val botCount = if (isLowEndDeviceMode) 150 else 1500
-                        for (i in 1..botCount) {
+                        for (i in 1..1500) {
                             val botRand = java.util.Random(i * 373L + 77L + selectedLeaderboardCategory * 99L)
                             
                             val isVerified = botRand.nextDouble() < 0.25 // 25% verified rate
@@ -770,7 +769,7 @@ fun AnalyticsScreen(
                                         lineHeight = 15.sp
                                     )
 
-                                    HorizontalDivider(color = BorderGray, thickness = 1.dp, modifier = Modifier.padding(vertical = 4.dp))
+                                    Divider(color = BorderGray, thickness = 1.dp, modifier = Modifier.padding(vertical = 4.dp))
 
                                     // User status representation
                                     Row(
