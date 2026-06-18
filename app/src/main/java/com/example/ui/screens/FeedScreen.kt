@@ -1550,8 +1550,8 @@ fun CommentsBottomSheet(
                 modifier = Modifier.padding(bottom = 12.dp)
             )
             
-            Divider(color = BorderGray, thickness = 1.dp)
-
+            HorizontalDivider(color = BorderGray, thickness = 1.dp)
+            
             // Comments list
             LazyColumn(
                 modifier = Modifier
@@ -1683,8 +1683,8 @@ fun CommentsBottomSheet(
                 Spacer(modifier = Modifier.height(4.dp))
             }
 
-            Divider(color = BorderGray, thickness = 1.dp)
-
+            HorizontalDivider(color = BorderGray, thickness = 1.dp)
+            
             // Comment Input bar
             Row(
                 modifier = Modifier

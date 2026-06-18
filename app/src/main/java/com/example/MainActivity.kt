@@ -515,7 +515,7 @@ fun WelcomeScreen(viewModel: com.example.ui.SocialViewModel, modifier: Modifier 
     }
 
     Box(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxSize()
             .background(Color.Black),
         contentAlignment = Alignment.Center

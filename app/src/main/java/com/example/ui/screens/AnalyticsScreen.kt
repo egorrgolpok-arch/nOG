@@ -489,7 +489,7 @@ fun AnalyticsScreen(
                                     lineHeight = 18.sp
                                 )
 
-                                Divider(color = BorderGray, thickness = 1.dp)
+                                HorizontalDivider(color = BorderGray, thickness = 1.dp)
 
                                 Row(
                                     verticalAlignment = Alignment.CenterVertically,
@@ -770,7 +770,7 @@ fun AnalyticsScreen(
                                         lineHeight = 15.sp
                                     )
 
-                                    Divider(color = BorderGray, thickness = 1.dp, modifier = Modifier.padding(vertical = 4.dp))
+                                    HorizontalDivider(color = BorderGray, thickness = 1.dp, modifier = Modifier.padding(vertical = 4.dp))
 
                                     // User status representation
                                     Row(
