@@ -40,6 +40,70 @@ private val TextGray = Color(0xFF888888)
 private val AccentGray = Color(0xFF555555)
 private val RedSuitColor = Color(0xFFFF4B4B)
 
+@Composable
+private fun BetAmountInput(
+    value: Int,
+    onValueChange: (Int) -> Unit,
+    maxLimit: Int,
+    minLimit: Int = 5,
+    isRu: Boolean,
+    viewModel: SocialViewModel
+) {
+    var textValue by remember(value) { mutableStateOf(value.toString()) }
+    
+    androidx.compose.foundation.text.BasicTextField(
+        value = textValue,
+        onValueChange = { newValue ->
+            if (newValue.isEmpty()) {
+                textValue = ""
+            } else {
+                val cleaned = newValue.filter { it.isDigit() }
+                if (cleaned.isNotEmpty()) {
+                    textValue = cleaned
+                    val parsed = cleaned.toIntOrNull()
+                    if (parsed != null) {
+                        val clamped = parsed.coerceIn(minLimit, maxLimit.coerceAtLeast(minLimit))
+                        onValueChange(clamped)
+                    }
+                }
+            }
+        },
+        keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
+            keyboardType = androidx.compose.ui.text.input.KeyboardType.Number
+        ),
+        textStyle = androidx.compose.ui.text.TextStyle(
+            color = PureWhite,
+            fontFamily = FontFamily.Monospace,
+            fontSize = 14.sp,
+            fontWeight = FontWeight.Bold,
+            textAlign = androidx.compose.ui.text.style.TextAlign.Center
+        ),
+        cursorBrush = androidx.compose.ui.graphics.SolidColor(PureWhite),
+        modifier = Modifier
+            .width(80.dp)
+            .background(DeepGray, RoundedCornerShape(4.dp))
+            .border(1.dp, BorderGray, RoundedCornerShape(4.dp))
+            .padding(vertical = 4.dp, horizontal = 4.dp),
+        decorationBox = { innerTextField ->
+            Box(
+                contentAlignment = Alignment.Center,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                if (textValue.isEmpty()) {
+                    Text(
+                        text = "...",
+                        color = TextGray,
+                        fontFamily = FontFamily.Monospace,
+                        fontSize = 14.sp,
+                        textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                    )
+                }
+                innerTextField()
+            }
+        }
+    )
+}
+
 data class DurakPlayerState(
     val id: String,
     val name: String,
@@ -860,14 +924,27 @@ fun DurakGameComponent(
                         ) {
                             Icon(Icons.Default.Remove, contentDescription = "Sub bet", tint = PureWhite)
                         }
-                        Text(
-                            text = "$betAmount 🪙",
-                            fontFamily = FontFamily.Monospace,
-                            fontWeight = FontWeight.Bold,
-                            color = PureWhite,
-                            fontSize = 16.sp,
-                            modifier = Modifier.weight(1f).wrapContentWidth(Alignment.CenterHorizontally)
-                        )
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.Center,
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            BetAmountInput(
+                                value = betAmount,
+                                onValueChange = { betAmount = it },
+                                maxLimit = userCoins,
+                                minLimit = 5,
+                                isRu = isRu,
+                                viewModel = viewModel
+                            )
+                            Text(
+                                text = " 🪙",
+                                fontFamily = FontFamily.Monospace,
+                                fontWeight = FontWeight.Bold,
+                                color = PureWhite,
+                                fontSize = 16.sp,
+                            )
+                        }
                         IconButton(
                             onClick = { if (betAmount + 5 <= userCoins) { betAmount += 5; viewModel.vibrate(10) } },
                             modifier = Modifier.background(CardGray, RoundedCornerShape(4.dp)).border(1.dp, BorderGray, RoundedCornerShape(4.dp))

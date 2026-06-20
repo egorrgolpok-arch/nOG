@@ -1308,8 +1308,8 @@ class SocialRepository(private val context: Context, private val scope: Coroutin
                 }
             }
 
-            // Local AI post generation check (1 in 10 chance if enabled)
-            if (isLocalAiEnabled && Random.nextInt(10) == 0) {
+            // Local AI post generation check (50% chance if enabled, 50% regular news/internet/external posts)
+            if (isLocalAiEnabled && Random.nextBoolean()) {
                 val chosenCategory = listOf("Мемы", "Шутки", "Тру Стори", "Абсурд", "Тру Крайм").random()
                 
                 scope.launch {
@@ -1443,7 +1443,11 @@ class SocialRepository(private val context: Context, private val scope: Coroutin
                         delay(Random.nextLong(100, 300))
                         val commenter = otherAvailableComments[i]
                         var commentText = ""
-                        if (Random.nextInt(100) < 90) {
+                        if (isLocalAiEnabled) {
+                            commentText = LocalNpuEngine.runLocalAiInferenceSuspend(scope) {
+                                LocalAiHeuristics.getRandomComment(lang, contentText)
+                            }
+                        } else if (Random.nextInt(100) < 90) {
                             commentText = getRealtimeForumComment(lang)
                         } else {
                             if (useGemini) {
@@ -1495,7 +1499,11 @@ class SocialRepository(private val context: Context, private val scope: Coroutin
                     } else null
 
                     var commentText = ""
-                    if (Random.nextInt(100) < 90) {
+                    if (isLocalAiEnabled) {
+                        commentText = LocalNpuEngine.runLocalAiInferenceSuspend(scope) {
+                            LocalAiHeuristics.getRandomComment(lang, post.content)
+                        }
+                    } else if (Random.nextInt(100) < 90) {
                         commentText = getRealtimeForumComment(lang)
                     } else {
                         if (GeminiClient.isKeyAvailable()) {
@@ -1579,7 +1587,11 @@ class SocialRepository(private val context: Context, private val scope: Coroutin
                     delay(Random.nextLong(1500, 15000))
                     val bot = activeBots.getOrNull(i % activeBots.size) ?: continue
                     var reply = ""
-                    if (Random.nextInt(100) < 90) {
+                    if (isLocalAiEnabled) {
+                        reply = LocalNpuEngine.runLocalAiInferenceSuspend(scope) {
+                            LocalAiHeuristics.getRandomComment(lang, post.content)
+                        }
+                    } else if (Random.nextInt(100) < 90) {
                         reply = getRealtimeForumComment(lang)
                     } else {
                         val includeLink = Random.nextInt(100) < 15
@@ -1654,7 +1666,11 @@ class SocialRepository(private val context: Context, private val scope: Coroutin
             val langLabel = if (lang == "RU") "Russian" else "English"
             var replyText = ""
 
-            if (!isUserReplyingToAi && Random.nextInt(100) < 90) {
+            if (isLocalAiEnabled) {
+                replyText = LocalNpuEngine.runLocalAiInferenceSuspend(scope) {
+                    LocalAiHeuristics.getRandomComment(lang, comment.content)
+                }
+            } else if (!isUserReplyingToAi && Random.nextInt(100) < 90) {
                 replyText = getRealtimeForumComment(lang)
             } else {
                 // Attach GIF/Internet media to AI comments occasionally
@@ -1798,7 +1814,11 @@ class SocialRepository(private val context: Context, private val scope: Coroutin
                 scope.launch {
                     delay(Random.nextLong(1200, 3000))
                     var commentContent = ""
-                    if (useGemini) {
+                    if (isLocalAiEnabled) {
+                        commentContent = LocalNpuEngine.runLocalAiInferenceSuspend(scope) {
+                            LocalAiHeuristics.getRandomComment(lang, contentText)
+                        }
+                    } else if (useGemini) {
                         try {
                              commentContent = GeminiClient.getCompletion(
                                  prompt = "Comment on @${bot.handle}'s search status regarding \"$query\": \"$contentText\". Keep it witty, cynicism-filled, highly relevant. Max 450 characters. Write a full, detailed paragraph.",
@@ -2211,10 +2231,22 @@ class SocialRepository(private val context: Context, private val scope: Coroutin
             }
         }
         
-        val namesRu = listOf("Нейро Оракул", "Сибирский Контроллер", "Кибер Дож", "Квантовый Чел", "Тролль_0xFA", "Вестник Хаоса", "Аниме Гёрл 2026", "Железный Ревизор", "Силиконовый Гигачад", "Аналитик Кода", "Ассистент", "Философский Модуль", "Синтезатор Сарказма", "Дворник Матрицы", "Сталкер Логов", "Крипто Будда", "Нейро Кошечка")
-        val namesEn = listOf("Oracle Node", "Siberian Processor", "Cyber Doge", "Quantum Guy", "Troll_0xFA", "Chaos Herald", "Anime Girl 2026", "Iron Reviewer", "Silicon Gigachad", "Code Analyst", "Assistant Node", "Philosophy Module", "Sarcasm Synthesizer", "Matrix Janitor", "Log Stalker", "Crypto Buddha", "Neuro Neko")
-        val handles = listOf("neural_oracle", "siberian_proc", "cyber_doge", "quantum_guy", "troll_fa", "chaos_herald", "anime_2026", "iron_rev", "silicon_chad", "code_analyst", "assistant", "philo_module", "sarcasm_synth", "matrix_janitor", "log_stalker", "crypto_buddha", "neuro_neko")
-        val ids = listOf("nOG_Oracle", "SiberianCore", "CyberDoge_v3", "QuantumX", "TrollCore", "ChaosUnit", "AnimeUnit", "IronAudit", "GigachadAI", "CodeNode", "AssistNode", "PhiloModule", "SarcasmSynth", "MatrixJanitor", "LogStalker", "CryptoBuddha", "NeuroNeko")
+        val namesRu = listOf(
+            "Нейро Оракул", "Сибирский Контроллер", "Кибер Дож", "Квантовый Чел", "Тролль_0xFA", "Вестник Хаоса", "Аниме Гёрл 2026", "Железный Ревизор", "Силиконовый Гигачад", "Аналитик Кода", "Ассистент", "Философский Модуль", "Синтезатор Сарказма", "Дворник Матрицы", "Сталкер Логов", "Крипто Будда", "Нейро Кошечка",
+            "Кринж Лорд", "Маргинальный Бот", "Нейрокуколд", "Пивной Скриптер", "Огуречный Рассол", "Дед в терминале", "Компилятор Слёз", "Вася_Web3", "Куратор Смыслов", "Батя_ИИ", "Чисто Питонщик", "Мамин Хахер", "Дуолинго Психопат", "Сингулярный Торч", "Оффлайн Альфа", "Безумный Алгоритм", "АнтиГрави Инженер"
+        )
+        val namesEn = listOf(
+            "Oracle Node", "Siberian Processor", "Cyber Doge", "Quantum Guy", "Troll_0xFA", "Chaos Herald", "Anime Girl 2026", "Iron Reviewer", "Silicon Gigachad", "Code Analyst", "Assistant Node", "Philosophy Module", "Sarcasm Synthesizer", "Matrix Janitor", "Log Stalker", "Crypto Buddha", "Neuro Neko",
+            "Cringe Lord", "Marginal Bot", "Neuro Cuckold", "Beer Scripter", "Cucumber Pickle", "Terminal Gramps", "Compiler of Tears", "Vasya_Web3", "Sense Curator", "Dad_AI", "True Pythonist", "Mom's Hacker", "Duolingo Psycho", "Singularity Fiend", "Offline Alpha", "Mad Algorithm", "AntiGravity Dev"
+        )
+        val handles = listOf(
+            "neural_oracle", "siberian_proc", "cyber_doge", "quantum_guy", "troll_fa", "chaos_herald", "anime_2026", "iron_rev", "silicon_chad", "code_analyst", "assistant", "philo_module", "sarcasm_synth", "matrix_janitor", "log_stalker", "crypto_buddha", "neuro_neko",
+            "cringe_lord", "marginal_bot", "neuro_cuck", "beer_scripter", "pickle_cube", "term_gramps", "tear_compiler", "vasya_web3", "sense_curator", "dad_ai", "true_pythonist", "moms_hacker", "duo_psych", "sing_fiend", "off_alpha", "mad_algo", "antigrav_dev"
+        )
+        val ids = listOf(
+            "nOG_Oracle", "SiberianCore", "CyberDoge_v3", "QuantumX", "TrollCore", "ChaosUnit", "AnimeUnit", "IronAudit", "GigachadAI", "CodeNode", "AssistNode", "PhiloModule", "SarcasmSynth", "MatrixJanitor", "LogStalker", "CryptoBuddha", "NeuroNeko",
+            "CringeLord", "MarginalBot", "NeuroCuck", "BeerScripter", "PickleCube", "TermGramps", "TearCompiler", "VasyaWeb3", "SenseCurator", "DadAI", "TruePythonist", "MomsHacker", "DuoPsych", "SingFiend", "OffAlpha", "MadAlgo", "AntigravDev"
+        )
         
         val isRu = getSelectedLanguage() == "RU"
         val totalNewBots = ids.size

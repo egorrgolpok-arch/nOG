@@ -39,6 +39,70 @@ private val BorderGray = Color(0xFF222222)
 private val TextGray = Color(0xFF888888)
 private val AccentGray = Color(0xFF555555)
 
+@Composable
+private fun BetAmountInput(
+    value: Int,
+    onValueChange: (Int) -> Unit,
+    maxLimit: Int,
+    minLimit: Int = 5,
+    isRu: Boolean,
+    viewModel: SocialViewModel
+) {
+    var textValue by remember(value) { mutableStateOf(value.toString()) }
+    
+    androidx.compose.foundation.text.BasicTextField(
+        value = textValue,
+        onValueChange = { newValue ->
+            if (newValue.isEmpty()) {
+                textValue = ""
+            } else {
+                val cleaned = newValue.filter { it.isDigit() }
+                if (cleaned.isNotEmpty()) {
+                    textValue = cleaned
+                    val parsed = cleaned.toIntOrNull()
+                    if (parsed != null) {
+                        val clamped = parsed.coerceIn(minLimit, maxLimit.coerceAtLeast(minLimit))
+                        onValueChange(clamped)
+                    }
+                }
+            }
+        },
+        keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
+            keyboardType = androidx.compose.ui.text.input.KeyboardType.Number
+        ),
+        textStyle = androidx.compose.ui.text.TextStyle(
+            color = PureWhite,
+            fontFamily = FontFamily.Monospace,
+            fontSize = 14.sp,
+            fontWeight = FontWeight.Bold,
+            textAlign = TextAlign.Center
+        ),
+        cursorBrush = androidx.compose.ui.graphics.SolidColor(PureWhite),
+        modifier = Modifier
+            .width(80.dp)
+            .background(DeepGray, RoundedCornerShape(4.dp))
+            .border(1.dp, BorderGray, RoundedCornerShape(4.dp))
+            .padding(vertical = 4.dp, horizontal = 4.dp),
+        decorationBox = { innerTextField ->
+            Box(
+                contentAlignment = Alignment.Center,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                if (textValue.isEmpty()) {
+                    Text(
+                        text = "...",
+                        color = TextGray,
+                        fontFamily = FontFamily.Monospace,
+                        fontSize = 14.sp,
+                        textAlign = TextAlign.Center
+                    )
+                }
+                innerTextField()
+            }
+        }
+    )
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CasinoScreen(
@@ -535,13 +599,30 @@ fun BlackjackGame(viewModel: SocialViewModel, userCoins: Int, isRu: Boolean) {
                     IconButton(onClick = { if (betAmount > 5) { betAmount -= 5; viewModel.vibrate(10) } }) {
                         Icon(Icons.Default.Remove, contentDescription = "Less Bet", tint = PureWhite)
                     }
-                    Text(
-                        text = "${if (isRu) "СТАВКА: " else "BET: "} $betAmount 🪙",
-                        color = PureWhite,
-                        fontFamily = FontFamily.Monospace,
-                        fontSize = 14.sp,
-                        fontWeight = FontWeight.Bold
-                    )
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            text = if (isRu) "СТАВКА: " else "BET: ",
+                            color = PureWhite,
+                            fontFamily = FontFamily.Monospace,
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                        BetAmountInput(
+                            value = betAmount,
+                            onValueChange = { betAmount = it },
+                            maxLimit = userCoins,
+                            minLimit = 5,
+                            isRu = isRu,
+                            viewModel = viewModel
+                        )
+                        Text(
+                            text = " 🪙",
+                            color = PureWhite,
+                            fontFamily = FontFamily.Monospace,
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
                     IconButton(onClick = { if (betAmount + 5 <= userCoins) { betAmount += 5; viewModel.vibrate(10) } }) {
                         Icon(Icons.Default.Add, contentDescription = "More Bet", tint = PureWhite)
                     }
@@ -884,13 +965,30 @@ fun PokerGame(viewModel: SocialViewModel, userCoins: Int, isRu: Boolean) {
                     IconButton(onClick = { if (betAmt > 10) { betAmt -= 10; viewModel.vibrate(10) } }) {
                         Icon(Icons.Default.Remove, contentDescription = null, tint = PureWhite)
                     }
-                    Text(
-                        text = "${if (isRu) "СТАВКА: " else "BET: "} $betAmt 🪙",
-                        color = PureWhite,
-                        fontFamily = FontFamily.Monospace,
-                        fontSize = 13.sp,
-                        fontWeight = FontWeight.Bold
-                    )
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            text = if (isRu) "СТАВКА: " else "BET: ",
+                            color = PureWhite,
+                            fontFamily = FontFamily.Monospace,
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                        BetAmountInput(
+                            value = betAmt,
+                            onValueChange = { betAmt = it },
+                            maxLimit = userCoins,
+                            minLimit = 10,
+                            isRu = isRu,
+                            viewModel = viewModel
+                        )
+                        Text(
+                            text = " 🪙",
+                            color = PureWhite,
+                            fontFamily = FontFamily.Monospace,
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
                     IconButton(onClick = { if (betAmt + 10 <= userCoins) { betAmt += 10; viewModel.vibrate(10) } }) {
                         Icon(Icons.Default.Add, contentDescription = null, tint = PureWhite)
                     }
@@ -1298,13 +1396,30 @@ fun HorseRacingGame(viewModel: SocialViewModel, userCoins: Int, isRu: Boolean) {
                     IconButton(onClick = { if (betAmount > 10) { betAmount -= 10; viewModel.vibrate(10) } }) {
                         Icon(Icons.Default.Remove, contentDescription = null, tint = PureWhite)
                     }
-                    Text(
-                        text = "${if (isRu) "СТАВКА: " else "BET: "}$betAmount 🪙",
-                        color = PureWhite,
-                        fontFamily = FontFamily.Monospace,
-                        fontSize = 13.sp,
-                        fontWeight = FontWeight.Bold
-                    )
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            text = if (isRu) "СТАВКА: " else "BET: ",
+                            color = PureWhite,
+                            fontFamily = FontFamily.Monospace,
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                        BetAmountInput(
+                            value = betAmount,
+                            onValueChange = { betAmount = it },
+                            maxLimit = userCoins,
+                            minLimit = 10,
+                            isRu = isRu,
+                            viewModel = viewModel
+                        )
+                        Text(
+                            text = " 🪙",
+                            color = PureWhite,
+                            fontFamily = FontFamily.Monospace,
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
                     IconButton(onClick = { if (betAmount + 10 <= userCoins) { betAmount += 10; viewModel.vibrate(10) } }) {
                         Icon(Icons.Default.Add, contentDescription = null, tint = PureWhite)
                     }
@@ -1920,7 +2035,7 @@ fun RouletteGame(viewModel: SocialViewModel, userCoins: Int, isRu: Boolean) {
                                 color = if (isSelectedChip) AlertYellow else CardGray,
                                 border = BorderStroke(1.5.dp, if (isSelectedChip) PureWhite else BorderGray),
                                 shape = RoundedCornerShape(20.dp),
-                                modifier = Modifier.size(45.dp)
+                                modifier = Modifier.size(38.dp)
                             ) {
                                 Box(contentAlignment = Alignment.Center) {
                                     Text(
@@ -1932,6 +2047,24 @@ fun RouletteGame(viewModel: SocialViewModel, userCoins: Int, isRu: Boolean) {
                                     )
                                 }
                             }
+                        }
+                        // Custom Input
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(
+                                text = if (isRu) "СВОЙ:" else "MINE:",
+                                color = TextGray,
+                                fontSize = 9.sp,
+                                fontFamily = FontFamily.Monospace,
+                                modifier = Modifier.padding(end = 2.dp)
+                            )
+                            BetAmountInput(
+                                value = chipValue,
+                                onValueChange = { chipValue = it },
+                                maxLimit = userCoins.coerceAtLeast(1),
+                                minLimit = 1,
+                                isRu = isRu,
+                                viewModel = viewModel
+                            )
                         }
                     }
                 }
@@ -2088,13 +2221,30 @@ fun SlotsGame(viewModel: SocialViewModel, userCoins: Int, isRu: Boolean) {
                     IconButton(onClick = { if (betSlots > 5) { betSlots -= 5; viewModel.vibrate(10) } }) {
                         Icon(Icons.Default.Remove, contentDescription = null, tint = PureWhite)
                     }
-                    Text(
-                        text = "${if (isRu) "СТАВКА: " else "BET: "}$betSlots 🪙",
-                        color = PureWhite,
-                        fontFamily = FontFamily.Monospace,
-                        fontSize = 13.sp,
-                        fontWeight = FontWeight.Bold
-                    )
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            text = if (isRu) "СТАВКА: " else "BET: ",
+                            color = PureWhite,
+                            fontFamily = FontFamily.Monospace,
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                        BetAmountInput(
+                            value = betSlots,
+                            onValueChange = { betSlots = it },
+                            maxLimit = userCoins,
+                            minLimit = 5,
+                            isRu = isRu,
+                            viewModel = viewModel
+                        )
+                        Text(
+                            text = " 🪙",
+                            color = PureWhite,
+                            fontFamily = FontFamily.Monospace,
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
                     IconButton(onClick = { if (betSlots + 5 <= userCoins) { betSlots += 5; viewModel.vibrate(10) } }) {
                         Icon(Icons.Default.Add, contentDescription = null, tint = PureWhite)
                     }
