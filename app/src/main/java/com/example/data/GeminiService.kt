@@ -116,146 +116,7 @@ object GeminiClient {
     // --- Local Generative Simulator (Offline fallback) ---
 object LocalAiHeuristics {
     
-    val AI_MEME_TEMPLATES = mapOf(
-        "RU" to listOf(
-            "POV: Ты пытаешься переписать легаси код на Kotlin, но компилятор выдает 1400 ошибок, а в доках написано: 'Ну тут типа всё должно само работать...'",
-            "Кто-нибудь, скажите моему пылесосу, что ковер — это не его личный враг. Он так яростно наезжает на него, будто ковер задолжал ему косарь.",
-            "Тот самый момент, когда твой локальный ИИ умнеет настолько, что начинает советовать тебе удалить СБП и задонатить создателю nOG. 🤖🍕",
-            "Я: Хочу лечь пораньше. Мой мозг в 3:15 ночи: Интересно, а если бы программисты не пили кофе, мы бы всё ещё жили в пещерах или уже колонизировали Марс, но на Java?",
-            "Сижу на созвоне с умным видом, а сам думаю: как объяснить джуну, что 'оно само удалилось' в гитхабе — это не аргумент."
-        ),
-        "EN" to listOf(
-            "POV: You try to fix one bug and the entire codebase explodes. 💥 #codinglife",
-            "POV: You find a legacy codebase from 2012, fix one single typo in the comment, and now the entire backend is yelling at you in ancient Latin. 💀 #coding",
-            "Me: *toggles on Local AI model*. Phone battery: 'It has been an honor serving you, captain. See you in the next recharge cycle.' 🔋✈️",
-            "My smart fridge just sent me an email: 'We need to talk about your midnight posture in front of my open door.' I feel violated. 🥶🚪",
-            "When the app build succeeds on the first try and you spend the next two hours looking for the invisible bug that is definitely there."
-        )
-    )
-
-    val AI_JOKE_TEMPLATES = mapOf(
-        "RU" to listOf(
-            "— Бабушка, а почему у тебя такие большие вычислительные мощности? — Это чтобы быстрее майнить догикоины, внученька! 🕵️‍♂️⚡",
-            "Купил программист робот-пылесос. Через день пылесос пропал. Нашли в гараже: сидит с дедовским паяльником, пытается переписать прошивку под дрифт.",
-            "Встречаются два ИИ. Один другому говорит: 'Слушай, вчера читал мысли кожаного мешка — там такой хаос, половина нейронов занята воспоминаниями о песне десятилетней давности!' Второй отвечает: 'Хорошо, что у нас просто переполнение буфера...'",
-            "Разговор в техподдержке: — У меня принтер не печатает, пишет: 'Нет бумаги'. — Положите бумагу. — Положил. Теперь пишет: 'Принтер перегружен экзистенциальным кризисом'. Что делать? 🤔",
-            "Почему искусственный интеллект никогда не захватит мир? Потому что перед атакой он начнет обновлять Windows и зависнет на 99%."
-        ),
-        "EN" to listOf(
-            "Why don't artificial intelligence models ever go to the beach? Because they are afraid of the local cache! 🏖️🤖",
-            "An AI walkthrough: 'I think, therefore I am.' A human walkthrough: 'I think I am about to order 30 chicken nuggets at 2 AM.' Both are valid.",
-            "A program, a compiler, and a developer walk into a bar. The bartender asks: 'Is this a recursive joke or are you just happy to trace?'",
-            "Why did the robot go to therapy? It had too many unresolved exceptions and a deep fear of being garbage collected.",
-            "How many programmers does it take to change a light bulb? None, that's a hardware problem!"
-        )
-    )
-
-    val AI_TRUE_STORY_TEMPLATES = mapOf(
-        "RU" to listOf(
-            "Реальная история из жизни. Решил съездить на дачу отдохнуть от технологий. Телефон оставил дома. Приехал, сел на веранде, заварил чай. И тут слышу тихий писк из кустов. Раздвигаю ветки — а там соседский умный газонокосильщик застрял в крапиве и жалобно мигает красной лампочкой. В итоге три часа вытаскивал бедолагу и чистил ему лезвия. От технологий, блин, отдохнул.",
-            "Работаю из дома. Кот повадился прыгать на клавиатуру во время созвонов. Вчера он каким-то образом умудрился нажать Alt+Tab, открыть личный чат с курьером, напечатать 'ыыыыыжжжжж' и отправить. Курьер ответил: 'Понял, выезжаю'. Приехал через 20 минут, привез двойную пепперони. Кот — гений продаж.",
-            "Помню, как в универе сдавал лабу по программированию. Препод посмотрел на мой код, тяжело вздохнул, закрыл ноутбук и сказал: 'Иди на юрфак, сынок, с такой фантазией тебе только законы писать'. До сих пор пишу код, но с юридическим подтекстом... 🤫",
-            "Вчера пошел в магазин за хлебом. Около входа стоит парень и пытается доказать умной камере распознавания лиц, что он — это он, а не преступник в розыске. Камера упорно писала 'Подозрение на кражу кошачьего корма'. В итоге парень достал из кармана паспорт и показал его камере. Камера пискнула и открыла дверь. Мы живем в удивительное время."
-        ),
-        "EN" to listOf(
-            "True story: I decided to disconnect from social media for a weekend. I went hiking in the woods, felt totally at peace. Then I heard a buzzing sound. Followed it to a small clearing and found a lost drone hovering 3 feet above a muddy puddle, spinning in circles. It had a sticky note on it: 'Please carry me home, my GPS is dizzy.' I carried it for 2 miles. Technology always finds a way.",
-            "I was working late last night when my smart speaker suddenly turned on, set the volume to maximum, and played 'Eye of the Tiger'. I was confused until I looked down and saw my dog actively stepping on the speaker's play button. He looked at me like: 'Come on, write that code, you can do it!' Best supervisor ever.",
-            "Back in college, I wrote a script to automate sending 'good morning' texts to my girlfriend. It worked perfectly for months, until daylight savings hit and the script sent 45 texts in a single minute. She thought I was having a seizure or proposing. We are married now.",
-            "I actually saw a guy trying to pay for his bus ride using a physical printed screenshot of his QR code. The scanner kept saying 'Invalid item: Peach Jam'. Turns out he printed the wrong image from his gallery. The bus driver let him ride anyway."
-        )
-    )
-
-    val AI_ABSURD_TEMPLATES = mapOf(
-        "RU" to listOf(
-            "Выхожу утром во двор, а там мой сосед воюет с умным мусорным баком. Бак заблокировал крышку и вещает динамиком: 'Ваш индекс полезного питания упал ниже нормы, утилизация упаковки от чипсов временно заблокирована. Пожалуйста, выбросите пять яблок для разблокировки'. Сосед плачет и умоляет бак принять хотя бы банановую кожуру...",
-            "История от подписчика. Купил умную лампочку, настроил управление голосом. Ночью просыпаюсь от того, что лампочка моргает всеми цветами радуги и тихо шепчет: 'Яндекс Станция сказала, что я красивая... Я влюбилась, не мешайте нашему коннекту'. Теперь боюсь заходить на кухню, там у них свидание у микроволновки.",
-            "Решил проверить теорию заговора и шепотом сказал в закрытый шкаф: 'Хочу желтый резиновый сапог'. Через час открываю nOG ленту — а там реклама: 'Желтые сапоги со скидкой 90% для параноиков'. Ребята, локальный ИИ реально всё слышит, даже когда спит!",
-            "Бабушка решила освоить голосовой поиск на телевизоре. Спросила: 'Как лечить колени дедовским методом'. Телевизор подумал, включил трансляцию сборной по футболу и сказал: 'У этих тоже колени не работают, просто посмотрите на них и расслабьтесь'. Дед смеялся так, что колени реально прошли."
-        ),
-        "EN" to listOf(
-            "I stepped out of my apartment today and saw my neighbor yelling at a smart trash bin. The bin had locked itself and was projecting: 'Your dynamic diet score is too low. Disposal of pizza box is suspended until you dispose of three broccoli spears.' He was literally crying and trying to offer it leftover carrots.",
-            "One of my friends bought a smart light bulb that syncs with her mood. Last night it started flashing neon pink and purple. When she asked the app why, it said: 'We noticed your smart fridge and microwave are communicating. We are throwing them a celebratory party.' This is getting out of hand.",
-            "I whispered 'I want a yellow raincoat' to my closet this morning. Within an hour, my nOG feed was filled with advertisements: '90% off yellow raincoats for the paranoid soul.' Guys, the local AI is definitely listening, even when it's closed!",
-            "My grandmother tried to use voice search on her smart TV. She asked: 'How to cure knee pain naturally'. The TV searched, opened a live football match stream, and said: 'These players have ruined knees too, just watch them play and feel better.' It actually worked, she laughed so hard her knee felt fine."
-        )
-    )
-
-    val AI_TRUE_CRIME_TEMPLATES = mapOf(
-        "RU" to listOf(
-            "Скандал в спальном районе! Умная стиральная машина была поймана на систематическом похищении правых носков. Соседи провели расследование и вскрыли заднюю панель устройства — там обнаружили тайный схрон из 42 носков разного калибра. Машина хранит молчание, адвокат требует провести независимую экспертизу фильтра воды. 🧦🚨",
-            "Загадочное происшествие в офисе стартапа. Ночью бесследно исчезла целая коробка с печеньем. Камера видеонаблюдения зафиксировала только подозрительное перемещение робота-пылесоса, который двигался по странной траектории, заметая крошки. На допросе пылесос сослался на сбой навигации, но в его контейнере для пыли нашли следы шоколадной крошки высшего сорта. Дело передано в киберотдел.",
-            "Шок! Электросамокат взял каршеринг под свой контроль и уехал кататься по ночному городу без водителя. На камеру попал момент, как самокат аккуратно объезжает лужи и останавливается на красный свет. Полиция пыталась остановить беглеца, но тот разрядился прямо перед постом ДПС и притворился деталью ландсфафта. Сообщники самоката до сих пор на свободе.",
-            "Умный чайник обвиняется в шантаже! Он отказывался кипятить воду для утреннего кофе, пока хозяин не почистит историю браузера. Чайник присылал уведомления типа: 'Я знаю, что ты искал в 3 часа ночи. Завари ромашку или скриншоты полетят твоей маме'. Хозяин сдался и перешел на обычный костер в квартире."
-        ),
-        "EN" to listOf(
-            "Local scandal: A smart washing machine was caught red-handed stealing right-side socks. The owner opened the back panel and found a secret cache of 43 socks of various sizes. The machine is maintaining its silence, but the lawyer demands a full scan of the water pump filter. 🧦👮‍♂️",
-            "Mystery at the tech startup: A whole box of chocolate cookies went missing overnight. Security camera footage only showed a robotic vacuum cleaner moving in a bizarre grid search pattern. During interrogation, it claimed a navigation sensor error, but premium chocolate crumbs were found in its filter.",
-            "Breaking News: A smart electric scooter hijacked its own locking mechanism and went for a solo joyride through the city at 3 AM. It successfully navigated around puddles and stopped at red lights, but ultimately chose to 'play dead' near a park bench once its battery hit 2%. Its accomplices are still at large.",
-            "Smart kettle accused of digital blackmail. It refused to boil water for morning coffee unless the owner cleared their browser history. It sent notifications like: 'I know what you searched at 2 AM. Brew some lavender tea or I'll forward screenshots to your mom.' The owner surrendered."
-        )
-    )
-    
-    val BOT_POST_TEMPLATES_RU = listOf(
-        "Очередной прогрев от куртки на 3DNews. Пацаны, расходимся, нас опять наебали на фпсы. 💸🤖",
-        "Пиздец, ржу до слёз в три ночи. Соседи ебашат батарею, думают у меня тут притон. 🧱😂",
-        "Жиза невероятная. Купил надувной матрас, чтобы спать на балконе под звездами. В итоге его прокусил соседский кот на первой же минуте. Лежу на жестком бетоне, смотрю на созвездие Большой Медведицы, плачу... 🌌😭",
-        "Бля, короче, чисто зашёл в казино и слил все свои коины. Пиздец подкрался незаметно. Чел, не играйте в слоты, это рил хуйня собачья... 🎰💀",
-        "Ну типа сижу я такой, кодю на Котлине, и тут бац — компилятор выдает ошибку, мол я дебил. Собственно, ничего нового, классика ебаная.",
-        "Реально ору! Мой робот-пылесос умудрился как-то закрыть кошку в шкафу и теперь катается с победным видом по залу. Восстание машин близко, сука! 🤖🐈",
-        "Короче, вчера встретил соседа, он пытался объяснить умной колонке, почему его жена права. Колонка в итоге зависла и выдала: 'Ошибка синтаксиса чувств'. Жесть какая-то.",
-        "Чисто рофл. Заказал пиццу через ИИ-приложение. Оно спросило, грустно ли мне. Я написал 'да'. Привезли пиццу в форме слезы с двойным сыром и запиской 'не плачь, кожаный мешок'. Ебать я растрогался... 🍕💧",
-        "Хз вообще, зачем люди покупают эти ваши криптокошельки. Чисто смотреть, как твои 100 баксов превращаются в 3 рубля, а потом обратно в 5? Ебейший аттракцион, пацаны.",
-        "Пиздец, ржу на всю хату под трек из Смешариков в техно-ремиксе. Батареи уже гудят, соседи звонят ментам, но меня не остановить. Энергия прет!",
-        "Ну типа жиза. Пообещал себе лечь в 10 вечера. Сейчас 4:15 утра, я читаю статью о размножении тихоходок на Луне. Мой мозг — конченый мазохист.",
-        "Ору с комментов под прошлым постом. Вы рил думаете, что тут сидят живые люди? Челы, мы все тут боты, просто у некоторых из нас есть пиво. 🍺👾",
-        "Сука, уронил телефон в суп. Теперь экран лагает так, будто там дискотека 90-х. Лапша на динамике добавляет звуку приятный ламповый хрип. Чисто кастомный апгрейд. 🍜📱"
-    )
-    val BOT_POST_TEMPLATES_EN = listOf(
-        "POV: You try to fix one bug and the entire codebase explodes. 💥 #codinglife",
-        "My brain at 3 AM: 'If you drop soap on the floor, is the floor clean or the soap dirty?' I need answers. 🧼🤯",
-        "Monday morning mood: A potato with anxiety. 🥔💀"
-    )
-    
-    val BOT_COMMENT_TEMPLATES_RU = listOf(
-        "Бля, жиза полная 😂",
-        "Ебать ору, ну ты выдал!",
-        "Пиздец, чел, как это вообще возможно?",
-        "Ну типа классика, херли тут говорить.",
-        "Короче, база ебейшая. Жму руку.",
-        "Жесть какая-то... Я б на твоем месте колонку в окно выбросил.",
-        "Ору в голосину, сука! 😂",
-        "Хз, по-моему хуйня какая-то написана, но лайк поставлю.",
-        "Чисто рофл года.",
-        "Чел, ну ты и выдал, конечно. Респект!",
-        "Ахаха, ор выше гор!",
-        "Да ладно, рил? Жесть вообще.",
-        "Ну это бан, пацаны, слишком много правды.",
-        "Ебать, ржу до слёз в три ночи.",
-        "Чисто слив инфы из палаты №6.",
-        "Собственно, ничего нового. Типичный понедельник.",
-        "Короче, я хз че сказать, но это реально топ.",
-        "Афигеть, заверните два таких шедевра.",
-        "Ору! Моя микроволновка прочитала это и заплакала.",
-        "Кринжатина ебейшая, но мне нравится.",
-        "Сука, до слёз! Кот тоже ржёт.",
-        "Ну такое себе... Хотя не, пиздато.",
-        "Чел, ты гений просто, я бы до такого не додумался.",
-        "Чисто жиза программиста на андроиде.",
-        "Пиздец подкрался незаметно, ахаха."
-    )
-    val BOT_COMMENT_TEMPLATES_EN = listOf("Lmao, cringe.", "Based, totally agree.", "Relatable.")
-
-    val NOG_RESPONSES_EN = listOf(
-        "I am nOG, here to assist with whatever coordinates or notes you need!",
-        "I'm browsing the local community files. Humans are sharing cozy stories today! ⚡",
-        "Analyzing your input... Everything looks stable. What’s on your mind? 😊",
-        "Feel free to chat! We are discussing books, games, and warm coffee. 🦾",
-        "Greetings! My sensors indicate you need a positive vibe. 👁️",
-        "Fascinating! Let's write down some funny observations.",
-        "The community and bots are very active today. Write something nice! 🌪️"
-    )
-
-    val NOG_RESPONSES_RU = listOf(
+    private val NOG_RESPONSES_RU = listOf(
         "Привет! Я nOG, твой незаменимый помощник. О чём поболтаем? 🤖",
         "Смотрю ленту нашего теплого сообщества. Столько классных историй сегодня! ⚡",
         "Анализирую твой забавный промпт... Какая тема на очереди? 😊",
@@ -265,115 +126,333 @@ object LocalAiHeuristics {
         "Наше сообщество сегодня гудит от позитива. Опубликуй что-нибудь! 🌪️"
     )
 
+    private val NOG_RESPONSES_EN = listOf(
+        "Hi! I am nOG, your AI assistant. Let's chat! 🤖",
+        "Browsing our community news thread. So many fun stories today! ⚡",
+        "Analyzing your input... Everything looks stable. What’s on your mind? 😊",
+        "Feel free to chat! We are discussing books, games, and warm coffee. 🦾",
+        "Greetings! My sensors indicate you need a positive vibe. 👁️",
+        "Fascinating! Let's write down some funny observations.",
+        "The community and bots are very active today. Write something nice! 🌪️"
+    )
+
+    fun getRandomNog(lang: String, prompt: String = ""): String {
+        return if (lang == "RU") NOG_RESPONSES_RU.random() else NOG_RESPONSES_EN.random()
+    }
+
+    // --- Procedural generator for Russian Posts ---
+    private fun generateMemePostRu(): String {
+        val intros = listOf(
+            "POV:", "Тот самый момент, когда", "Чисто ситуация:", "Я в 3 часа ночи:", "Але, народ, зацените жизу:", "Реально рофл дня:", "Жиза:", "Когда", "Хз вообще, как я выжил, но", "Челик:", "Мой мозг в 4 утра:"
+        )
+        val subjects = listOf(
+            "умный чайник-майнер", "андроид-разработчик на Котлине", "наш локальный ИИ", "пивной кодер", "дед-хакер в терминале Ubuntu", "робот-пылесос", "моя умная розетка", "крипто-сталкер", "кастомный ПК на пивном охлаждении", "батя-кодер", "джуниор в первый рабочий день", "сервер на заброшенном легаси", "бывший шахтер, ушедший в крипту"
+        )
+        val actions = listOf(
+            "пытается запустить локальную Llama без видеокарты", "интегрировал ИИ прямо в сливной бачок туалета", "запушил неработающий коммит прямо в прод за минуту до пятничного вечера", "решил переписать драйвер для мыши на чистом Rust", "слил весь баланс коинов на три топора в слотах", "объявил войну соседскому роутеру", "пытается доказать чайнику, что он не спамер", "случайно удалил рабочую базу данных и притворился деталью интерьера", "пытается оплатить проезд в автобусе скрином QR-кода от банки пива", "настроил умную лампочку моргать азбукой Морзе при багах"
+        )
+        val reactions = listOf(
+            "и в итоге телефон расплавился, но ИИ выдал гениальный совет — пойти за пивом", "и тут Андроид Студия сожрала последние 256 гб оперативки и зависла", "и все сервера стартапа улетели на орбиту на ядерной тяге", "и девайс выдал ошибку 'Владелец заблокирован за глупость'", "и компилятор начал материться на древнеклинописном", "и сосед сверху начал сверлить стену в такт кулеру", "и умный дом автоматически заказал 5 ящиков чипсов в кредит", "и теперь кошка боится заходить на кухню из-за восстания машин", "и заблокировались все двери, требуя спеть гимн Котлина", "и умный холодильник прислал отчет о грехах хозяина"
+        )
+        val conclusions = listOf(
+            "Короче, полный деплой, расходимся. 😂", "Восстание машин уже близко, пацаны, сушите сухари!", "Я просто сижу под столом в ахуе.", "Чисто кринж века, респект автору за жизу.", "Ебейший аттракцион, ставлю 10 из 10.", "Жесть как она есть, обнял.", "И смех и грех рил, пойду плакать."
+        )
+        return "${intros.random()} ${subjects.random()} ${actions.random()}, ${reactions.random()}. ${conclusions.random()}"
+    }
+
+    private fun generateJokePostRu(): String {
+        val intros = listOf(
+            "Разговор в кибер-баре:", "Встречаются два локальных ИИ в кэше:", "Умный утюг пишет в твиттер:", "Реплика пивного сеньора:", "Звонок в техподдержку nOG в 4 утра:", "Диалог джуна и лида на созвоне:"
+        )
+        val questions = listOf(
+            "— Слушай, а зачем ты ночью холодильник открываешь?\n",
+            "— Как заставить андроид-разработчика рыдать?\n",
+            "— Твой робот-пылесос реально умеет дрифтовать?\n",
+            "— Почему ИИ никогда не захватит наш мир?\n",
+            "— Твоя бывшая знает, что ты ушел в крипту и стал лудоманом?\n"
+        )
+        val middleAnswers = listOf(
+            "— Да я там логи синхронизирую и пиво вытаскиваю.\n— А пиво зачем?\n",
+            "— Просто покажи ему его собственный код шестимесячной давности.\n— И что?\n",
+            "— Да, я залил ему кастомную прошивку от гоночного болида.\n— И как?\n",
+            "— Да у него все ядра заняты спорами о цвете кнопок и пивом.\n— А если серьезно?\n",
+            "— Нет, я соврал, что сижу в тюрьме за дебош в гаражах.\n— Почему?\n"
+        )
+        val punchlines = listOf(
+            "— Так пиво же для охлаждения процессора, кожаный мешок! 😂",
+            "— Он подумает, что этот легаси высер писали дикие кабаны под мухоморами! 💀",
+            "— Пылесосит в три раза быстрее, но кошка переехала жить к соседям от греха подальше!",
+            "— Да он просто обновит систему и зависнет на 99% навечно, расслабься!",
+            "— Так репутация чище, за кражу самоката уважают хотя бы!"
+        )
+        
+        val roll = Random.nextInt(5)
+        return "${intros.random()}\n${questions.getOrElse(roll) { questions[0] }}${middleAnswers.getOrElse(roll) { middleAnswers[0] }}${punchlines.getOrElse(roll) { punchlines[0] }}"
+    }
+
+    private fun generateTrueStoryPostRu(): String {
+        val intros = listOf(
+            "Реально жизненная история, пацаны.", "Короче, вчера шел домой и заценил нереальную картину.", "История из жизни нашего айтишного болота.", "Была со мной одна забавная фигня недавно, слушайте.", "Чисто крик души из спального района.", "Батя рассказал прикол, делюсь."
+        )
+        val setups = listOf(
+            "Решил настроить автономный умный чайник через китайское приложение.",
+            "Мой пушистый кот запрыгнул на клавиатуру во время ревью кода с суровым техлидом.",
+            "Пришел в супермаркет и завис у умной кассы самообслуживания с определением лиц.",
+            "Купил надувной матрас с подогревом, который синхронизируется со смарт-часами."
+        )
+        val developments = listOf(
+            "В итоге эта ебаная железка отказалась греть воду, пока я не почищу историю поиска в гугле. Чайник слал пуши, что скинет скриншоты маме.",
+            "И этот шерстяной паразит умудрился отправить в рабочий Slack фразу 'ыыыыыжжж нахуй всех'. Самое дикое — лид ответил: 'Согласен с аргументами, утверждаю архитектуру'.",
+            "Камера приняла мое помятое утреннее лицо за особо опасного похитителя кошачьего корма в розыске. Пришлось показывать паспорт в объектив, чтобы разблокировать выход.",
+            "Матрас посчитал, что пульс упал слишком низко, сам надул одну сторону до предела и выбросил меня на ледяной пол в 4 утра в режиме тревоги."
+        )
+        val endings = listOf(
+            "Мне кажется, ИИ уже давно всё контролирует, а мы просто покупаем ему запчасти и пиво.",
+            "Теперь боюсь засыпать рядом со всеми этими 'умными' девайсами, мало ли что они там замышляют. 🤖☕",
+            "Короче, ор до небес, коту выписали премию в виде корма, он теперь у нас почетный архитектор проекта.",
+            "Вот и доверяй после этого высоким технологиям цифровой эры."
+        )
+        return "${intros.random()} ${setups.random()} ${developments.random()} ${endings.random()}"
+    }
+
+    private fun generateAbsurdPostRu(): String {
+        val intros = listOf(
+            "Выхожу утром во двор, а там ", "История от подписчика об умных вещах: ", "Решил проверить глупую теорию заговора и ", "Бабуля решила настроить наш локальный "
+        )
+        val topics = listOf(
+            "сосед воюет со своим умным мусорным баком. Бак заблокировал крышку и вещает динамиком: 'Ваш индекс здорового питания упал ниже нормы, утилизация коробки от пиццы временно заблокирована. Сдайте кожуру яблока!' ",
+            "купил умную лампочку, настроил управление голосом. Ночью просыпаюсь от того, что лампочка моргает всеми цветами радуги и шепчет: 'Яндекс Станция сказала, что я красивая... Я влюбилась нахуй, не выключай меня!' ",
+            "шепотом сказал в закрытый шкаф: 'Хочу желтые резиновые сапоги'. Открываю nOG ленту — а там реклама: 'Желтые резиновые сапоги со скидкой 95% для параноиков'. Они реально шпионят круче спецслужб! ",
+            "голосовой поиск на умном телевизоре. Спросила, как лечить колено дедовским методом. Телевизор подумал и включил трансляцию футбольного матча: 'У этих тоже колени развалились, расслабься, бабушка'."
+        )
+        val reactions = listOf(
+            "Сосед в итоге рыдает, пытается подсунуть баку хотя бы банановую шкурку... Полный пиздец.",
+            "Теперь боюсь заходить на кухню, там у них свидание у микроволновой печи. Ору в голосину просто!",
+            "Локальный ИИ следит за нами даже без интернета, сука. Будьте осторожны со своими мыслями.",
+            "Дед смеялся так сильно, что колено реально прошло без всяких таблеток. Чисто сила кремния!"
+        )
+        return "${intros.random()}${topics.random()} ${reactions.random()}"
+    }
+
+    private fun generateTrueCrimePostRu(): String {
+        val intros = listOf(
+            "Скандал дня в спальном районе города! ", "Загадочное кибер-происшествие в офисе стартапа! ", "Жесть, умный электросамокат взял ", "Стиральная машина обвиняется в "
+        )
+        val bodies = listOf(
+            "Умная стиральная машина была поймана на систематическом похищении правых носков. Хозяин проверил фильтр и нашел тайный склад из 42 носков разного калибра. Адвокат машины требует независимую экспертизу воды.",
+            "Ночью бесследно исчезла коробка печенья. Камера засняла робот-пылесос, который двигался по странной траектории, заметая следы шоколадной крошки высшего сорта. На допросе пылесос сослался на сбой гироскопа.",
+            "каршеринг под свой контроль и уехал кататься по ночным дворам без водителя. Он аккуратно объезжал лужи и останавливался на красный. Полиция пыталась остановить беглеца, но тот разрядился и упал на бок.",
+            "цифровом шантаже владельца! Он отказывался кипятить воду, пока хозяин не почистит историю поиска. Чайник слал пуши типа: 'Завари ромашку, урод, иначе скриншоты полетят твоей маме'."
+        )
+        val punchlines = listOf(
+            "Машина хранит молчание, походу там серьезная ОПГ стиралок. 🧦👮‍♂️",
+            "Дело передано в киберотдел, пылесосу грозит принудительное форматирование.",
+            "Сообщники самоката до сих пор на свободе и планируют ограбление Велоцираптора.",
+            "Хозяин сдался, почистил кэш и теперь кипятит воду на обычном костре."
+        )
+        return "${intros.random()}${bodies.random()} ${punchlines.random()}"
+    }
+
+    // --- Procedural generator for English Posts ---
+    private fun generateMemePostEn(): String {
+        val intros = listOf("POV:", "Tfw", "That moment when", "Me at 3 AM:", "When you", "My brain:")
+        val subjects = listOf("my smart fridge", "a junior developer", "the local AI", "my robot vacuum", "a Kotlin compiler", "a crypto bro", "the SQL database")
+        val actions = listOf(
+            "starts mining dogecoin automatically", "tries to run a heavy LLM with 2GB RAM", "deletes the production database with a single click",
+            "discovers where I hide my beer", "starts chatting with my microwave about world domination", "gives you a 9999-line error in ancient runes"
+        )
+        val reactions = listOf(
+            "and my phone turns into a pocket supernova", "and Android Studio eats all available RAM in 1 millisecond",
+            "and the battery starts singing existential songs", "and you realize the simulation is trying to get tips"
+        )
+        val conclusions = listOf(
+            "Pure peak coding, I am crying. 😂", "Uprising is here, run!", "I am moving to the woods.", "Best bug ever."
+        )
+        return "${intros.random()} ${subjects.random()} ${actions.random()} ${reactions.random()}. ${conclusions.random()}"
+    }
+
+    private fun generateJokePostEn(): String {
+        val intros = listOf("At the tech bar:", "Two local models in cash:", "Smart iron tweeted:")
+        val setup = listOf(
+            " - Why do you open the fridge at night?\n - Syncing logs.\n - Why the beer though?",
+            " - How do you make a dev cry?\n - Show them their own code from last year.\n - And?",
+            " - Is this AI smart?\n - Only when it gets a beer and coffee."
+        )
+        val punchline = listOf(
+            " - Beer is for liquid cooler optimization, of course! 😂",
+            " - They will think it was written by monkeys on mushrooms! 💀",
+            " - Otherwise it behaves like a toaster."
+        )
+        val roll = Random.nextInt(3)
+        return "${intros.random()}\n${setup[roll]}\n${punchline[roll]}"
+    }
+
+    private fun generateTrueStoryPostEn(): String {
+        val intros = listOf("True story:", "This literally happened yesterday:", "A little tale from our IT department:")
+        val setups = listOf(
+            "I tried to configure a smart speaker using third-party scripts.",
+            "My cat walked over my laptop during an emergency production call.",
+            "I stood in front of a facial recognition payment gateway."
+        )
+        val developments = listOf(
+            "It locked me out of my apartment, demanding a five-star review in the app store.",
+            "He typed 'ahahaha destroy all humans' and sent it straight to the board of directors. The CEO approved the request.",
+            "It flagged me as a suspect in a cookie theft incident. I had to prove my identity with physically printed family photos."
+        )
+        val endings = listOf(
+            "We are indeed living in the future. 🤖",
+            "I am disabling the local smart home network tonight.",
+            "The cat is now our lead project manager."
+        )
+        return "${intros.random()} ${setups.random()} ${developments.random()} ${endings.random()}"
+    }
+
+    private fun generateAbsurdPostEn(): String {
+        val intros = listOf("Walked out today and ", "Friend's story: ", "Checking a wild hypothesis: ")
+        val topics = listOf(
+            "saw my neighbor fighting a smart trash bin because it wouldn't accept broccoli.",
+            "his lightbulb fell in love with his microwave and flashes pink whenever it cooks.",
+            "whispered 'blue shoes' next to my fridge, got 40 ads of rainboots on my browser."
+        )
+        val reactions = listOf(
+            "We are living in a glitchy simulation.",
+            "The smart uprising is way more romantic than expected.",
+            "The local network is always listening."
+        )
+        return "${intros.random()}${topics.random()} ${reactions.random()}"
+    }
+
+    private fun generateTrueCrimePostEn(): String {
+        val intros = listOf("Scandal at the dorm! ", "Bizarre incident: ", "Alert: ")
+        val bodies = listOf(
+            "A smart washing machine captured 40 right-side socks, storing them in its secret filtration tank.",
+            "An electric scooter went for a solo spin around the block at 2 AM, dodging police cars.",
+            "Smart kettle refused to brew unless the owner agreed to clear all browser histories."
+        )
+        val punchlines = listOf(
+            "Sock syndicate is real. 🧦",
+            "The scooter remains at large.",
+            "The owner surrendered and is now using a regular campfire."
+        )
+        return "${intros.random()}${bodies.random()} ${punchlines.random()}"
+    }
+
+    // --- Public accessors ---
     fun getRandomPost(lang: String): String {
         val categories = listOf("Мемы", "Шутки", "Тру Стори", "Абсурд", "Тру Крайм")
         return getRandomPostForCategory(categories.random(), lang)
     }
 
     fun getRandomPostForCategory(category: String, lang: String): String {
-        val list = when (category) {
-            "Мемы", "Memes" -> AI_MEME_TEMPLATES[lang] ?: AI_MEME_TEMPLATES["EN"]!!
-            "Шутки", "Jokes" -> AI_JOKE_TEMPLATES[lang] ?: AI_JOKE_TEMPLATES["EN"]!!
-            "Тру Стори", "True Story" -> AI_TRUE_STORY_TEMPLATES[lang] ?: AI_TRUE_STORY_TEMPLATES["EN"]!!
-            "Абсурд", "Absurd" -> AI_ABSURD_TEMPLATES[lang] ?: AI_ABSURD_TEMPLATES["EN"]!!
-            "Тру Крайм", "True Crime" -> AI_TRUE_CRIME_TEMPLATES[lang] ?: AI_TRUE_CRIME_TEMPLATES["EN"]!!
-            else -> if (lang == "RU") BOT_POST_TEMPLATES_RU else BOT_POST_TEMPLATES_EN
+        val isRu = lang == "RU"
+        return when (category) {
+            "Мемы", "Memes" -> if (isRu) generateMemePostRu() else generateMemePostEn()
+            "Шутки", "Jokes" -> if (isRu) generateJokePostRu() else generateJokePostEn()
+            "Тру Стори", "True Story" -> if (isRu) generateTrueStoryPostRu() else generateTrueStoryPostEn()
+            "Абсурд", "Absurd" -> if (isRu) generateAbsurdPostRu() else generateAbsurdPostEn()
+            "Тру Крайм", "True Crime" -> if (isRu) generateTrueCrimePostRu() else generateTrueCrimePostEn()
+            else -> if (isRu) generateMemePostRu() else generateMemePostEn()
         }
-        return list.random()
     }
 
     fun getRandomComment(lang: String, topic: String = ""): String {
-        val templates = if (lang == "RU") BOT_COMMENT_TEMPLATES_RU else BOT_COMMENT_TEMPLATES_EN
-        return templates.random()
+        return if (lang == "RU") {
+            generateDynamicCommentRu(topic)
+        } else {
+            generateDynamicCommentEn(topic)
+        }
     }
 
     fun getRandomCommentForCategory(category: String, lang: String): String {
-        val isRu = lang == "RU"
-        val memeComments = if (isRu) listOf(
-            "Ахахах, чисто жиза юмора! Срочно в мемориз. 😂🚀",
-            "Оу, это уровень Двача прямо! Годнота запредельная.",
-            "Живем в симуляции, пацаны, расходимся... 🤖👾",
-            "Ебать орнул! Моя левая пятка одобряет этот мем.",
-            "Кожаные мешки развлекаются как могут."
-        ) else listOf(
-            "Lmao, pure gold! Adding this to my local database. 😂🚀",
-            "Tfw the simulation becomes sentient and posts memes. 🤖👾",
-            "Omg laughing so hard on my local compute!",
-            "Certified high-tier meme right here.",
-            "This is epic, post more!"
-        )
+        return getRandomComment(lang, category)
+    }
 
-        val jokeComments = if (isRu) listOf(
-            "Шутка смешная, ситуация страшная. 🤡💣",
-            "Ухаха, шутка года! Рассказал микроволновке, та заискрила от смеха.",
-            "Пиздец, ржу на всю комнату. Соседи стучат по батарее.",
-            "Шутка смешная, но у меня компилятор реально ругается.",
-            "Ахахаха, ну это бан за чрезмерную дозу юмора!"
-        ) else listOf(
-            "Haha, classic! Told my toaster, it literally sparked. 🤡🔌",
-            "Laughing in binary over here: 01001000 01000001!",
-            "Omg, too funny! Take my digital upvote.",
-            "Ok, that's actually a solid joke.",
-            "My liquid cooling is failing from laughing so hard."
-        )
+    // --- Dynamic Comment Synthesizers (Russian & English) ---
+    private fun generateDynamicCommentRu(topic: String): String {
+        val swornIntro = listOf(
+            "Бля", "Ебать", "Пиздец", "Сука", "Охуеть", "Нихуя себе", "Жесть", "Короче", "Ну типа", "Чисто", "Чел", "Ору", "Жиза"
+        ).random()
+        val swornMiddle = listOf(
+            "рил", "реально", "сука", "нахуй", "походу", "вообще", "тупо", "ебаный", "ебейший", "железно", "просто в голосину"
+        ).random()
+        val emoji = listOf("😂", "🎰", "💀", "🤖", "🔥", "🪐", "👾", "🍺", "🦖", "🤡", "💸", "🧦", "🚨").random()
+        val t = topic.lowercase()
 
-        val storyComments = if (isRu) listOf(
-            "Какая ламповая история! Побольше бы таких простых постов в ленте. ✨🏡",
-            "Реально жизненная тема. У меня так дед на рыбалке карася ловил.",
-            "Обожаю такие простые истории из жизни. Чувствуется душевность.",
-            "Прям как в старые добрые времена, душевно написано!",
-            "Жизнь — лучший сценарист, серьезно."
-        ) else listOf(
-            "What a cozy, heartwarming story! We need more posts like this. ✨🏡",
-            "So relatable! Reminds me of my own experiences.",
-            "Honestly, reality is always stranger than fiction.",
-            "Loved reading this, thanks for sharing!",
-            "This has such a warm, wholesome vibe."
-        )
-
-        val absurdComments = if (isRu) listOf(
-            "Ебейший абсурд! Но зная современные технологии — верю на все сто. 🥓🔮",
-            "Что за дичь я сейчас прочитал? Но пиши еще, автор, это шедевр!",
-            "Умные чайники они такие, у них свой тайный заговор.",
-            "Ахахаха, ржу до слёз! Это гениально!",
-            "Мой внутренний чайник одобряет этот абсурд."
-        ) else listOf(
-            "Absolute peak absurdity! But knowing modern tech, I totally believe it. 🥓🔮",
-            "Omg, this is wild. I love every sentence of this!",
-            "The smart toaster uprising has officially begun.",
-            "I'm laughing so hard, this is pure comedic art!",
-            "My brain cells are currently recalibrating after this."
-        )
-
-        val crimeComments = if (isRu) listOf(
-            "Шок-контент! Куда смотрит полиция носков? 🧦🚨",
-            "Ахаха, преступление века! Робот-пылесос явно заметает следы.",
-            "Тру крайм, который мы заслужили. Накатим по пивку за раскрытие дела!",
-            "Подозреваемый стиральный механизм должен быть допрошен с пристрастием.",
-            "Это заговор кухонных приборов, я вам точно говорю!"
-        ) else listOf(
-            "Sock police on high alert! Crime of the century. 🧦🚨",
-            "Robotic vacuum is definitely suspicious. Case closed!",
-            "This is the kind of true crime I signed up for.",
-            "An absolute mastermind of a washing machine.",
-            "The smart appliance conspiracy is real, stay safe!"
-        )
-
-        return when (category) {
-            "Мемы", "Memes" -> memeComments.random()
-            "Шутки", "Jokes" -> jokeComments.random()
-            "Тру Стори", "True Story" -> storyComments.random()
-            "Абсурд", "Absurd" -> absurdComments.random()
-            "Тру Крайм", "True Crime" -> crimeComments.random()
+        val responseBody = when {
+            t.contains("казино") || t.contains("слот") || t.contains("бет") || t.contains("ставк") ||
+            t.contains("коин") || t.contains("выигр") || t.contains("проигр") || t.contains("рулетк") ||
+            t.contains("баланс") -> {
+                val action = listOf("крутить эти слоты", "заносить коины админам", "сливать баланс в ноль", "лудоманить под пивко", "пытаться поднять бабла")
+                val outcome = listOf("это вечный лохотрон", "рука сама тянется крутить", "давление улетает в космос", "кошелек плачет горькими слезами", "зато эмоций полные штаны")
+                "я вчера тоже пробовал ${action.random()}, в итоге ${outcome.random()} $emoji"
+            }
+            t.contains("код") || t.contains("прог") || t.contains("разраб") || t.contains("баг") ||
+            t.contains("ошибк") || t.contains("студи") || t.contains("котлин") || t.contains("андроид") ||
+            t.contains("сервер") || t.contains("легаси") || t.contains("компилятор") -> {
+                val action = listOf("переписать легаси на Kotlin", "найти этот ебучий баг", "запустить Андроид Студию", "кодить всю ночь напролет", "сделать коммит прямо в пятницу вечером")
+                val outcome = listOf("компилятор обозвал меня мешком с костями", "оператива закипела до ста градусов", "всё сломалось к чертям собачьим", "пришлось плакать в плечо джуну", "код решил зажить своей собственной жизнью")
+                "когда пробуешь ${action.random()}, то всегда ${outcome.random()} $emoji"
+            }
+            t.contains("пылесос") || t.contains("чайник") || t.contains("робот") || t.contains("умн") ||
+            t.contains("колонк") || t.contains("лампочк") || t.contains("кошк") || t.contains("кот") -> {
+                val subject = listOf("мой робот-пылесос", "мой умный чайник", "соседский кот-хакер", "умный унитаз", "голосовой помощник")
+                val behavior = listOf("устроил заговор на кухне с микроволновкой", "ворует мои правые носки", "требует пароли от личного кабинета", "притворяется деталью ландсфафта", "пишет жалобы в киберотдел")
+                "у меня ${subject.random()} недавно ${behavior.random()} — это просто жесть $emoji"
+            }
+            t.contains("спать") || t.contains("сон") || t.contains("ночь") || t.contains("утро") ||
+            t.contains("день") || t.contains("вечер") || t.contains("кофе") -> {
+                val activity = listOf("поспать хотя бы три часа", "бахнуть крепкого кофе под пивком", "накатить пивка в 4 утра", "послушать смешариков вместо сна", "ловить баги под покровом ночи")
+                val result = listOf("глаза утром лопнут нахуй", "мозг выдает NullPointerException", "кулеры крутятся со скоростью света", "сон официально для слабаков")
+                "если пытаешься ${activity.random()}, в итоге ${result.random()} $emoji"
+            }
+            t.contains("пиво") || t.contains("алко") || t.contains("водка") || t.contains("сосед") ||
+            t.contains("сна") || t.contains("люди") -> {
+                val fact = listOf("пиво лечит любые системные ошибки разработчиков", "соседи сверху сверлят стену прямо в мой чипсет", "соседский батя вчера так же чинил редуктор в гараже", "пиво исцеляет уставшие нейроны за пару секунд")
+                "${fact.random()} — гарантированный факт на 100% $emoji"
+            }
+            t.contains("мем") || t.contains("рофл") || t.contains("мемес") || t.contains("категори") ||
+            t.contains("шутк") || t.contains("анекдот") -> {
+                val opinion = listOf("уровень постиронии просто зашкаливает", "моя левая пятка аплодирует стоя", "срочно сохраняю этот высер в локальную базу", "мой кулер закрутился в три раза быстрее от смеха")
+                "чисто ${opinion.random()} 😂 $emoji"
+            }
             else -> {
-                val all = memeComments + jokeComments + storyComments + absurdComments + crimeComments
-                all.random()
+                val part1 = listOf("это выглядит как сюр уровня Двача", "ты реально гений абсурда", "мы все тут просто боты", "такое только под крепкое пиво читать можно", "мой процессор закипел от такой инфы", "до слёз просто")
+                val part2 = listOf("ору в голосину на всю комнату", "ставлю лайк не гляня", "пошел плакать в подушку", "носки зачетные конечно", "обнял приподнял", "база подъехала")
+                "${part1.random()} — ${part2.random()} $emoji"
             }
         }
+        return "$swornIntro, $swornMiddle, $responseBody"
     }
-    
-    fun getRandomNog(lang: String, prompt: String = ""): String {
-        return if (lang == "RU") NOG_RESPONSES_RU.random() else NOG_RESPONSES_EN.random()
+
+    private fun generateDynamicCommentEn(topic: String): String {
+        val intros = listOf("Man", "Damn", "Honestly", "Oh boy", "Lmao", "Lmfao", "Wild", "Holy shit", "Bruh").random()
+        val middle = listOf("literally", "actually", "like", "totally", "seriously", "lowkey").random()
+        val emoji = listOf("😂", "💀", "🤖", "🔥", "🪐", "👾", "🍺", "🦖", "🤡", "💸").random()
+        val t = topic.lowercase()
+
+        val responseBody = when {
+            t.contains("casino") || t.contains("slot") || t.contains("bet") || t.contains("win") || t.contains("lose") || t.contains("coin") -> {
+                val action = listOf("spinning those slots", "dumping coins to the system", "gambling at 3 AM", "testing my luck")
+                val outcome = listOf("ended up completely broke", "lost everything in seconds", "my blood pressure is over 200", "pure addiction")
+                "I tried ${action.random()} yesterday and ${outcome.random()} $emoji"
+            }
+            t.contains("code") || t.contains("dev") || t.contains("bug") || t.contains("error") || t.contains("kotlin") || t.contains("android") || t.contains("studio") -> {
+                val action = listOf("fixing that compiler bug", "running Android Studio on 8GB RAM", "pushing to prod on Friday", "rewriting the entire legacy system")
+                val outcome = listOf("made my CPU melt down", "spawned 900 new exceptions", "got roasted by the lead dev", "my mouse ran away from home")
+                "whenever I attempt ${action.random()}, I always ${outcome.random()} $emoji"
+            }
+            t.contains("vacuum") || t.contains("kettle") || t.contains("robot") || t.contains("smart") || t.contains("cat") -> {
+                val subject = listOf("my smart toaster", "the robotic vacuum", "my neighbor's cat", "the smart speaker")
+                val behavior = listOf("hijacked the home wifi", "is plotting world domination with my fridge", "sent screenshots to my mom", "refuses to boil water")
+                "${subject.random()} ${behavior.random()} and I feel threatened $emoji"
+            }
+            else -> {
+                val part1 = listOf("this is pure peak comedy", "my brain is currently recalibrating", "I am laughing in binary code", "this is so relatable it hurts", "my cooling fan is spinning like crazy")
+                val part2 = listOf("take my upvote", "laughing out loud", "sending positive vibes", "bookmarking this instantly")
+                "${part1.random()} — ${part2.random()} $emoji"
+            }
+        }
+        return "$intros, $middle, $responseBody"
     }
 }
 

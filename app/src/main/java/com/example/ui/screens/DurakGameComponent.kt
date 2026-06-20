@@ -567,14 +567,15 @@ fun DurakGameComponent(
     }
     
     fun startDurakGame() {
-        if (isCasinoMode && userCoins < betAmount) {
-            durakText = if (isRu) "НЕДОСТАТОЧНО COINS" else "NOT ENOUGH COINS"
-            viewModel.vibrate(100)
-            return
-        }
-        
         if (isCasinoMode) {
-            viewModel.updateCoins(userCoins - betAmount)
+            val finalBet = betAmount.coerceIn(5, userCoins.coerceAtLeast(5))
+            betAmount = finalBet
+            if (userCoins < finalBet) {
+                durakText = if (isRu) "НЕДОСТАТОЧНО COINS" else "NOT ENOUGH COINS"
+                viewModel.vibrate(100)
+                return
+            }
+            viewModel.updateCoins(userCoins - finalBet)
         }
         viewModel.vibrate(45)
         

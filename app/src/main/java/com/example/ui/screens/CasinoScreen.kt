@@ -55,13 +55,16 @@ private fun BetAmountInput(
         onValueChange = { newValue ->
             if (newValue.isEmpty()) {
                 textValue = ""
+                onValueChange(0)
             } else {
                 val cleaned = newValue.filter { it.isDigit() }
-                if (cleaned.isNotEmpty()) {
+                if (cleaned.isNotEmpty() && cleaned.length <= 9) {
                     textValue = cleaned
                     val parsed = cleaned.toIntOrNull()
                     if (parsed != null) {
-                        val clamped = parsed.coerceIn(minLimit, maxLimit.coerceAtLeast(minLimit))
+                        // Clamp only at max balance so players can never manually input more coins than they have, 
+                        // but let them type intermediate smaller digits freely without layout snaps!
+                        val clamped = parsed.coerceIn(0, maxLimit.coerceAtLeast(0))
                         onValueChange(clamped)
                     }
                 }
@@ -429,11 +432,13 @@ fun BlackjackGame(viewModel: SocialViewModel, userCoins: Int, isRu: Boolean) {
     }
 
     fun startGame() {
-        if (userCoins < betAmount) {
+        val finalBet = betAmount.coerceIn(5, userCoins.coerceAtLeast(5))
+        betAmount = finalBet
+        if (userCoins < finalBet) {
             statusText = if (isRu) "НЕДОСТАТОЧНО МОНЕТ" else "NOT ENOUGH COINS"
             return
         }
-        viewModel.updateCoins(userCoins - betAmount)
+        viewModel.updateCoins(userCoins - finalBet)
         viewModel.vibrate(30)
         
         playerHand.clear()
@@ -760,13 +765,15 @@ fun PokerGame(viewModel: SocialViewModel, userCoins: Int, isRu: Boolean) {
     }
 
     fun startPoker() {
-        if (userCoins < betAmt) {
+        val finalBet = betAmt.coerceIn(10, userCoins.coerceAtLeast(10))
+        betAmt = finalBet
+        if (userCoins < finalBet) {
             pokerStatusText = if (isRu) "НЕДОСТАТОЧНО МОНЕТ" else "NOT ENOUGH COINS"
             return
         }
         viewModel.vibrate(40)
         cleanHands()
-        viewModel.updateCoins(userCoins - betAmt)
+        viewModel.updateCoins(userCoins - finalBet)
         
         playerHand.add(dealCard())
         playerHand.add(dealCard())
@@ -1192,11 +1199,13 @@ fun HorseRacingGame(viewModel: SocialViewModel, userCoins: Int, isRu: Boolean) {
     var raceStatusText by remember { mutableStateOf("") }
 
     fun startRace() {
-        if (userCoins < betAmount) {
+        val finalBet = betAmount.coerceIn(10, userCoins.coerceAtLeast(10))
+        betAmount = finalBet
+        if (userCoins < finalBet) {
             raceStatusText = if (isRu) "НЕДОСТАТОЧНО СРЕДСТВ" else "NOT ENOUGH DEPOSITS"
             return
         }
-        viewModel.updateCoins(userCoins - betAmount)
+        viewModel.updateCoins(userCoins - finalBet)
         viewModel.vibrate(50)
         
         // Reset progresses
@@ -2117,11 +2126,13 @@ fun SlotsGame(viewModel: SocialViewModel, userCoins: Int, isRu: Boolean) {
     var slotsStatusText by remember { mutableStateOf("") }
 
     fun processSlots() {
-        if (userCoins < betSlots) {
+        val finalBet = betSlots.coerceIn(5, userCoins.coerceAtLeast(5))
+        betSlots = finalBet
+        if (userCoins < finalBet) {
             slotsStatusText = if (isRu) "НЕДОСТАТОЧНО СРЕДСТВ" else "NOT ENOUGH DEPOSITS"
             return
         }
-        viewModel.updateCoins(userCoins - betSlots)
+        viewModel.updateCoins(userCoins - finalBet)
         viewModel.vibrate(50)
         rolling = true
         slotsStatusText = if (isRu) "БАРАБАНЫ ЗАПУЩЕНЫ..." else "CYPHER ROLLS DEPLOYED..."
