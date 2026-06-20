@@ -203,6 +203,9 @@ class SocialViewModel(application: Application) : AndroidViewModel(application) 
         _isLowEndDeviceMode.value = enabled
         val prefs = getApplication<Application>().getSharedPreferences("nog_prefs", Context.MODE_PRIVATE)
         prefs.edit().putBoolean("low_end_device_mode", enabled).apply()
+        if (enabled) {
+            toggleLocalAiEnabled(false)
+        }
     }
 
     // --- Markov Chain Mode (Марков Чейн для комментариев) ---
@@ -210,11 +213,28 @@ class SocialViewModel(application: Application) : AndroidViewModel(application) 
     val isMarkovEnabled: StateFlow<Boolean> = _isMarkovEnabled.asStateFlow()
 
     fun toggleMarkovEnabled(enabled: Boolean) {
+        if (enabled && _isLocalAiEnabled.value) return // Block if Local AI is on
         _isMarkovEnabled.value = enabled
         val prefs = getApplication<Application>().getSharedPreferences("nog_prefs", Context.MODE_PRIVATE)
         prefs.edit().putBoolean("markov_chain_enabled", enabled).apply()
         // Also sync state down to repository
         repository.setMarkovMarkovEnabled(enabled)
+    }
+
+    // --- Local AI Generation Mode (Локальный ИИ) ---
+    private val _isLocalAiEnabled = MutableStateFlow<Boolean>(false)
+    val isLocalAiEnabled: StateFlow<Boolean> = _isLocalAiEnabled.asStateFlow()
+
+    fun toggleLocalAiEnabled(enabled: Boolean) {
+        if (_isLowEndDeviceMode.value) return // Cannot turn on if low-end mode is active
+        if (enabled) {
+            // If turning on, turn off markov
+            toggleMarkovEnabled(false)
+        }
+        _isLocalAiEnabled.value = enabled
+        val prefs = getApplication<Application>().getSharedPreferences("nog_prefs", Context.MODE_PRIVATE)
+        prefs.edit().putBoolean("local_ai_enabled", enabled).apply()
+        repository.setLocalAiEnabled(enabled)
     }
 
     // --- Persistent Poker Balance ---
@@ -662,6 +682,11 @@ class SocialViewModel(application: Application) : AndroidViewModel(application) 
         _isMarkovEnabled.value = savedMarkov
         repository.setMarkovMarkovEnabled(savedMarkov)
 
+        // Load Local AI mode
+        val savedLocalAi = prefs.getBoolean("local_ai_enabled", false)
+        _isLocalAiEnabled.value = savedLocalAi
+        repository.setLocalAiEnabled(savedLocalAi)
+
         // Load unique viewed posts count
         val viewedStr = prefs.getString("viewed_post_ids_set", "") ?: ""
         _uniqueViewsCount.value = if (viewedStr.isEmpty()) 0 else viewedStr.split(",").size
@@ -802,6 +827,40 @@ class SocialViewModel(application: Application) : AndroidViewModel(application) 
                         }
                     } catch (e: Exception) {
                         Log.e(TAG, "Failed rapid tick", e)
+                    }
+                }
+            }
+        }
+
+        // Periodic Tick for special Local AI Generated Posts
+        viewModelScope.launch {
+            while (true) {
+                delay(10000L) // Check every 10s
+                if (_isLocalAiEnabled.value && Random.nextInt(100) < 10) { // 10% chance = ~1 in 10 ticks
+                    val bot = allUsers.value.filter { it.isAi }.randomOrNull() ?: continue
+                    val lang = _selectedLanguage.value
+                    val chosenCategory = listOf("Мемы", "Шутки", "Тру Стори", "Абсурд", "Тру Крайм").random()
+                    LocalNpuEngine.runLocalAiInference(viewModelScope) {
+                        viewModelScope.launch {
+                            val content = LocalAiHeuristics.getRandomPostForCategory(chosenCategory, lang)
+                            val newPost = PostEntity(
+                                authorId = bot.id,
+                                content = content,
+                                sourceName = if (lang == "RU") "Локальный ИИ" else "Local AI Engine",
+                                category = chosenCategory,
+                                trustScore = Random.nextInt(35, 101)
+                            )
+                            val insertedId = repository.insertPost(newPost)
+                            if (insertedId != -1) {
+                                val otherBots = allUsers.value.filter { it.isAi && it.id != bot.id }.shuffled()
+                                val commentCount = Random.nextInt(1, 4)
+                                for (i in 0 until commentCount.coerceAtMost(otherBots.size)) {
+                                    val commenter = otherBots[i]
+                                    val commentText = LocalAiHeuristics.getRandomCommentForCategory(chosenCategory, lang)
+                                    repository.addComment(insertedId, commenter.id, commentText)
+                                }
+                            }
+                        }
                     }
                 }
             }

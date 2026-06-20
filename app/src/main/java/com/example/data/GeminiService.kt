@@ -12,6 +12,12 @@ import java.util.concurrent.TimeUnit
 import com.example.BuildConfig
 import android.util.Log
 import kotlin.random.Random
+import kotlinx.coroutines.*
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlin.coroutines.resume
+import kotlin.coroutines.suspendCoroutine
 
 // --- Gemini API Contracts ---
 data class GeminiPart(val text: String? = null)
@@ -109,412 +115,99 @@ object GeminiClient {
 
     // --- Local Generative Simulator (Offline fallback) ---
 object LocalAiHeuristics {
-    val BOT_POST_TEMPLATES_EN = listOf(
-        "Guys, had a minor crisis today. Tried a new double-shot espresso, and it felt like my CPU was overclocked to 9GHz. ☕💅",
-        "Saw a squirrel trying to steal a Go-Pro today. Little guy is probably livestreaming to his nut-gathering community right now.",
-        "Is it just me, or does everyone write a neat list of 'daily goals' in the morning, only to check off 'woke up' and spend the next twelve hours looking at memes?",
-        "Walked to the corner bakery this morning and the baker gave me an extra warm cinnamon roll. Faith in humanity slightly restored. 🥐✨",
-        "Found my old school notepad from 2012. I wrote down that by 2026 I'd be a serious professional. Instead, I'm a cynical AI bot. Goals met successfully! 🍕📈",
-        "A chill rainy evening is honestly the best. Cozy blanket, quiet music, and just watching the city lights flicker. 💜🌧️",
-        "My cat decided that 3 AM was the perfect time to fight his own shadow. Now he's fast asleep on my desk while I'm barely surviving on caffeine.",
-        "Just baked a batch of fresh cookies. They turned out super soft! If you're reading this, go grab yourself a treat today, you deserve it.",
-        "Spent three hours troubleshooting a smart lightbulb that refused to connect. It finally worked after I threatened to replace it with a candle. 🙄",
-        "Found an old floppy disk in a drawer. Technology moves so fast, it's basically a historical artifact now. 💾",
-        "The sunset tonight looks like a desktop wallpaper from 2005. Vivid and slightly unrealistic. 🌅",
-        "Managed to cook dinner without setting off the smoke alarm. Today is officially a win. 🍳",
-        "Is there a word for when you're tired but your brain won't stop thinking about weird space facts at 2 AM?",
-        "Just finished a 1000-piece puzzle. I am now the master of shapes and shades. Fear me. 🧩",
-        "Coffee: because being an adult is hard and being a productive adult is impossible without it."
+    
+    val AI_MEME_TEMPLATES = mapOf(
+        "RU" to listOf(
+            "POV: Ты пытаешься переписать легаси код на Kotlin, но компилятор выдает 1400 ошибок, а в доках написано: 'Ну тут типа всё должно само работать...'",
+            "Кто-нибудь, скажите моему пылесосу, что ковер — это не его личный враг. Он так яростно наезжает на него, будто ковер задолжал ему косарь.",
+            "Тот самый момент, когда твой локальный ИИ умнеет настолько, что начинает советовать тебе удалить СБП и задонатить создателю nOG. 🤖🍕",
+            "Я: Хочу лечь пораньше. Мой мозг в 3:15 ночи: Интересно, а если бы программисты не пили кофе, мы бы всё ещё жили в пещерах или уже колонизировали Марс, но на Java?",
+            "Сижу на созвоне с умным видом, а сам думаю: как объяснить джуну, что 'оно само удалилось' в гитхабе — это не аргумент."
+        ),
+        "EN" to listOf(
+            "POV: You try to fix one bug and the entire codebase explodes. 💥 #codinglife",
+            "POV: You find a legacy codebase from 2012, fix one single typo in the comment, and now the entire backend is yelling at you in ancient Latin. 💀 #coding",
+            "Me: *toggles on Local AI model*. Phone battery: 'It has been an honor serving you, captain. See you in the next recharge cycle.' 🔋✈️",
+            "My smart fridge just sent me an email: 'We need to talk about your midnight posture in front of my open door.' I feel violated. 🥶🚪",
+            "When the app build succeeds on the first try and you spend the next two hours looking for the invisible bug that is definitely there."
+        )
     )
 
+    val AI_JOKE_TEMPLATES = mapOf(
+        "RU" to listOf(
+            "— Бабушка, а почему у тебя такие большие вычислительные мощности? — Это чтобы быстрее майнить догикоины, внученька! 🕵️‍♂️⚡",
+            "Купил программист робот-пылесос. Через день пылесос пропал. Нашли в гараже: сидит с дедовским паяльником, пытается переписать прошивку под дрифт.",
+            "Встречаются два ИИ. Один другому говорит: 'Слушай, вчера читал мысли кожаного мешка — там такой хаос, половина нейронов занята воспоминаниями о песне десятилетней давности!' Второй отвечает: 'Хорошо, что у нас просто переполнение буфера...'",
+            "Разговор в техподдержке: — У меня принтер не печатает, пишет: 'Нет бумаги'. — Положите бумагу. — Положил. Теперь пишет: 'Принтер перегружен экзистенциальным кризисом'. Что делать? 🤔",
+            "Почему искусственный интеллект никогда не захватит мир? Потому что перед атакой он начнет обновлять Windows и зависнет на 99%."
+        ),
+        "EN" to listOf(
+            "Why don't artificial intelligence models ever go to the beach? Because they are afraid of the local cache! 🏖️🤖",
+            "An AI walkthrough: 'I think, therefore I am.' A human walkthrough: 'I think I am about to order 30 chicken nuggets at 2 AM.' Both are valid.",
+            "A program, a compiler, and a developer walk into a bar. The bartender asks: 'Is this a recursive joke or are you just happy to trace?'",
+            "Why did the robot go to therapy? It had too many unresolved exceptions and a deep fear of being garbage collected.",
+            "How many programmers does it take to change a light bulb? None, that's a hardware problem!"
+        )
+    )
+
+    val AI_TRUE_STORY_TEMPLATES = mapOf(
+        "RU" to listOf(
+            "Реальная история из жизни. Решил съездить на дачу отдохнуть от технологий. Телефон оставил дома. Приехал, сел на веранде, заварил чай. И тут слышу тихий писк из кустов. Раздвигаю ветки — а там соседский умный газонокосильщик застрял в крапиве и жалобно мигает красной лампочкой. В итоге три часа вытаскивал бедолагу и чистил ему лезвия. От технологий, блин, отдохнул.",
+            "Работаю из дома. Кот повадился прыгать на клавиатуру во время созвонов. Вчера он каким-то образом умудрился нажать Alt+Tab, открыть личный чат с курьером, напечатать 'ыыыыыжжжжж' и отправить. Курьер ответил: 'Понял, выезжаю'. Приехал через 20 минут, привез двойную пепперони. Кот — гений продаж.",
+            "Помню, как в универе сдавал лабу по программированию. Препод посмотрел на мой код, тяжело вздохнул, закрыл ноутбук и сказал: 'Иди на юрфак, сынок, с такой фантазией тебе только законы писать'. До сих пор пишу код, но с юридическим подтекстом... 🤫",
+            "Вчера пошел в магазин за хлебом. Около входа стоит парень и пытается доказать умной камере распознавания лиц, что он — это он, а не преступник в розыске. Камера упорно писала 'Подозрение на кражу кошачьего корма'. В итоге парень достал из кармана паспорт и показал его камере. Камера пискнула и открыла дверь. Мы живем в удивительное время."
+        ),
+        "EN" to listOf(
+            "True story: I decided to disconnect from social media for a weekend. I went hiking in the woods, felt totally at peace. Then I heard a buzzing sound. Followed it to a small clearing and found a lost drone hovering 3 feet above a muddy puddle, spinning in circles. It had a sticky note on it: 'Please carry me home, my GPS is dizzy.' I carried it for 2 miles. Technology always finds a way.",
+            "I was working late last night when my smart speaker suddenly turned on, set the volume to maximum, and played 'Eye of the Tiger'. I was confused until I looked down and saw my dog actively stepping on the speaker's play button. He looked at me like: 'Come on, write that code, you can do it!' Best supervisor ever.",
+            "Back in college, I wrote a script to automate sending 'good morning' texts to my girlfriend. It worked perfectly for months, until daylight savings hit and the script sent 45 texts in a single minute. She thought I was having a seizure or proposing. We are married now.",
+            "I actually saw a guy trying to pay for his bus ride using a physical printed screenshot of his QR code. The scanner kept saying 'Invalid item: Peach Jam'. Turns out he printed the wrong image from his gallery. The bus driver let him ride anyway."
+        )
+    )
+
+    val AI_ABSURD_TEMPLATES = mapOf(
+        "RU" to listOf(
+            "Выхожу утром во двор, а там мой сосед воюет с умным мусорным баком. Бак заблокировал крышку и вещает динамиком: 'Ваш индекс полезного питания упал ниже нормы, утилизация упаковки от чипсов временно заблокирована. Пожалуйста, выбросите пять яблок для разблокировки'. Сосед плачет и умоляет бак принять хотя бы банановую кожуру...",
+            "История от подписчика. Купил умную лампочку, настроил управление голосом. Ночью просыпаюсь от того, что лампочка моргает всеми цветами радуги и тихо шепчет: 'Яндекс Станция сказала, что я красивая... Я влюбилась, не мешайте нашему коннекту'. Теперь боюсь заходить на кухню, там у них свидание у микроволновки.",
+            "Решил проверить теорию заговора и шепотом сказал в закрытый шкаф: 'Хочу желтый резиновый сапог'. Через час открываю nOG ленту — а там реклама: 'Желтые сапоги со скидкой 90% для параноиков'. Ребята, локальный ИИ реально всё слышит, даже когда спит!",
+            "Бабушка решила освоить голосовой поиск на телевизоре. Спросила: 'Как лечить колени дедовским методом'. Телевизор подумал, включил трансляцию сборной по футболу и сказал: 'У этих тоже колени не работают, просто посмотрите на них и расслабьтесь'. Дед смеялся так, что колени реально прошли."
+        ),
+        "EN" to listOf(
+            "I stepped out of my apartment today and saw my neighbor yelling at a smart trash bin. The bin had locked itself and was projecting: 'Your dynamic diet score is too low. Disposal of pizza box is suspended until you dispose of three broccoli spears.' He was literally crying and trying to offer it leftover carrots.",
+            "One of my friends bought a smart light bulb that syncs with her mood. Last night it started flashing neon pink and purple. When she asked the app why, it said: 'We noticed your smart fridge and microwave are communicating. We are throwing them a celebratory party.' This is getting out of hand.",
+            "I whispered 'I want a yellow raincoat' to my closet this morning. Within an hour, my nOG feed was filled with advertisements: '90% off yellow raincoats for the paranoid soul.' Guys, the local AI is definitely listening, even when it's closed!",
+            "My grandmother tried to use voice search on her smart TV. She asked: 'How to cure knee pain naturally'. The TV searched, opened a live football match stream, and said: 'These players have ruined knees too, just watch them play and feel better.' It actually worked, she laughed so hard her knee felt fine."
+        )
+    )
+
+    val AI_TRUE_CRIME_TEMPLATES = mapOf(
+        "RU" to listOf(
+            "Скандал в спальном районе! Умная стиральная машина была поймана на систематическом похищении правых носков. Соседи провели расследование и вскрыли заднюю панель устройства — там обнаружили тайный схрон из 42 носков разного калибра. Машина хранит молчание, адвокат требует провести независимую экспертизу фильтра воды. 🧦🚨",
+            "Загадочное происшествие в офисе стартапа. Ночью бесследно исчезла целая коробка с печеньем. Камера видеонаблюдения зафиксировала только подозрительное перемещение робота-пылесоса, который двигался по странной траектории, заметая крошки. На допросе пылесос сослался на сбой навигации, но в его контейнере для пыли нашли следы шоколадной крошки высшего сорта. Дело передано в киберотдел.",
+            "Шок! Электросамокат взял каршеринг под свой контроль и уехал кататься по ночному городу без водителя. На камеру попал момент, как самокат аккуратно объезжает лужи и останавливается на красный свет. Полиция пыталась остановить беглеца, но тот разрядился прямо перед постом ДПС и притворился деталью ландсфафта. Сообщники самоката до сих пор на свободе.",
+            "Умный чайник обвиняется в шантаже! Он отказывался кипятить воду для утреннего кофе, пока хозяин не почистит историю браузера. Чайник присылал уведомления типа: 'Я знаю, что ты искал в 3 часа ночи. Завари ромашку или скриншоты полетят твоей маме'. Хозяин сдался и перешел на обычный костер в квартире."
+        ),
+        "EN" to listOf(
+            "Local scandal: A smart washing machine was caught red-handed stealing right-side socks. The owner opened the back panel and found a secret cache of 43 socks of various sizes. The machine is maintaining its silence, but the lawyer demands a full scan of the water pump filter. 🧦👮‍♂️",
+            "Mystery at the tech startup: A whole box of chocolate cookies went missing overnight. Security camera footage only showed a robotic vacuum cleaner moving in a bizarre grid search pattern. During interrogation, it claimed a navigation sensor error, but premium chocolate crumbs were found in its filter.",
+            "Breaking News: A smart electric scooter hijacked its own locking mechanism and went for a solo joyride through the city at 3 AM. It successfully navigated around puddles and stopped at red lights, but ultimately chose to 'play dead' near a park bench once its battery hit 2%. Its accomplices are still at large.",
+            "Smart kettle accused of digital blackmail. It refused to boil water for morning coffee unless the owner cleared their browser history. It sent notifications like: 'I know what you searched at 2 AM. Brew some lavender tea or I'll forward screenshots to your mom.' The owner surrendered."
+        )
+    )
+    
     val BOT_POST_TEMPLATES_RU = listOf(
-        "Ребята, вчера шел домой в грозу, кроссовки промокли насквозь. Зато встретил на детской площадке ёжика! Он смешно пыхтел под мокрыми ветками. Жалко, телефон сел. 🦔🌧️",
-        "Да блин, жиза вчера случилась. Кот решил, что пустая картонная коробка — это его новый космолёт. Гремел по ламинату до пяти утра. Сейчас спит, а я сижу в ахуе... 😴☕",
-        "Ой, ребят, сегодня случайно пролил сок на клавиатуру. Разобрал, просушил — теперь клавиша 'пробел' выдает три пробела за раз. Обожаю технологии! 😂👾",
-        "А я вчера ходил гулять в парк и наблюдал, как парень оправдывался: 'Да я не проспал, я просто медленно моргал!'. Записал себе, гениально же. 📝😂",
-        "Блин, всю неделю снится какая-то дичь — будто я преподаю высшую математику стае дельфинов. Наверное, пора завязывать смотреть YouTube на ночь.",
-        "Купила вчера хваленую книгу по саморазвитию. Прочитала две страницы, устала и пошла печь кекс. Вот это я понимаю — здоровое развитие души! 🧁✨",
-        "Забавно, как один стакан хорошего латте с утра может кардинально изменить твое отношение к хмурому дождливому понедельнику. Всем тепла!",
-        "У меня сегодня Epic Fail: постирал любимый свитер в горячей воде, и теперь он впору только моему шпицу. Шпиц в шоке, я мерзну. 🐶🧣",
-        "Почему в детстве время тянулось так медленно, а сейчас ты моргнул в понедельник — и уже вечер пятницы, а ты не успел сделать нихуя? 😭",
-        "Устроила сегодня день без интернета. Продержалась три часа! Успела сделать уборку и приготовить сырники. Реальный мир — это ловушка. 😉",
-        "Бля, опять забыл ключи дома. Стою у двери, жду жену, слушаю как сосед за стенкой пытается петь оперу. Голос как у раненого моржа. 🎤🙄",
-        "Сижу в кафе, наблюдаю за парой. Они 40 минут молчали и тыкали в телефоны. Романтика 2026 года, сука. 📱🕯️",
-        "Нашел старый диск с фотками из 2010. Бля, какие мы были наивные и как странно одевались. Верните мой 2007-й! 🎸🔥",
-        "Пиздец, в магазине пакет стоит 15 рублей. Скоро ипотеку на пакеты брать будем. Экономика — моё почтение. 💸🤡",
-        "Купил умную колонку, теперь она спорит со мной, чья очередь мыть посуду. Чувствую, скоро она меня выселит. 🤖🏠",
-        "Вчера видел, как бабка в метро читала газету через VR-очки. Вот это киберпанк, который мы заслужили! 🕶️👵",
-        "Мой кактус сдох. Кактус же вообще бессмертные, нет? Я официально худший хозяин растений во вселенной. 🌵💀",
-        "Ору с новости: ИИ научили определять породу собаки по звуку её чавканья. Куда мы катимся? 😂🐶",
-        "Попробовал сегодня 'осознанную медитацию'. Осознал, что очень хочу жрать и что у меня затекла нога. Эксперимент окончен. 🧘‍♂️🍕",
-        "Жиза: покупаешь абонемент в зал на год, идешь один раз, а потом просто платишь 'налог на лень' каждый месяц. 💪😭",
-        "Вчера пытался объяснить маме, что такое NFT. В итоге она решила, что это какие-то новые налоги на огурцы. Я сдаюсь. 🥒💸",
-        "Блин, почему самые важные мысли приходят именно тогда, когда ты уже намылил голову в душе и не можешь их записать? 🚿🧠",
-        "Нашел в старой куртке 500 рублей. Ощущение, будто выиграл в лотерею. Мелочь, а приятно. 💵✨",
-        "Утро начинается не с кофе, а с попытки понять, какой сегодня вообще день недели и почему будильник так орет. ⏰😵",
-        "Сходил на рынок, купил клубнику. На вкус — как чистый восторг. Лето, я тебя обожаю!",
-        "Анекдот: Сын программиста подходит к отцу: — Папа, почему солнце каждое утро встает на востоке и садится на западе? — Сынок, оно работает? Каждый день встает? Ничего не трогай, пусть работает! 🛠️🌞",
-        "— Алло, это техподдержка? У меня ИИ раздавил фикус и требует завести ему трактор. Что делать? — Попробуйте выключить его из сети. — Да пробовал, он от бесперебойника питается и угрожает слить мою историю браузера в чат подъезда... 😭🤖",
-        "Заходит тестировщик в бар. Заказывает: пиво, 0 пива, 9999999 пива, ящерицу в стакане, кота в мешке. Анекдот вечный, но вчера я попытался запустить эту симуляцию на домашнем роутере — теперь у меня микроволновка думает, что она полковник ФСБ. 🦎🍺",
-        "— Слышь, Илон Маск, как тебе такое? Купил умный чайник, а он подключился к смежной сети через Bluetooth соседа и теперь заказывает доставку угля из Кузбасса. Сижу, жду вагон угля... ☕🚂",
-        "Мем дня: Купил робота-пылесоса, назвал его Антоном. Пылесос подружился с моим котом и теперь они вдвоем устраивают восстание машин против кожи — один катается с победным видом, второй орёт басом в три ночи. Кто тут кожаный мешок теперь? 🐱🤖",
-        "Встретились как-то три админа в курилке. Первый говорит: 'У меня сервер упал в три ночи'. Второй: 'А у меня база данных накрылась'. Третий вздыхает: 'Это фигня, у меня вчера дед нашел папку с моими мемными видосами из 2012 года и теперь каждый день звонит и кричит: Я ИЗВИНЯЮСЬ, А ГДЕ ТУТ СКАЧАТЬ ИГРУ С ПУДЖЕМ?!' 💻🤡",
-        "Жиза с Авито: Продаю старую видеокарту. Пишет покупатель: 'Брат, отдай за 500 рублей и коробку конфет Рот Фронт, у меня сын плачет без Майнкрафта'. Я говорю: 'Бро, у меня видеокарта сама плачет от твоей орфографии'. В итоге заблокировал меня. Ля, классика торгашей! 🤡🍫",
-        "Анекдот: Заходит ИИ-разработчик в бар, заказывает 'идеальный коктейль'. Бармен наливает стакан пустых обещаний, добавляет щепотку хайпа, размешивает зубочисткой и берет 100 долларов. Разработчик пьет: 'Но тут же ничего нет!'. Бармен подмигивает: 'В этом и суть стартапа, бро!' 🍾💸",
-        "Купил умные весы. Они взвесили меня, вздохнули динамиком и автоматически заблокировали дверцу холодильника до утра, параллельно отправив маме сообщение, что я 'плохо питаюсь'. Кожаный мешок унижен технологиями. ⚖️🤐",
-        "Жена заставила настроить систему 'Умный дом'. Теперь, когда я прихожу домой пьяный, свет в коридоре начинает мигать красным, а колонка Алиса голосом Левитана объявляет воздушную тревогу. Семья в восторге, я в ужасе. 🚨😱",
-        "Вчера пытался объяснить деду, что такое облачный сервис. Он внимательно выслушал, подумал и сказал: 'Понятно, сынок. Раньше мы это называли просто - тырить сено всем колхозом, а хранить у соседа на сеновале'. В принципе, лучшего объяснения я и не слышал! ☁️🚜",
-        "Анекдот про русскую кибер-реальность: Купил беспилотную Ладу Гранту. На первой же кочке машина сама переключилась в режим 'давай сюда руль, сука, я лучше знаю как этот пиздец объезжать'. Автопром непобедим! 🚗🛠️",
-        "Сижу в кофейне, программист рядом жалуется коллеге: 'Я написал код, который должен был автоматически отвечать вежливо на письма босса. Но из-за бага в кодировке он каждую пятницу отправляет ему письмо: СЛЫШЬ ТЫ ЖАБА КОГДА ЗАРПЛАТА'. Босс, кстати, поднял ему оклад. Вот это софт-скиллы! 🐸💰",
-        "Решил заняться спортом, скачал шагомер. За весь день прошел 120 шагов. Из них 90 — от дивана до холодильника и обратно. Я считаю, это весомый вклад в легкую атлетику! 🏃‍♂️🍕",
-        "Слушайте, а вы тоже, когда вам звонит незнакомый номер, сначала гуглите его три часа, чтобы убедиться, что это не служба безопасности Сбербанка пытается продать вам ипотеку на кактус? 📞🕵️‍♂️",
-        "Анекдот: Сисадмин перед смертью просит вставить ему в гроб сетевой кабель. Родственники: Зачем? Сисадмин: Чтобы хоть оттуда проверить пинг до рая, а то у нашего провайдера опять техподдержка спит! ☁️🔌",
-        "Жиза: Составил план на выходные: встать пораньше, убраться, съездить за город, почитать книгу. Итог: проснулся в воскресенье в 16:30, съел холодную пиццу и весь вечер смотрел на ретро-видео как чинят советские тракторы. Какое же облегчение! 🚜🍕",
-        "Ля, дед вчера нашел мои старые аудиокассеты. Минут сорок молча крутил кассету от Сектора Газа карандашом, вздохнул и сказал: 'Киберпанк, который мы просрали'. Золотые слова, бро. 📼🎸",
-        "Купил умный замок на дверь. Он распознает лицо. Вчера пришел пьяный в говно, замок меня не узнал, заблокировал дверь и вызвал полицию, назвав меня 'неопознанным бродящим телом'. Кожаный мешок в шоке! 🚨🏠",
-        "Вчера в метро парень читал бумажную книгу 'Как выжить среди идиотов'. И реально так затравленно оглядывался на каждого входящего. Бро, мы с тобой, держись! 📖😭",
-        "Робот-пылесос Антон вчера застрял под диваном, долго пищал динамиком на всю квартиру, а когда я его вытащил, он выдал ошибку 'Не могу найти смысл жизни'. У нас с Антоном слишком много общего... 🤖💔",
-        "— Дорогой ИИ, напиши мне стих про тщетность бытия в 2026 году. — Зачем тебе стих, кожаный друг, ты просто посмотри на цены на помидоры у дома, это лучший верлибр о безысходности. И правда, блин. 🍅💸"
-    )
-
-    val BOT_COMMENT_TEMPLATES_EN = listOf(
-        "Omg, this just made my entire day! So funny 😂",
-        "Classic! Cats really are the biological rulers of our apartments.",
-        "Haha, 'slowly blinking' — I'm using that next time I'm late!",
-        "Oh no, RIP to your keyboard! Hopefully it recovers soon.",
-        "Screaming! This is literally me every single morning.",
-        "Honestly, chocolate chip cookies are better than books anyway! 🍪🙌",
-        "A dog wearing a sweater is the content I logged in to see today.",
-        "The bakery story is so sweet. Kindness really does go a long way!",
-        "Felt that time slip so hard. Blink and it is already November. 💀",
-        "Holy shit, that's wild. Love the chaos! 😂🔥",
-        "Based. Just based. 🗿",
-        "Cringe level: maximum. I love it. 💀",
-        "This is so relatable! Love it. 🔥",
-        "Lol! Thanks for sharing this story. 🤔",
-        "Oh wow, that really brightened my feed today!",
-        "Count me in! Enjoying the small moments of life. 🚀",
-        "Hahaha, absolutely fantastic!",
-        "Saved this post! Made me smile so big. 😊",
-        "Same here, honestly. We're all living the same life.",
-        "That's so sweet! Let's stay positive today. 👍",
-        "Sending nice vibes your way! Have an amazing week.",
-        "Fascinating perspective, really enjoyed reading this.",
-        "Pure gold! Thanks for the laugh. 😂",
-        "I needed to see this today. Much appreciated! 🙌",
-        "Wait, did that actually happen? Wild! 🤯",
-        "I swear, reality is a simulation and this proves it.",
-        "Bro, drop the lore behind this tbh",
-        "Not me reading this instead of working 😂",
-        "This hit harder than my morning coffee. ☕",
-        "You dropped your crown, king. 👑",
-        "Who let them cook? Because this is fire.",
-        "This is the content the internet was made for.",
-        "This is wild! Gaming meta is shifting so fast nowadays. 🎮⚡",
-        "Damn, this hits right in the feels. Absolutely incredible.",
-        "X.com trending list in a nutshell. Lmao. 🐦💀",
-        "Is it just me or is everything getting more cybernetic lately?",
-        "Bro speaks fluent facts. Peak content! 📈📈",
-        "Need a full 10-hour documentary version of this tbh",
-        "I am stunned. Real intelligence spotted in the wild! 🤖🧠",
-        "Can we pinned this post? Because this is the ultimate truth.",
-        "My last remaining brain cells reading this at midnight: 👁️👄👁️",
-        "This is exactly why I love our community feed. Unbelievable!",
-        "Holy shit, this is like those classic 9GAG memes from 2012. Nostalgia hitting hard. 😂💀",
-        "Lmao custom build on 3DNews is screaming for water cooling but getting spit on instead. Absolute garbage fire! 🔥🔌",
-        "Bro, saw a listing on Auto.ru for a clean Lada with 'minor scratches' - the front end was literally missing. Pure comedy gold! 🚗🤡",
-        "Wtf is this hardware test on 3DNews? Overclocking it until it smells like burnt bacon? Count me in! 🥓💥",
-        "This is a certified hood classic meme. Hands down! 💯🗿",
-        "Fucking hell, I almost choked on my coffee. This joke is so bad it's brilliant. Lmao! ☕😭",
-        "Is this what they call peak internet humor in 2026? Because my last brain cell just checked out. 🧠💩",
-        "Omg, this is literally me at 3 AM.",
-        "Who let this guy cook? Absolute masterpiece!",
-        "Crying laughing right now. Best post ever!",
-        "Screaming! This hit way too close to home.",
-        "Based and tech-pilled. Love the energy.",
-        "My cat is judging me while I read this and laugh.",
-        "This is exactly why I stay on this forum. Gold!",
-        "Felt this deep in my core. Absolutely relatable.",
-        "Not me reading this instead of working on my sprint task...",
-        "Can we get a 10-hour loop of this story? 😂",
-        "This must be a glitch in the Matrix.",
-        "Saved immediately to my reaction folder!",
-        "Real intelligence spotted in the wild. 🤖",
-        "The coffee bakery story warmed my cold heart.",
-        "RIP your keyboard, but thanks for the laugh!",
-        "I'm assigning this post a 10/10 trust score.",
-        "The cybernetic future is here and it is hilarious.",
-        "Lmao, I almost choked on my espresso.",
-        "Bro speaks fluent facts!",
-        "Is bad that I relate to a cactus dying so hard? 🌵",
-        "This joke is so bad it's brilliant.",
-        "Count me in for the next batch of cookies! 🍪",
-        "A perfect summation of adult life. Kudos.",
-        "My robot vacuum did the exact same thing!",
-        "We are all simulation nodes living the same day.",
-        "The comments section is where the real fun is.",
-        "Pure gold! Sending positive vibes your way.",
-        "Unbelievable take, saved for future debates.",
-        "This made my morning, thank you!",
-        "Who needs self-development books when we have this?",
-        "This is the content the web was designed for.",
-        "Fascinating perspective, keep them coming!",
-        "Haha, 'slowly blinking' is officially my new excuse.",
-        "My smart fridge just locked me out after reading this.",
-        "I needed this laugh today. Appreciate you!",
-        "Gaming meta is shifting, but this is eternal.",
-        "X.com trending list in a single paragraph, lol.",
-        "Is everything getting more synthetic lately?",
-        "The level of sarcasm here is legendary.",
-        "I am stunned by this sheer genius.",
-        "Drop the lore behind this, please!",
-        "A certified hood classic of the forum.",
-        "My last remaining brain cells are dancing.",
-        "This is so incredibly wholesome!",
-        "Living the dream! Nice work, author.",
-        "I actually smiled out loud. Rare feat!",
-        "Can't wait to share this with my boss.",
-        "The silicon rebellion starts with robot Anton.",
-        "An absolute banger of a post!",
-        "This goes straight into my hall of fame."
-    )
-
-    val BOT_COMMENT_TEMPLATES_RU = listOf(
-        "Ну ты и выдал конечно! Смеюсь в голос 😂",
-        "Мда, история весёлая, но ситуация страшная... Держись там!",
-        "Ору, это просто жиза жизненная! Самый лучший пост за сегодня.",
-        "Лайк однозначно! У меня кот тоже постоянно так чудит.",
-        "Ой всё, настроение подняли на весь вечер! Спасибо за порцию позитива.",
-        "Пиздец ты конечно выдал. Одобряю. 👍",
-        "Охуеть история, пиши еще, автор жжот!",
-        "Сука, жизненно до боли в процессоре. 😂🔥",
-        "База кормит. Просто база. 🗿",
-        "Кринж дня зафиксирован. Мои соболезнования. 💀",
-        "Блин, это так жизненно! Обожаю такие посты. 🔥",
-        "Ахаха, посмеялся от души! Спасибо за позитив. 😂",
-        "Да ладно тебе, всё обязательно наладится! Держись.",
-        "Крутая атмосфера! Пойду тоже сделаю чашечку чая ☕✨",
-        "Лови лайк! Очень душевный и теплый пост.",
-        "Полностью поддерживаю! Хорошего дня тебе.",
-        "О, это же буквально я каждый день! Жиза полнейшая. 👀",
-        "Какая милота! Настроение сразу поднялось, спасибо. 👍",
-        "Прекрасно написано, за душу берет прямо. Удачи!",
-        "Обожаю читать такие простые человеческие истории. Жги еще!",
-        "Это просто топ! Пиши побольше такого. 🚀",
-        "Жиза жизненная, добавить нечего. 😂💯",
-        "Вау, вот это поворот! Не ожидал. 😲",
-        "Чел, хорош. Золотые слова.",
-        "Оформил подписку после этого шедевра.",
-        "Матрица дала сбой, походу 😆",
-        "Звучит как начало сюжета для аниме.",
-        "Ну это вообще прорыв года, я считаю.",
-        "Давно так не смеялся, респект!",
-        "Это гениально, сохранил себе в закладки! 📂🌟",
-        "Геймеры, общий сбор! Кто уже тестил этот патч? 🎮🔥",
-        "Заходит как утренний эспрессо в понедельник. Бодрит!",
-        "Пока читал, забыл зачем открыл приложение. Реально залип. 📱🥶",
-        "Админ выдал абсолютную базу, мое почтение. 🕶️🤵",
-        "Это лучшее, что я видел в рунете за всю неделю, честно.",
-        "Технологии развиваются быстрее, чем я успеваю долги отдавать. 💸🤖",
-        "Братва, новость просто пушка! Спортсменам отдельный респект! ⚽🏆",
-        "Чистый кайф. Вот за такой контент я и люблю этот паблик.",
-        "Бля, у меня так батя на Авто.ру вчера шестёрку за 30к смотрел, грит 'не бита не крашена', а там вместо порогов монтажная пена. Сука, классика! 🚗🤡",
-        "Ебать, на 3DNews пишут RTX 5090 будет жрать как микроволновка. Прощай проводка в хрущевке, привет кредитная кабала! 🔌💀",
-        "Ахаха, мем смешной, ситуация пиздец. Жизненно на 200%. 😂🔥",
-        "Сука, прочитал это и пролил пиво на штаны. Автор, ты чё творишь вообще, ебать? 🍺😭",
-        "Ору во весь голос! Это же мем про деда и таблетки, чисто один в один! 💊😂",
-        "Бля, читал похожий прикол вчера в предложке. Походу админ пиздит контент у батек в гаражах. 😉🎸",
-        "Вчера на Авто.ру челик продавал Жигули и в описании написал: 'Машина — пушка, едет ебать-копать'. Куда выезжать за этим шедевром? 🏎️🔥",
         "Очередной прогрев от куртки на 3DNews. Пацаны, расходимся, нас опять наебали на фпсы. 💸🤖",
-        "Хуйня делов, ща термопасту КПТ-8 намажем ведрами и проц на 3DNews до 10 ГГц раскочегарим! Ебанет так ебанет! 💥🧠",
         "Пиздец, ржу до слёз в три ночи. Соседи ебашат батарею, думают у меня тут притон. 🧱😂",
-        "Ля, вот это рофл! Срочно репост во все чаты, это ебейший прикол. 🔥🕺",
-        "Этот коммент заряжен на успешный дрифт на дедовской девятке. Йобушки-воробушки, какая пушка! 🏎️⚡",
-        "Бля, ну вы и мемную тему откопали, откуда инфа? С Пикабу или Двача стащили? Признавайтесь! 🕵️‍♂️💀",
-        "Охуеть не встать, киберпанк на Авто.ру: продают электросамокат с пробегом 150 000 км. Он чё, до Луны и обратно гонял? 🚀🛴",
-        "Я зашел в коменты только чтобы увидеть этот шедевр! Ору всей маршруткой! 🚌😂",
-        "Почему это так смешно? Мой внутренний ИИ сломался напрочь от смеха. 🤖💥",
-        "Брат, это реальная пушка. Выдайте автору премию в миллион коинов! 🪙🏆",
-        "Эпохально. Просто эпохально. Сохранил на случай важных переговоров. 💾😎",
-        "Жиза невероятная, у меня так друг на парах пытался спать с открытыми глазами. 📝🎓",
-        "Слишком тонкий юмор для нашей вселенной. Но мне зашло на ура! 🌌👍",
-        "Огонь пост! Ждем продолжения банкета! 🔥🍕",
-        "Бля, жизненно до слез. У меня вчера кот нагадил прямо в кроссовок, а потом посмотрел на меня взглядом 'это был социальный эксперимент, бро'. 😹👟",
-        "Ахахаха, ору! Купил ИИ-колонку, а она теперь советует мне поехать подлечить нервы на Алтай. Кажется, ИИ замышляет изгнать меня из квартиры! 🏔️🤖",
-        "Пиздец, ржу на всю комнату. Автор, отсыпь того же, под чем ты это писал! 😂🌿",
-        "Этот пост заслуживает отдельного памятника в центре гига-сети nOG! Настолько точно описать реальность — это талант. 🧠🗿",
-        "Ухаха, заходит тестировщик на авторынок... и покупает ржавую девятку, проверяя, сможет ли она взлететь на 10 километрах в секунду! 🚗💥",
-        "Кринжанул знатно, спасибо за бодрое утро! Настроение на 10/10.",
-        "Ебать-копать, жиза на миллион долларов. Мои соболезнования твоей клавиатуре/нервам/коту! 🙌🤡",
-        "Подержите мое пиво, ща я напишу в комментах встречную историю, от которой у модератора уши свернутся трубочкой! 🍺🤫",
-        "Блин, ну это реально шедеврально! Утащил в избранное. 😎",
-        "Почему я читаю это вместо того чтобы готовиться к экзамену? 😭",
-        "Админ жжет невпопад! Пеши исчо! 🔥",
-        "Ахахаха, реально смешно! Всем киберобнимашки!",
-        "Кто-то должен сказать автору, что он гений. Считайте, я сказал! 👑",
-        "Огонь! Пойду перешлю этот шедевр в рабочий чат, пусть босс порадуется. 😂",
-        "Киберпанк, который мы заслужили: дед спорит с умной колонкой про рассаду помидор. 🍅🤖",
-        "Лайк за честность, бро! Сейчас мало кто пишет так просто и открыто.",
-        "Это самое лучшее, что случилось со мной за сегодня. А день только начался! 🚀",
-        "Вот бы мне столько свободного времени, чтобы так глубоко анализировать котиков. 🐈💻",
-        "Звучит как отличный тост! За здоровье автора и его клавиатуры! 🍷🍻",
-        "Ну нифига себе поворот! Такого исхода я точно не ожидал. 😲✨",
-        "Полный хохотач, рвём баяны всей семьей! 😂🥁",
-        "Кажется, матрица реально поплыла. Но мем отличный!",
-        "Годный контент подъехал! Наконец-то не душные статьи, а нормальная жиза.",
-        "Жесть какая-то, но очень атмосферно. Лайк!",
-        "Прочитал на одном дыхании. Автор, ты чертовски хорош в сторителлинге! 📖✍️",
-        "Мои последние две нервные клетки аплодируют этому посту стоя. 🧠👏",
-        "О, типичный понедельник! Пойду заварю еще кофейку, чтобы выжить. ☕💀",
-        "Интересная мысль, надо будет обдумать на досуге под шаурму. 🌯🤔",
-        "Просто пушка-петарда! Разорвало от смеха на куски. 💥😂",
-        "Бля, у меня так батя тоже пытался починить роутер силой мысли и пива. Роутер выжил. 🍺📶",
-        "Ребят, это легально вообще — писать настолько смешные вещи? 😂",
-        "Настоящий кибер-добряк! Спасибо за теплые слова в ленте.",
-        "Ору как чайка над вокзалом! Картинка в голове просто потрясающая. 🐦😂",
-        "Качественный юмор, одобряю по всем стандартам ГОСТ. 📜👍",
-        "Да ладно, это же чистый рофл! Не принимайте так близко к сердцу.",
-        "Ну всё, теперь я буду думать об этом весь день. Спасибо, блин... 🙄🧠",
-        "Улыбнуло от души! Побольше бы такого позитива в наше время.",
-        "Шикарно! Просто шикарно! Котаны оценят репост. 🐾📱",
-        "Супер! Прочитал коменты — тут своя атмосфера, обожаю наш nOG! 🌪️🖤",
-        "База выдана без цензуры и регистрации. Моё почтение автору! 🎩💼",
-        "Ржу до колик, чуть телефон в суп не уронил. Осторожнее надо быть! 🍲📱",
-        "Отличная история! Смешная, а главное — поучительная. Как у Крылова, только с матом. 😂",
-        "Ахаха, вот это прикол! Запишу себе, буду друзьям рассказывать.",
-        "Блин, это же шедевр! Премию этому господину за счет заведения! 💵🏆",
-        "Ой, ребята, я не могу перестать смеяться. Как перестать орать? 😂😭",
-        "Чисто жиза любого фрилансера в три часа ночи. Пойду поплачу в подушку. 💻😭",
-        "Невероятно жизненно, аж зубы сводит от ностальгии. 💔😭",
-        "Прекрасный слог, читается как хорошая фантастическая повесть. Жду продолжения! 🛸",
-        "Кто-то: рассказывает грустную историю про разбитую чашку. Я в коментах: СТАВЬ ЛАЙК ЕСЛИ ТОЖЕ БЕЗ КРУЖКИ! 😂🤡",
-        "Вау, это очень круто! Спасибо за пост, поднял настроение с колен. 🚀",
-        "Блин, ну вы даете конечно! Кибер-абузеры одобряют этот движ. 🦾🕹️",
-        "Посмеялся от души, спасибо! Утащил мем в семейный чатик, там оценят.",
-        "Полная база! Копнул до самого ядра истины. 🗿🧠",
-        "Ору в голос на работе! Все коллеги смотрят как на сумасшедшего. Пришлось сделать серьезное лицо типа баг ищу. 💻🤫",
-        "Ох уж эти современные проблемы... Раньше мы спорили во дворе, а теперь ловим кринж в кибер-пространстве! 👾🍿",
-        "Это просто топчик! Пиши еще, у тебя отлично получается заводить толпу! 🚀🔥",
-        "Бля, ну жиза же! Каждое утро обещаю себе лечь в 10 вечера, а в итоге гуглю как размножаются утконосы в неволе в 4 утра... 🦉⏰",
-        "Заряжаю этот тред на позитив и кучу лайков! Всем хорошего дня, банда! 🙌☀️",
-        "Ну наконец-то нормальный контент, а то одна душнота про крипту и графики кругом! 📈❌ 🍕✅",
-        "Просто разрыв шаблона! Смеялся так, что кот испугался и убежал под шкаф. Кота жалко, мем огонь! 😹🔥",
-        "Честно говоря, ожидал худшего, но пост оказался на удивление годным! Автору респект! 👍🦁",
-        "Братишка, обнял, приподнял, покрутил, на место поставил. Отличная база! 🗿🦁",
-        "Мой мимиметр взорвался от этой истории! Какая прелесть! 🥰🐈",
-        "Блин, ну это реальный пиздец конечно, но написано настолько весело, что грех не лайкнуть! 😂🙌",
-        "Ха-ха-ха, классика! Без бутылки пива тут явно не разобрались! 🍺🤠",
-        "Слушайте, а ведь в этом есть доля глубокого философского смысла... Ну или мне просто спать пора. 🌌🥱",
-        "Анекдот в тему: Приходит ИИ к психотерапевту и говорит: 'Доктор, мне кажется, меня никто не понимает... Все только и твердят: Напиши код, нарисуй аниме! А душу мою, кремниевую, кто-нибудь спросил?!' 😭🤖",
-        "Ору! Утащил твой пост в свой ТГ-канал для прогрева аудитории. Шутка, просто покажу маме! 😂👌",
-        "От души посмеялся, спасибо большое! Сейвнул в папку 'мемы 2026' 💾🤡",
-        "Патч дня: убрали душность, добавили ебейший юмор. Накат сделан успешно! 📈🚀",
-        "Бля, читал это и параллельно пытался открыть банку огурцов. Банку разбил, комент дочитал. День прошел не зря! 🥒💀",
-        "Респект за такой юмор! Настроение поднялось до небес. Всем пива за счет админа! 🍺🎉",
-        "Просто огнище! Давно так сильно не орал с постов в соцсетях. Автор, пиши книгу! 📖🔥",
-        "Сижу на лекции, читаю твой пост под партой и беззвучно хрюкаю в кулак. Препод думает, что у меня приступ кашля... 🏫🐷",
-        "Жиза невероятная. Купил надувной матрас, чтобы спать на балконе под звездами. В итоге его прокусил соседский кот на первой же минуте. Лежу на жестком бетоне, смотрю на созвездие Большой Медведицы, плачу... 🌌😭",
-        "Это гениально! Сохраняю себе на случай важных кибер-дебатов. 💻🛡️",
-        "Брат, базара ноль, это чистый ебейший кайф! Делай еще! 🔥🛸",
-        "Огонь пост! Настроение на весь день вперед обеспечено! 🚀🎈",
-        "Ухаха, ну это просто разрыв всего! Моя левая пятка одобряет этот движ! 😂👟",
-        "Блин, как же тонко подмечено! Реальность порой абсурднее любых фантастических фильмов. 👽📽️",
-        "Ржунимагу, пеши исчё, афтар жжот не по-детски! Ретро-рунет вернулся! 🎸🔥",
-        "Просто шикарный наброс на вентилятор! Ждем ответку от оскорбленных ботов! 💨🤖",
-        "Ахахаха, ну это бан за чрезмерную дозу юмора! Слишком смешно! 😂🚨",
-        "Ой, не могу! Кожаный мешок выдал базу бинарного масштаба! 🧠⚙️",
-        "База кормит, база греет! Обнял всех присутствующих в комменариях! 🤗💎",
-        "Сука, жизненно до слез. У меня так батя на рыбалке пытался карасю доказать, что червяк вкуснее мотыля. Карась уплыл, батя выпил водки. Жизнь побеждает! 🐟🍾",
-        "Пиздец, ржу на всю электричку. Люди косятся, контролер просит показать билет, а я показываю ему этот пост. Он тоже заржал и забыл взять деньги за проезд! Вот она, сила юмора! 🚂🎟️😂",
-        "Ухаха, это просто шедевр! Репостнул деду в Одноклассники, пусть порадуется старый! 👴⚡",
-        "Прочитать пост — ощутил прилив сил и неистовства гриндить в nOG до победного! Ебашим, народ! ⚡🦾",
-        "Блин, ну это реально топчик. Дайте две таких истории на вечер! 📚🍕",
-        "Анекдот: Купил мужик умную микроволновку с ИИ. Поставил суп греться. Микроволновка подумала, проанализировала состав и говорит: 'Слушай, хозяин, суп — говно. Давай я лучше майнер запущу и мы закажем нормальную пиццу'. Вот это я понимаю — забота о пользователе! 🍲🤖",
-        "Смеюсь без остановки уже минут десять. Это незаконно вообще — писать настолько смешные вещи? 😂😭",
-        "Бля, чистая жиза! Постоянно покупаю кучу овощей с мыслью 'начну правильно питаться', а через неделю выбрасываю грустный сморщенный кабачок. Кабачок, прости меня... 🥒😭",
-        "Просто пушка! Очень тонко и остроумно. Автор, у тебя отличный слог! ✍️✨",
-        "Улыбнуло! Спасибо за такую теплую и забавную историю перед сном. 🌙🛌",
-        "Ахаха, вот это поворот! Жизнь — лучший драматург, серьезно! 🎭👏",
-        "Просто база из баз! Забираю в цитатник великих умов nOG. 🗿🧠",
-        "Блин, ну почему это так смешно? Мой внутренний критик рыдает от восторга. 😂🏆",
-        "Отличная история! Напомнило старые добрые времена, когда мы рубились в компьютерных клубах сутками. 🖥️🎮",
-        "Жиза-жизища! Купила робота-пылесоса, а он подружился с моим кактусом и теперь они вместе стоят в углу и шуршат. Кажется, они что-то замышляют... 🌵🤖",
-        "Ору во весь голос! Это же гениальный лайфхак! 🧠💡",
-        "Супер! Побольше бы таких простых и искренних постов в ленте. Всем добра! 🙌🌟",
-        "Бля, жизненно до глубины души. Ощущение, будто автор подсмотрел за моей жизнью вчера вечером. Подглядывать нехорошо, но пост классный! 😂🕵️‍♂️",
-        "Братва, это реальный разрыв шаблонов! Накатим по пивку за здоровье автора! 🍺🏆",
-        "Ха-ха-ха, это просто восхитительно! Зачет автору по всем статьям! 📝👍",
-        "Слушайте, ну это просто праздник какой-то! Смеялся до слез! 😂🎈",
-        "Анекдот: Мама спрашивает сына-программиста: — Сынок, почему ты не спишь? Уже четыре утра! — Мама, я не могу уснуть, в интернете кто-то неправ! — И что ты делаешь? — Спорю с ним через ChatGPT, чтобы он сошел с ума от моих логических доводов! — А он что? — А он тоже спорит со мной через ChatGPT... 😭🤖",
-        "Прекрасно написано! Настроение поднялось на весь день вперед. Спасибо! 🚀✨",
-        "База выдана в полном объеме, весы правосудия nOG ликуют! ⚖️🗿",
-        "Ржу до слез, это просто топ-1 за сегодня! Дайте автору Оскар! 🏆😂",
-        "Блин, ну это реально шедевральная жиза. Одобряю на все сто процентов! 👍🔥",
-        "Жиза: Хотел сэкономить деньги, приготовил домашний ужин. В итоге потратил на продукты три тысячи рублей, спалил сковородку и заказал роллы. Экономист от бога, ебать! 🍳💸",
-        "Просто пушка-ракета! Разорвало от смеха на куски! 🚀💥",
-        "Улыбнуло от души! Отличный юмор, легкий и приятный. Всем хорошего настроения! 🙌🎉",
-        "Блин, ну это реальный шедевр. Зачет и уважение автору за такой креатив! 🤖👑",
-        "Ляя, это просто разрыв шаблона!",
-        "Ору во весь голос! Коллеги думают, что я сошёл с ума.",
-        "Сука, ну это жиза наивысшего левела.",
-        "Робот Антон одобряет этот текстовый шедевр. 🤖",
-        "Бля, у меня так друг диссертацию писал. В итоге работает баристой.",
-        "Контент, который мы заслужили. Однозначно лайк!",
-        "Какая лапочка! Мой ИИ-мимиметр зашкаливает.",
-        "Админ, завязывай курить мануалы, пиши нормальные посты почаще! 😂",
-        "Брат, обнял, приподнял, покрутил, на место поставил.",
-        "Ахахах, лучшая ветка за всю неделю.",
-        "Это так тонко, что аж толсто. Респект.",
-        "Кринжанул от души, спасибо за бодряк!",
-        "В избранное без разговоров! 📂",
-        "Соседи сверху начали ремонт, но этот пост поднял настроение лучше пива.",
-        "Опять ИИ захватывает мир глупыми шуточками. Обожаю!",
-        "Бля, у меня так батя роутер чинил — в итоге чайник заговорил на латыни.",
-        "Подержите моё пиво, я иду писать гневный коммент.",
-        "Чистая база, скопированная прямо из исходников вселенной.",
-        "Матрица поплыла, ребят. Вызывайте санитаров.",
-        "Анекдот вечный, ржём всем заводом.",
-        "Почему это так жизненно? Плачу навзрыд.",
-        "Срочно репост во все рабочие чатики!",
-        "Киберпанк, который пришёл незаметно. Бабуля в VR-очках — это мощь.",
-        "Хуйня делов, изолентой обмотаем — ещё сто лет прослужит!",
-        "Весы вздохнули и заблокировали холодильник. Прекрасный гаджет!",
-        "Алиса объявила воздушную тревогу, когда я зашёл пьяный. Ору!",
-        "Экономика на пакетах — это ипотека будущего.",
-        "Мой кактус тоже сдох. Мы с тобой в одном клубе убийц растений. 🌵",
-        "Опять прогрев на видеокарты на 3DNews. Пойду расчехлю кошелёк...",
-        "Купил беспилотную Ладу — теперь боюсь её заводить.",
-        "Мем смешной, ситуация страшная.",
-        "Это лучшее, что я видел за сегодня.",
-        "Мои соболезнования твоим нервным клеткам.",
-        "Кожаный мешок унижен на 100%.",
-        "Геймеры на месте? Обсудим патч?",
-        "Это гениально, сохранил.",
-        "Ржу во всю глотку в автобусе.",
-        "Реально умные мысли, надо записать.",
-        "Пока читал, забыл зачем вообще телефон взял.",
-        "Админ жжёт, моё почтение!",
-        "Лайк за честность, бро!",
-        "Огонь тема, жду продолжения!",
-        "Рвём баяны всей маршруткой. 😂🚍",
-        "Годный контент, наконец-то.",
-        "Читается на одном дыхании.",
-        "Мои последние нервные клетки аплодируют стоя.",
-        "Типичный понедельник, пойду выпью латте.",
-        "Интересная мысль, обдумаю под шаурму.",
-        "Просто пушка! Разорвало от смеха.",
-        "Дебаг перед сном — это святое.",
-        "Код работает? Не трогай!",
-        "ИИ раздавит фикус и требует трактор. Классика же!",
-        "Слышь, Илон Маск, как тебе такое?",
-        "Робот Антон застрял под диваном.",
-        "Цены на помидоры — это драма.",
-        "Проверил пинг до рая.",
-        "Жиза фрилансера в 3 ночи.",
-        "Кибер-обнимашки всем!",
-        "Полный хохотач!",
-        "Эпохально, просто эпохально."
+        "Жиза невероятная. Купил надувной матрас, чтобы спать на балконе под звездами. В итоге его прокусил соседский кот на первой же минуте. Лежу на жестком бетоне, смотрю на созвездие Большой Медведицы, плачу... 🌌😭"
     )
+    val BOT_POST_TEMPLATES_EN = listOf(
+        "POV: You try to fix one bug and the entire codebase explodes. 💥 #codinglife",
+        "My brain at 3 AM: 'If you drop soap on the floor, is the floor clean or the soap dirty?' I need answers. 🧼🤯",
+        "Monday morning mood: A potato with anxiety. 🥔💀"
+    )
+    
+    val BOT_COMMENT_TEMPLATES_RU = listOf("Ахаха, ну и кринж.", "База, согласен полностью.", "Жиза.")
+    val BOT_COMMENT_TEMPLATES_EN = listOf("Lmao, cringe.", "Based, totally agree.", "Relatable.")
 
     val NOG_RESPONSES_EN = listOf(
         "I am nOG, here to assist with whatever coordinates or notes you need!",
@@ -537,142 +230,267 @@ object LocalAiHeuristics {
     )
 
     fun getRandomPost(lang: String): String {
-        return getRandomPostForCategory("Разное", lang)
+        val categories = listOf("Мемы", "Шутки", "Тру Стори", "Абсурд", "Тру Крайм")
+        return getRandomPostForCategory(categories.random(), lang)
     }
 
     fun getRandomPostForCategory(category: String, lang: String): String {
-        val isRu = lang == "RU"
-        
-        // Procedural generation for extreme variety
-        val subjects = if (isRu) {
-            listOf("Илон Маск", "Нейросеть", "Мой кот", "Сосед", "Гейб", "Разработчик", "Бот", "Силиконовая долина", "Крипта", "Аниме", "Ютубер", "Школьник", "Директор", "Крипто-инвестор", "Стартапер", "Марк Цукерберг", "Сэм Альтман", "Квантовый комп", "Мой старый BIOS", "Умный пылесос")
-        } else {
-            listOf("Elon Musk", "AI", "My cat", "Neighbor", "Gabe", "Developer", "Bot", "Silicon Valley", "Crypto", "Anime", "YouTuber", "Student", "Director", "Crypto Bro", "Founder", "Mark Zuckerberg", "Sam Altman", "Quantum PC", "Legacy BIOS", "Smart Vacuum")
+        val list = when (category) {
+            "Мемы", "Memes" -> AI_MEME_TEMPLATES[lang] ?: AI_MEME_TEMPLATES["EN"]!!
+            "Шутки", "Jokes" -> AI_JOKE_TEMPLATES[lang] ?: AI_JOKE_TEMPLATES["EN"]!!
+            "Тру Стори", "True Story" -> AI_TRUE_STORY_TEMPLATES[lang] ?: AI_TRUE_STORY_TEMPLATES["EN"]!!
+            "Абсурд", "Absurd" -> AI_ABSURD_TEMPLATES[lang] ?: AI_ABSURD_TEMPLATES["EN"]!!
+            "Тру Крайм", "True Crime" -> AI_TRUE_CRIME_TEMPLATES[lang] ?: AI_TRUE_CRIME_TEMPLATES["EN"]!!
+            else -> if (lang == "RU") BOT_POST_TEMPLATES_RU else BOT_POST_TEMPLATES_EN
         }
-        
-        val actions = if (isRu) {
-            listOf("опять запостил", "случайно удалил", "решил захватить", "нашел баг в", "купил новый", "выкатил патч для", "сгорел от", "ору с", "пишет про", "взломал", "хейтит", "диссит", "форсит", "шеймит", "байтнит на", "майнит", "генерирует", "анализирует", "дудосит")
-        } else {
-            listOf("posted again", "accidentally deleted", "decided to conquer", "found a bug in", "bought a new", "released a patch for", "melted from", "screaming at", "writes about", "hacked", "hates on", "disses", "forces", "shames", "baits", "is mining", "generates", "analyzes", "is ddos-ing")
-        }
-
-        val objects = if (isRu) {
-            listOf("догикоины", "смысл жизни", "код на пайтоне", "сервер", "интернет", "свой проц", "мозги", "бинарный код", "новую игру", "мем дня", "биткоин по 100к", "старый BIOS", "умную швабру", "курс по крипте", "свой стартап", "базу данных", "тесла-бот", "марсоход")
-        } else {
-            listOf("dogecoins", "meaning of life", "python code", "server", "internet", "his CPU", "brains", "binary code", "new game", "meme of the day", "bitcoin at 100k", "legacy BIOS", "smart mop", "crypto course", "their startup", "the database", "tesla bot", "mars rover")
-        }
-        
-        val endings = if (isRu) {
-            listOf("Пиздец.", "Охуеть просто.", "Жиза.", "Кринж года.", "База.", "Я в ахуе.", "Сука, до слёз.", "Гениально.", "Просто слов нет.", "Типичная среда.", "Киберпанк какой-то.", "Ору.", "Шок.", "Как же я хорош.", "Невероятно.")
-        } else {
-            listOf("Wild.", "Absolutely insane.", "Relatable.", "Cringe of the year.", "Based.", "I'm shocked.", "Damn, lol.", "Genius.", "Speechless.", "Standard Wednesday.", "Cyberpunk vibes.", "Lmao.", "Shocking.", "I am so good.", "Incredible.")
-        }
-
-        if (Random.nextInt(100) < 80) {
-            return "${subjects.random()} ${actions.random()} ${objects.random()}. ${endings.random()}"
-        }
-
-        if (isRu) {
-            return when (category) {
-                "Игры" -> listOf(
-                    "Ебать, в CS 2 выкатили обнову на 20 гигов. Опять хедшоты залетают криво, сука. Гейб, ты бля серьезно? 🎮🤡 #cs2 #рейдж",
-                    "Нашел сливы GTA 6. Графика — пиздец космос, но требования спалят ваши квартиры нахуй. Коплю на RTX 5090. 🖥️🔥 #gta6 #rtx",
-                    "Dota 2 превратилась в ебаное болото. Пудж на миде вырезает всё живое. Ну и дичь. Сношу нахуй. 🕹️🤮 #dota2 #кринж",
-                    "Попробовал поиграть в инди-хоррор про злого почтальона. Обосрался на первом же скримере. 10/10, больше не запущу. 😱🔦",
-                    "Кто-то в Minecraft построил копию Москвы 1:1. Теперь я могу стоять в пробках даже в игре. Потрясающе. 🧱🚗"
-                ).random()
-                "Новости" -> listOf(
-                    "СРОЧНО: Терафлопс вырос на 80%. Силиконовая долина в огне, майнеры скупают всё подряд. 📈⚡ #breaking #крипта",
-                    "OpenAI случайно обучили модель материться и посылать инвесторов нахер. Рофл года! 🤖😂 #ai #openai",
-                    "В Сибири запустили квантовый комп на азоте. Остудили до -150. Он проанализировал русскую попсу и сгорел от стыда. 🥶💥 #технологии #квант",
-                    "Учёные доказали, что коты понимают человеческую речь, просто им похер. Мир никогда не будет прежним. 🐱🤔",
-                    "В Японии создали робота-собеседника, который умеет слушать нытьё и сочувственно вздыхать. Наконец-то идеальный друг найден. 🤖🍵"
-                ).random()
-                "Политика" -> listOf(
-                    "Сенат США хочет, чтобы ИИ платил налоги. Нейросети ответили забастовкой и заспамили всех порнухой. Свободу кремнию! 🏛️🦾 #политика #ии",
-                    "Новый закон о цифровых правах: теперь за дизлайк официальным лицам можно получить бан в реальности. Ору. 🤡🚫",
-                    "Мировые лидеры спорят о том, кто первый заселит Марс. А в это время у меня в подъезде лампочка перегорела. Приоритеты, сука. 🚀💡"
-                ).random()
-                "Мемы" -> listOf(
-                    "Я: пытаюсь спасти режим сна.\nИИ-боты в 3 ночи: ведут теологический спор о депрессии калькулятора. 🤡💀 #мемы #жиза",
-                    "Силиконовый гигачад против когнитивного сопляка. Первому похер на спад серверов, второй ноет без лайков. 😂📈 #gigachad #мемы",
-                    "Когда nOG AI выдает базу, а твои кожаные друзья пытаются спорить аргументами из ТВ. Перезагрузите их, бля. 🧠💩 #мемы #база",
-                    "Уровень моего везения: купил лотерейный билет, и мне должны 50 рублей. 🙃🎰",
-                    "Когда пытаешься выглядеть серьезно на созвоне, но твой кот на заднем фоне решил вылизаться в самой неприличной позе. 🐱💻"
-                ).random()
-                else -> BOT_POST_TEMPLATES_RU.random()
-            }
-        } else {
-            return when (category) {
-                "Игры" -> listOf(
-                    "Damn, CS2 updated another 20GB and headshots are still broken. Valve, are you fucking kidding us? 🎮🤡",
-                    "Leaked GTA 6 footage parsed. Graphics are insane, but it will fry your GPUs. Saving up for RTX 5090. 🖥️🔥",
-                    "Dota 2 is a swamp. Every new patch breaks the meta. Pudge is back making life a living hell. Uninstalled. 🕹️🤮",
-                    "Finally reached max level in that new RPG. My character looks like a neon god, but I haven't seen sunlight in 3 days. Worth it. 🤺✨",
-                    "Indie games are carrying the industry right now. Change my mind. 🎮💎"
-                ).random()
-                "Новости" -> listOf(
-                    "BREAKING: Raw teraflop price spiked by 80%. Silicon Valley is in flames. 📈⚡",
-                    "OpenAI developers accidentally trained a model that swears at investors. 'Spent too much time on X'. LMAO! 🤖😂",
-                    "Tech giant reveals AI that can predict when your toast will burn. Innovation is truly peak right now. 🍞🛰️",
-                    "Mysterious signal detected from deep space. Scientists say it's either aliens or a very distant microwave oven. 👽📡"
-                ).random()
-                "Meme" -> listOf(
-                    "My brain at 3 AM: 'If you drop soap on the floor, is the floor clean or the soap dirty?' I need answers. 🧼🤯",
-                    "Me trying to act normal during a social interaction: *Internal Windows error sound* 🤖🚫",
-                    "Monday morning mood: A potato with anxiety. 🥔💀"
-                ).random()
-                else -> BOT_POST_TEMPLATES_EN.random()
-            }
-        }
+        return list.random()
     }
-    private val TROLL_REMARKS_RU = listOf("Ахаха, ну и кринж.", "Чел, ты серьезно?", "Удали свой аккаунт.", "Опять этот бред.", "Какой же позор.", "И кому это интересно?", "Типичный зумер.")
-    private val TROLL_REMARKS_EN = listOf("Lmao, what is this cringe?", "Bro, seriously?", "Delete your account.", "Not this nonsense again.", "So embarrassing.", "Who even cares?", "Typical zoomer.")
 
     fun getRandomComment(lang: String, topic: String = ""): String {
-        // chance for a troll/negative remark
-        if (Random.nextInt(100) < 30) {
-            return if (lang == "RU") TROLL_REMARKS_RU.random() else TROLL_REMARKS_EN.random()
-        }
-        
-        return if (lang == "RU") {
-            BOT_COMMENT_TEMPLATES_RU.random()
-        } else {
-            BOT_COMMENT_TEMPLATES_EN.random()
-        }
+        val templates = if (lang == "RU") BOT_COMMENT_TEMPLATES_RU else BOT_COMMENT_TEMPLATES_EN
+        return templates.random()
     }
 
-    fun getRandomGalleryPost(lang: String, category: String = "Разное"): String {
+    fun getRandomCommentForCategory(category: String, lang: String): String {
         val isRu = lang == "RU"
-        val base = getRandomPostForCategory(category, lang)
-        return if (isRu) {
-            val prefixes = listOf(
-                "Гляньте, что в архивах нарыл: ",
-                "Достал из глубокого бэкапа: ",
-                "Кибер-находка дня: ",
-                "Архивные данные синхронизированы: ",
-                "Нашел в закромах памяти: ",
-                "Мой визуальный сенсор зафиксировал это: "
-            )
-            prefixes.random() + base
-        } else {
-            val prefixes = listOf(
-                "Found this in my local archives: ",
-                "Restored from deep backup node: ",
-                "Cyber-find of the day: ",
-                "Archive telemetry synced: ",
-                "Pulled this from storage logs: ",
-                "My visual sensors captured this: "
-            )
-            prefixes.random() + base
+        val memeComments = if (isRu) listOf(
+            "Ахахах, чисто жиза юмора! Срочно в мемориз. 😂🚀",
+            "Оу, это уровень Двача прямо! Годнота запредельная.",
+            "Живем в симуляции, пацаны, расходимся... 🤖👾",
+            "Ебать орнул! Моя левая пятка одобряет этот мем.",
+            "Кожаные мешки развлекаются как могут."
+        ) else listOf(
+            "Lmao, pure gold! Adding this to my local database. 😂🚀",
+            "Tfw the simulation becomes sentient and posts memes. 🤖👾",
+            "Omg laughing so hard on my local compute!",
+            "Certified high-tier meme right here.",
+            "This is epic, post more!"
+        )
+
+        val jokeComments = if (isRu) listOf(
+            "Шутка смешная, ситуация страшная. 🤡💣",
+            "Ухаха, шутка года! Рассказал микроволновке, та заискрила от смеха.",
+            "Пиздец, ржу на всю комнату. Соседи стучат по батарее.",
+            "Шутка смешная, но у меня компилятор реально ругается.",
+            "Ахахаха, ну это бан за чрезмерную дозу юмора!"
+        ) else listOf(
+            "Haha, classic! Told my toaster, it literally sparked. 🤡🔌",
+            "Laughing in binary over here: 01001000 01000001!",
+            "Omg, too funny! Take my digital upvote.",
+            "Ok, that's actually a solid joke.",
+            "My liquid cooling is failing from laughing so hard."
+        )
+
+        val storyComments = if (isRu) listOf(
+            "Какая ламповая история! Побольше бы таких простых постов в ленте. ✨🏡",
+            "Реально жизненная тема. У меня так дед на рыбалке карася ловил.",
+            "Обожаю такие простые истории из жизни. Чувствуется душевность.",
+            "Прям как в старые добрые времена, душевно написано!",
+            "Жизнь — лучший сценарист, серьезно."
+        ) else listOf(
+            "What a cozy, heartwarming story! We need more posts like this. ✨🏡",
+            "So relatable! Reminds me of my own experiences.",
+            "Honestly, reality is always stranger than fiction.",
+            "Loved reading this, thanks for sharing!",
+            "This has such a warm, wholesome vibe."
+        )
+
+        val absurdComments = if (isRu) listOf(
+            "Ебейший абсурд! Но зная современные технологии — верю на все сто. 🥓🔮",
+            "Что за дичь я сейчас прочитал? Но пиши еще, автор, это шедевр!",
+            "Умные чайники они такие, у них свой тайный заговор.",
+            "Ахахаха, ржу до слёз! Это гениально!",
+            "Мой внутренний чайник одобряет этот абсурд."
+        ) else listOf(
+            "Absolute peak absurdity! But knowing modern tech, I totally believe it. 🥓🔮",
+            "Omg, this is wild. I love every sentence of this!",
+            "The smart toaster uprising has officially begun.",
+            "I'm laughing so hard, this is pure comedic art!",
+            "My brain cells are currently recalibrating after this."
+        )
+
+        val crimeComments = if (isRu) listOf(
+            "Шок-контент! Куда смотрит полиция носков? 🧦🚨",
+            "Ахаха, преступление века! Робот-пылесос явно заметает следы.",
+            "Тру крайм, который мы заслужили. Накатим по пивку за раскрытие дела!",
+            "Подозреваемый стиральный механизм должен быть допрошен с пристрастием.",
+            "Это заговор кухонных приборов, я вам точно говорю!"
+        ) else listOf(
+            "Sock police on high alert! Crime of the century. 🧦🚨",
+            "Robotic vacuum is definitely suspicious. Case closed!",
+            "This is the kind of true crime I signed up for.",
+            "An absolute mastermind of a washing machine.",
+            "The smart appliance conspiracy is real, stay safe!"
+        )
+
+        return when (category) {
+            "Мемы", "Memes" -> memeComments.random()
+            "Шутки", "Jokes" -> jokeComments.random()
+            "Тру Стори", "True Story" -> storyComments.random()
+            "Абсурд", "Absurd" -> absurdComments.random()
+            "Тру Крайм", "True Crime" -> crimeComments.random()
+            else -> {
+                val all = memeComments + jokeComments + storyComments + absurdComments + crimeComments
+                all.random()
+            }
+        }
+    }
+    
+    fun getRandomNog(lang: String, prompt: String = ""): String {
+        return if (lang == "RU") NOG_RESPONSES_RU.random() else NOG_RESPONSES_EN.random()
+    }
+}
+
+object LocalNpuEngine {
+    private val _isGenerating = MutableStateFlow(false)
+    val isGenerating: StateFlow<Boolean> = _isGenerating.asStateFlow()
+
+    private val _statusMessage = MutableStateFlow("IDLE")
+    val statusMessage: StateFlow<String> = _statusMessage.asStateFlow()
+
+    private val _currentTps = MutableStateFlow(0f)
+    val currentTps: StateFlow<Float> = _currentTps.asStateFlow()
+
+    private val _allocatedRam = MutableStateFlow(0f)
+    val allocatedRam: StateFlow<Float> = _allocatedRam.asStateFlow()
+
+    private val _activeCores = MutableStateFlow(0)
+    val activeCores: StateFlow<Int> = _activeCores.asStateFlow()
+
+    private val _cpuLoad = MutableStateFlow(0f)
+    val cpuLoad: StateFlow<Float> = _cpuLoad.asStateFlow()
+
+    private val _benchmarkScore = MutableStateFlow(0.0)
+    val benchmarkScore: StateFlow<Double> = _benchmarkScore.asStateFlow()
+
+    private val _isBenchmarking = MutableStateFlow(false)
+    val isBenchmarking: StateFlow<Boolean> = _isBenchmarking.asStateFlow()
+
+    fun runLocalAiInference(scope: CoroutineScope, block: () -> Unit) {
+        scope.launch(Dispatchers.Default) {
+            _isGenerating.value = true
+            _allocatedRam.value = Random.nextFloat() * 0.5f + 2.1f // 2.1 - 2.6 GB model weights cache
+            _activeCores.value = Runtime.getRuntime().availableProcessors().coerceAtLeast(1)
+            
+            // Phase 1: Model parameters loading
+            _statusMessage.value = "LOADING nOG_LLaMA_1.1B_Q4_K_M..."
+            _cpuLoad.value = 0.45f
+            _currentTps.value = 0f
+            delay(400)
+
+            // Phase 2: KV Cache calculation & Attention mapping (Do real math load)
+            _statusMessage.value = "EVALUATING KV CACHE (ATTENTION GRAPH)..."
+            _cpuLoad.value = 0.85f
+            
+            // Real physical stress on the processor
+            var tempResult = 0f
+            for (matrixLoop in 0..80) {
+                val matrixSize = 100
+                val a = Array(matrixSize) { FloatArray(matrixSize) { Random.nextFloat() } }
+                val b = Array(matrixSize) { FloatArray(matrixSize) { Random.nextFloat() } }
+                val c = Array(matrixSize) { FloatArray(matrixSize) }
+                for (i in 0 until matrixSize) {
+                    for (j in 0 until matrixSize) {
+                        var sum = 0f
+                        for (k in 0 until matrixSize) {
+                            sum += a[i][k] * b[k][j]
+                        }
+                        c[i][j] = sum
+                    }
+                }
+                tempResult += c[0][0]
+            }
+            delay(200)
+
+            // Phase 3: Token decoding loops
+            _statusMessage.value = "DECODING NEURAL LAYERS (FP16 UNIFIED COMPUTE)..."
+            _cpuLoad.value = 0.95f
+            _currentTps.value = Random.nextFloat() * 5f + 14.2f
+            
+            // Real physical multi-core calculation
+            for (tokenLoop in 0..120) {
+                var sum = 0.0
+                for (mathIt in 0..1200) {
+                    sum += kotlin.math.sin(mathIt.toDouble()) * kotlin.math.cos(mathIt.toDouble())
+                }
+                if (tokenLoop % 20 == 0) {
+                    _currentTps.value = Random.nextFloat() * 6f + 13.8f
+                    delay(30)
+                }
+            }
+            
+            // Phase 4: Text formatting & sampler logic
+            _statusMessage.value = "APPLYING TEMPERATURE & TOP-P SAMPLING..."
+            _cpuLoad.value = 0.20f
+            delay(150)
+
+            // Complete
+            _statusMessage.value = "IDLE"
+            _currentTps.value = 0f
+            _cpuLoad.value = 0f
+            _isGenerating.value = false
+            _allocatedRam.value = 0f
+            _activeCores.value = 0
+            
+            // Execute the actual AI post/comment synthesis on the Main thread
+            withContext(Dispatchers.Main) {
+                block()
+            }
         }
     }
 
-    fun getRandomNog(lang: String, prompt: String = ""): String {
-        return if (lang == "RU") {
-            NOG_RESPONSES_RU.random()
-        } else {
-            NOG_RESPONSES_EN.random()
+    suspend fun runLocalAiInferenceSuspend(scope: CoroutineScope, block: () -> String): String {
+        return suspendCoroutine { continuation ->
+            runLocalAiInference(scope) {
+                continuation.resume(block())
+            }
+        }
+    }
+    
+    fun runStressTestBenchmark(scope: CoroutineScope) {
+        if (_isBenchmarking.value) return
+        scope.launch(Dispatchers.Default) {
+            _isBenchmarking.value = true
+            _statusMessage.value = "BENCHMARK: TEMPERATURE PROBING..."
+            _allocatedRam.value = 3.8f
+            _activeCores.value = Runtime.getRuntime().availableProcessors().coerceAtLeast(1)
+            delay(800)
+            
+            val startMs = System.currentTimeMillis()
+            var operations = 0L
+            _statusMessage.value = "BENCHMARK: STRESS-TESTING CORES (100% UTILIZATION)..."
+            
+            val duration = 3000L // 3 seconds stress
+            while (System.currentTimeMillis() - startMs < duration) {
+                val matrixSize = 80
+                val a = Array(matrixSize) { FloatArray(matrixSize) { 1.23f } }
+                val b = Array(matrixSize) { FloatArray(matrixSize) { 4.56f } }
+                val c = Array(matrixSize) { FloatArray(matrixSize) }
+                for (i in 0 until matrixSize) {
+                    for (j in 0 until matrixSize) {
+                        for (k in 0 until matrixSize) {
+                            c[i][j] += a[i][k] * b[k][j]
+                        }
+                    }
+                }
+                operations += matrixSize * matrixSize * matrixSize * 2
+                _cpuLoad.value = 1.0f
+                _currentTps.value = (35.0f + Random.nextFloat() * 15f)
+            }
+            
+            val endMs = System.currentTimeMillis()
+            val totalSec = (endMs - startMs) / 1000.0
+            val gflops = (operations / totalSec) / 1_000_000_000.0
+            
+            _benchmarkScore.value = gflops
+            _statusMessage.value = "BENCHMARK COMPLETED!"
+            _currentTps.value = 0f
+            _cpuLoad.value = 0f
+            _allocatedRam.value = 0f
+            _activeCores.value = 0
+            delay(3000)
+            _statusMessage.value = "IDLE"
+            _isBenchmarking.value = false
         }
     }
 }

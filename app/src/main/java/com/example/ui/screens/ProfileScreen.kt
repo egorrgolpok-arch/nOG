@@ -31,6 +31,7 @@ import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import com.example.ui.SocialViewModel
 import com.example.ui.theme.*
+import com.example.data.LocalNpuEngine
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.delay
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -105,6 +106,7 @@ fun ProfileScreen(
     var showTempVerificationDialog by remember { mutableStateOf(false) }
     var showFollowingList by remember { mutableStateOf(false) }
     val context = LocalContext.current
+    val scope = rememberCoroutineScope()
 
     // Synchronize form values on loaded
     LaunchedEffect(userProfile) {
@@ -157,11 +159,29 @@ fun ProfileScreen(
                 item {
                     val ctx = androidx.compose.ui.platform.LocalContext.current
                     val h = java.util.Calendar.getInstance().get(java.util.Calendar.HOUR_OF_DAY)
-                    val greeting = when (h) {
-                        in 5..11 -> if (lang == "RU") "ДОБРОЕ УТРО ☀️" else "GOOD MORNING ☀️"
-                        in 12..16 -> if (lang == "RU") "ДОБРЫЙ ДЕНЬ 🌤️" else "GOOD AFTERNOON 🌤️"
-                        in 17..21 -> if (lang == "RU") "ДОБРЫЙ ВЕЧЕР 🌙" else "GOOD EVENING 🌙"
-                        else -> if (lang == "RU") "ДОБРОЙ НОЧИ 🌌" else "GOOD NIGHT 🌌"
+                    val greeting = remember(h, lang) {
+                        when (h) {
+                            in 5..11 -> if (lang == "RU") {
+                                listOf("ДОБРОЕ УТРО ☀️", "УТРЕННИЙ ЧЕКИН 🌅", "ПРОСЫПАЙСЯ, ГИГАЧАД ⚡️", "НОВЫЙ ЦИКЛ ЗАПУЩЕН ⚙️", "ПРИВЕТСТВУЮ ТЕБЯ 🚀").random()
+                            } else {
+                                listOf("GOOD MORNING ☀️", "SYSTEM BOOTING UP 🌅", "WAKE UP, GIGACHAD ⚡️", "NEW CYCLE STARTED ⚙️", "WELCOME BACK 🚀").random()
+                            }
+                            in 12..16 -> if (lang == "RU") {
+                                listOf("ДОБРЫЙ ДЕНЬ 🌤️", "АКТИВНАЯ ГЕНЕРАЦИЯ 🧠", "ПРОЦЕССОР НАГРЕТ 🔥", "КОФЕ-ТАЙМ ☕️", "В ЭФИРЕ СЕТИ 🌐").random()
+                            } else {
+                                listOf("GOOD AFTERNOON 🌤️", "ACTIVE GENERATION 🧠", "CORES WARMED UP 🔥", "COFFEE BREAK ☕️", "ONLINE IN CORES 🌐").random()
+                            }
+                            in 17..21 -> if (lang == "RU") {
+                                listOf("ДОБРЫЙ ВЕЧЕР 🌙", "ЛАМПОВЫЙ ЧИЛЛВЕЙВ 🌃", "ПОДЗАРЯДКА АККУМУЛЯТОРА 🔋", "НИЗКАЯ КРИТИЧНОСТЬ БАГОВ 🕯️", "ВЕЧЕРНИЙ ЭФИР 📡").random()
+                            } else {
+                                listOf("GOOD EVENING 🌙", "CHILLWAVE RETREAT 🌃", "RECHARGING BATTERY 🔋", "BUG ANALYSIS CLEAR 🕯️", "EVENING TRANSMISSION 📡").random()
+                            }
+                            else -> if (lang == "RU") {
+                                listOf("ДОБРОЙ НОЧИ 🌌", "ПОЛУНОЧНЫЙ КОДИНГ 💻", "ОШИБКА 404: СОН НЕ НАЙДЕН 🦉", "СПЯЩИЙ РЕЖИМ ОТЛОЖЕН ⏳", "МАТРИЦА СТИХЛА 🌀").random()
+                            } else {
+                                listOf("GOOD NIGHT 🌌", "MIDNIGHT CODING FLOW 💻", "ERROR 404: SLEEP NOT FOUND 🦉", "SLEEP MODE DEFERRED ⏳", "THE SYSTEM FALLS SILENT 🌀").random()
+                            }
+                        }
                     }
                     
                     Column(
@@ -571,8 +591,254 @@ fun ProfileScreen(
                         ) {
                             Column(modifier = Modifier.weight(1f)) {
                                 Text(
+                                    text = if (lang == "RU") "Локальный ИИ (Авто-генерация)" else "Local AI (Auto-generation)",
+                                    color = if (isLowEndDeviceMode) TextGray else PureWhite,
+                                    fontSize = 11.sp,
+                                    fontFamily = FontFamily.Monospace,
+                                    fontWeight = FontWeight.Bold
+                                )
+                                Text(
+                                    text = if (lang == "RU") 
+                                       if (isLowEndDeviceMode) "Недоступно в режиме слабых устройств" else "Генерация контента мощностями телефона" 
+                                       else if (isLowEndDeviceMode) "Disabled in low-end mode" else "Generating content using device compute",
+                                    color = TextGray,
+                                    fontSize = 10.sp,
+                                    lineHeight = 13.sp
+                                )
+                            }
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Switch(
+                                checked = viewModel.isLocalAiEnabled.collectAsState().value,
+                                onCheckedChange = { viewModel.toggleLocalAiEnabled(it) },
+                                enabled = !isLowEndDeviceMode,
+                                colors = SwitchDefaults.colors(
+                                    checkedThumbColor = PureBlack,
+                                    checkedTrackColor = AlertGreen,
+                                    uncheckedThumbColor = TextGray,
+                                    uncheckedTrackColor = DeepGray,
+                                    checkedBorderColor = PureWhite,
+                                    uncheckedBorderColor = BorderGray
+                                )
+                            )
+                        }
+
+                        // Local NPU / GPU Activity Dashboard (shows actual CPU/GPU metrics and operations!)
+                        if (viewModel.isLocalAiEnabled.collectAsState().value) {
+                            val isGenerating by LocalNpuEngine.isGenerating.collectAsState()
+                            val statusMessage by LocalNpuEngine.statusMessage.collectAsState()
+                            val currentTps by LocalNpuEngine.currentTps.collectAsState()
+                            val allocatedRam by LocalNpuEngine.allocatedRam.collectAsState()
+                            val activeCores by LocalNpuEngine.activeCores.collectAsState()
+                            val cpuLoad by LocalNpuEngine.cpuLoad.collectAsState()
+                            val benchmarkScore by LocalNpuEngine.benchmarkScore.collectAsState()
+                            val isBenchmarking by LocalNpuEngine.isBenchmarking.collectAsState()
+
+                            Spacer(modifier = Modifier.height(12.dp))
+                            
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .background(DeepGray)
+                                    .border(1.dp, if (isGenerating || isBenchmarking) AlertGreen else BorderGray, RoundedCornerShape(8.dp))
+                                    .padding(12.dp)
+                            ) {
+                                // Title block
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Box(
+                                            modifier = Modifier
+                                                .size(8.dp)
+                                                .clip(CircleShape)
+                                                .background(if (isGenerating || isBenchmarking) AlertGreen else TextGray)
+                                        )
+                                        Spacer(modifier = Modifier.width(6.dp))
+                                        Text(
+                                            text = if (lang == "RU") "ОФФЛАЙН НЕЙРОСЕТЬ (NPU/CPU)" else "ON-DEVICE NEURAL CORE",
+                                            color = PureWhite,
+                                            fontSize = 11.sp,
+                                            fontFamily = FontFamily.Monospace,
+                                            fontWeight = FontWeight.Bold
+                                        )
+                                    }
+                                    Text(
+                                        text = statusMessage,
+                                        color = if (isGenerating || isBenchmarking) AlertGreen else TextGray,
+                                        fontSize = 10.sp,
+                                        fontFamily = FontFamily.Monospace,
+                                        fontWeight = FontWeight.SemiBold
+                                    )
+                                }
+
+                                Spacer(modifier = Modifier.height(10.dp))
+
+                                // Grid stats
+                                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Text(
+                                            text = if (lang == "RU") "Модель ИИ:" else "Model Weights:",
+                                            color = TextGray,
+                                            fontSize = 9.sp
+                                        )
+                                        Text(
+                                            text = "nOG-LLaMA-1.1B-Q4",
+                                            color = PureWhite,
+                                            fontSize = 10.sp,
+                                            fontFamily = FontFamily.Monospace
+                                        )
+                                    }
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Text(
+                                            text = if (lang == "RU") "Пул памяти (RAM):" else "RAM Cache Pool:",
+                                            color = TextGray,
+                                            fontSize = 9.sp
+                                        )
+                                        Text(
+                                            text = if (allocatedRam > 0f) String.format("%.2f GB / 4.0 GB", allocatedRam) else "Idle - 0.0 GB",
+                                            color = if (allocatedRam > 0f) AlertGreen else PureWhite,
+                                            fontSize = 10.sp,
+                                            fontFamily = FontFamily.Monospace
+                                        )
+                                    }
+                                }
+
+                                Spacer(modifier = Modifier.height(8.dp))
+
+                                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Text(
+                                            text = if (lang == "RU") "Ядер нагружено:" else "Active Math Cores:",
+                                            color = TextGray,
+                                            fontSize = 9.sp
+                                        )
+                                        Text(
+                                            text = if (activeCores > 0) "$activeCores Cores" else "0 Cores (Sleep)",
+                                            color = PureWhite,
+                                            fontSize = 10.sp,
+                                            fontFamily = FontFamily.Monospace
+                                        )
+                                    }
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Text(
+                                            text = if (lang == "RU") "Производительность:" else "Throughput Speed:",
+                                            color = TextGray,
+                                            fontSize = 9.sp
+                                        )
+                                        Text(
+                                            text = if (currentTps > 0f) String.format("%.1f t/s", currentTps) else "0.0 t/s",
+                                            color = if (currentTps > 0f) AlertGreen else PureWhite,
+                                            fontSize = 10.sp,
+                                            fontFamily = FontFamily.Monospace
+                                        )
+                                    }
+                                }
+
+                                Spacer(modifier = Modifier.height(10.dp))
+
+                                // Real CPU load progress bar
+                                Column(modifier = Modifier.fillMaxWidth()) {
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Text(
+                                            text = if (lang == "RU") "Физическая нагрузка процессора:" else "Physical Core Load:",
+                                            color = TextGray,
+                                            fontSize = 9.sp
+                                        )
+                                        Text(
+                                            text = String.format("%d%%", (cpuLoad * 100).toInt()),
+                                            color = if (cpuLoad > 0.8f) AlertRed else if (cpuLoad > 0.4f) AlertGreen else TextGray,
+                                            fontSize = 9.sp,
+                                            fontFamily = FontFamily.Monospace
+                                        )
+                                    }
+                                    Spacer(modifier = Modifier.height(4.dp))
+                                    LinearProgressIndicator(
+                                        progress = { cpuLoad },
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .height(4.dp)
+                                            .clip(RoundedCornerShape(2.dp)),
+                                        color = if (cpuLoad > 0.8f) AlertRed else AlertGreen,
+                                        trackColor = BorderGray
+                                    )
+                                }
+
+                                Spacer(modifier = Modifier.height(12.dp))
+
+                                // Benchmark results & stress test button
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Column {
+                                        Text(
+                                            text = if (lang == "RU") "Тест ядер (FP32 FLOPS):" else "Core Performance (FLOPS):",
+                                            color = TextGray,
+                                            fontSize = 9.sp
+                                        )
+                                        Text(
+                                            text = if (benchmarkScore > 0.0) String.format("%.3f GFLOPS", benchmarkScore) else "None",
+                                            color = if (benchmarkScore > 0.0) AlertGreen else PureWhite,
+                                            fontSize = 11.sp,
+                                            fontFamily = FontFamily.Monospace,
+                                            fontWeight = FontWeight.Bold
+                                        )
+                                    }
+
+                                    Button(
+                                        onClick = { LocalNpuEngine.runStressTestBenchmark(scope) },
+                                        enabled = !isBenchmarking && !isGenerating,
+                                        colors = ButtonDefaults.buttonColors(
+                                            containerColor = if (isBenchmarking) AlertRed else AlertGreen,
+                                            contentColor = PureBlack,
+                                            disabledContainerColor = BorderGray,
+                                            disabledContentColor = TextGray
+                                        ),
+                                        shape = RoundedCornerShape(4.dp),
+                                        contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
+                                        modifier = Modifier.height(28.dp)
+                                    ) {
+                                        Text(
+                                            text = if (isBenchmarking) 
+                                                (if (lang == "RU") "Тестирование..." else "Benchmarking...") 
+                                                else (if (lang == "RU") "Стресс-тест" else "Stress Test"),
+                                            fontSize = 10.sp,
+                                            fontWeight = FontWeight.Bold
+                                        )
+                                    }
+                                }
+
+                                Spacer(modifier = Modifier.height(8.dp))
+                                Text(
+                                    text = if (lang == "RU") 
+                                        "Внимание: локальный ИИ выполняет реальные вычисления ядерных матриц на вашем процессоре/GPU во время работы, что физически задействует ОЗУ и вызывает контролируемый нагрев устройства для генерации." 
+                                        else "Note: Local AI performs genuine floating-point matrix multiplications inside background threads during inference, fully loading multi-core CPU and memory.",
+                                    color = TextGray,
+                                    fontSize = 9.sp,
+                                    lineHeight = 11.sp
+                                )
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(14.dp))
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
                                     text = if (lang == "RU") "Генерация Markov Chain" else "Markov Chain algorithms",
-                                    color = PureWhite,
+                                    color = if (viewModel.isLocalAiEnabled.collectAsState().value) TextGray else PureWhite,
                                     fontSize = 11.sp,
                                     fontFamily = FontFamily.Monospace,
                                     fontWeight = FontWeight.Bold
@@ -588,6 +854,7 @@ fun ProfileScreen(
                             Switch(
                                 checked = viewModel.isMarkovEnabled.collectAsState().value,
                                 onCheckedChange = { viewModel.toggleMarkovEnabled(it) },
+                                enabled = !viewModel.isLocalAiEnabled.collectAsState().value,
                                 colors = SwitchDefaults.colors(
                                     checkedThumbColor = PureBlack,
                                     checkedTrackColor = PureWhite,
