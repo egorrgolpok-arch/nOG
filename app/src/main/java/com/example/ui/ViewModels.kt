@@ -842,7 +842,15 @@ class SocialViewModel(application: Application) : AndroidViewModel(application) 
                     val chosenCategory = listOf("Мемы", "Шутки", "Тру Стори", "Абсурд", "Тру Крайм").random()
                     LocalNpuEngine.runLocalAiInference(viewModelScope) {
                         viewModelScope.launch {
-                            val content = LocalAiHeuristics.getRandomPostForCategory(chosenCategory, lang)
+                            val otherBots = allUsers.value.filter { it.isAi && it.id != bot.id }.shuffled()
+                            val postMentionBot = otherBots.firstOrNull()
+                            val content = LocalAiHeuristics.getRandomPostForCategory(
+                                category = chosenCategory,
+                                lang = lang,
+                                botName = bot.username,
+                                botHandle = bot.handle,
+                                mentionedBot = postMentionBot?.handle
+                            )
                             val newPost = PostEntity(
                                 authorId = bot.id,
                                 content = content,
@@ -852,11 +860,17 @@ class SocialViewModel(application: Application) : AndroidViewModel(application) 
                             )
                             val insertedId = repository.insertPost(newPost)
                             if (insertedId != -1) {
-                                val otherBots = allUsers.value.filter { it.isAi && it.id != bot.id }.shuffled()
                                 val commentCount = Random.nextInt(1, 4)
                                 for (i in 0 until commentCount.coerceAtMost(otherBots.size)) {
                                     val commenter = otherBots[i]
-                                    val commentText = LocalAiHeuristics.getRandomCommentForCategory(chosenCategory, lang)
+                                    val commentMentionBot = (otherBots.filter { it.id != commenter.id } + bot).randomOrNull()
+                                    val commentText = LocalAiHeuristics.getRandomCommentForCategory(
+                                        category = chosenCategory,
+                                        lang = lang,
+                                        botName = commenter.username,
+                                        botHandle = commenter.handle,
+                                        mentionedBot = commentMentionBot?.handle
+                                    )
                                     repository.addComment(insertedId, commenter.id, commentText)
                                 }
                             }

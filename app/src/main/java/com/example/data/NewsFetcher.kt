@@ -157,6 +157,8 @@ object NewsFetcher {
         NewsSource("Wylsacom", "https://wylsa.com/feed/", 82, true),
         NewsSource("Droider", "https://droider.ru/feed/", 83, true),
         NewsSource("Meduza.io", "https://news.google.com/rss/search?q=when:24h+allinurl:meduza.io&hl=ru", 85, true),
+        NewsSource("Новая газета", "https://news.google.com/rss/search?q=when:24h+site:novayagazeta.ru+OR+site:novayagazeta.eu&hl=ru", 85, true),
+        NewsSource("Дождь", "https://news.google.com/rss/search?q=when:24h+site:tvrain.tv+OR+site:tvrain.ru&hl=ru", 85, true),
         NewsSource("ТАСС", "https://tass.ru/rss/v2.xml", 80, true),
         NewsSource("За Рулем (Авто)", "https://news.google.com/rss/search?q=автомобили+машины+when:24h&hl=ru", 85, true),
         NewsSource("Auto.ru Новости", "https://news.google.com/rss/search?q=автоновости+тест-драйв&hl=ru", 85, true),

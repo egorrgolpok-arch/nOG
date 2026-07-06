@@ -1031,7 +1031,12 @@ fun PostItem(
                         .background(DeepGray)
                         .clickable { onMediaClick(post.mediaUrl) }
                 ) {
-                    if (post.mediaType == "VIDEO" || post.mediaUrl.endsWith(".mp4") || post.mediaUrl.contains("gtv-videos-bucket")) {
+                    val lowerUrl = post.mediaUrl.lowercase()
+                    val isVideo = post.mediaType == "VIDEO" || lowerUrl.endsWith(".mp4") || lowerUrl.endsWith(".mkv") || lowerUrl.endsWith(".webm") || lowerUrl.contains("video") || lowerUrl.contains("gtv-videos-bucket")
+                    val isAudio = post.mediaType == "AUDIO" || lowerUrl.endsWith(".mp3") || lowerUrl.endsWith(".wav") || lowerUrl.endsWith(".ogg") || lowerUrl.contains("audio")
+                    val isFile = post.mediaType == "FILE" || (!isVideo && !isAudio && (lowerUrl.endsWith(".zip") || lowerUrl.endsWith(".rar") || lowerUrl.endsWith(".pdf") || lowerUrl.endsWith(".txt") || lowerUrl.endsWith(".json")))
+
+                    if (isVideo) {
                         androidx.compose.ui.viewinterop.AndroidView(
                             factory = { ctx ->
                                 android.widget.VideoView(ctx).apply {
@@ -1071,6 +1076,80 @@ fun PostItem(
                                 tint = PureWhite,
                                 modifier = Modifier.size(18.dp)
                             )
+                        }
+                    } else if (isAudio) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .background(DeepGray)
+                                .padding(16.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                imageVector = Icons.Filled.Audiotrack,
+                                contentDescription = "Audio Attachment",
+                                tint = Color(0xFF00E5FF),
+                                modifier = Modifier.size(48.dp)
+                            )
+                            Spacer(modifier = Modifier.width(16.dp))
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = post.mediaUrl.substringAfterLast("/").substringBefore("?"),
+                                    color = StarkWhite,
+                                    fontSize = 14.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    maxLines = 1
+                                )
+                                val Text = if (lang == "RU") "Аудиозапись" else "Audio track"
+                                Text(
+                                    text = Text,
+                                    color = TextGray,
+                                    fontSize = 12.sp
+                                )
+                            }
+                            IconButton(onClick = {}) {
+                                Icon(
+                                    imageVector = Icons.Filled.PlayArrow,
+                                    contentDescription = "Play",
+                                    tint = Color(0xFF00E5FF)
+                                )
+                            }
+                        }
+                    } else if (isFile) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .background(DeepGray)
+                                .padding(16.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                imageVector = Icons.Filled.Description,
+                                contentDescription = "File Attachment",
+                                tint = Color(0xFFFF9100),
+                                modifier = Modifier.size(48.dp)
+                            )
+                            Spacer(modifier = Modifier.width(16.dp))
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = post.mediaUrl.substringAfterLast("/").substringBefore("?"),
+                                    color = StarkWhite,
+                                    fontSize = 14.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    maxLines = 1
+                                )
+                                val Text = if (lang == "RU") "Файл вложения" else "Attached file"
+                                Text(
+                                    text = Text,
+                                    color = TextGray,
+                                    fontSize = 12.sp
+                                )
+                            }
+                            Icon(
+                                imageVector = Icons.Filled.Attachment,
+                                contentDescription = "Open",
+                                tint = Color(0xFFFF9100)
+                              )
                         }
                     } else {
                         AsyncImage(

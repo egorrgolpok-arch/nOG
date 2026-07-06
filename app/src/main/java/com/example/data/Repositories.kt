@@ -1313,18 +1313,42 @@ class SocialRepository(private val context: Context, private val scope: Coroutin
                 val chosenCategory = listOf("Мемы", "Шутки", "Тру Стори", "Абсурд", "Тру Крайм").random()
                 
                 scope.launch {
+                    val otherAvailableComments = bots.filter { it.id != bot.id }.shuffled()
+                    val postMentionBot = otherAvailableComments.firstOrNull()
                     val localContent = LocalNpuEngine.runLocalAiInferenceSuspend(scope) {
-                        LocalAiHeuristics.getRandomPostForCategory(chosenCategory, lang)
+                        LocalAiHeuristics.getRandomPostForCategory(
+                            category = chosenCategory,
+                            lang = lang,
+                            botName = bot.username,
+                            botHandle = bot.handle,
+                            mentionedBot = postMentionBot?.handle
+                        )
                     }
-                    val finalMediaUrl = if (Random.nextInt(100) < 35) {
-                        getGalleryMediaUrls().randomOrNull() ?: getDynamicInternetMediaForQuery(chosenCategory, "IMAGE")
+                    val finalMediaUrl = if (Random.nextInt(100) < 45) {
+                        val galleryFiles = getGalleryMediaUrls()
+                        if (galleryFiles.isNotEmpty()) {
+                            galleryFiles.random()
+                        } else {
+                            getDynamicInternetMediaForQuery(chosenCategory, "IMAGE")
+                        }
+                    } else null
+
+                    val finalMediaType = if (finalMediaUrl != null) {
+                        val lower = finalMediaUrl.lowercase()
+                        when {
+                            lower.endsWith(".mp4") || lower.endsWith(".mkv") || lower.endsWith(".webm") || lower.contains("video") -> "VIDEO"
+                            lower.endsWith(".mp3") || lower.endsWith(".wav") || lower.endsWith(".ogg") || lower.contains("audio") -> "AUDIO"
+                            lower.endsWith(".gif") -> "GIF"
+                            lower.endsWith(".jpg") || lower.endsWith(".jpeg") || lower.endsWith(".png") || lower.endsWith(".webp") || lower.contains("image") -> "IMAGE"
+                            else -> "FILE"
+                        }
                     } else null
 
                     val localPost = PostEntity(
                         authorId = bot.id,
                         content = localContent,
                         mediaUrl = finalMediaUrl,
-                        mediaType = if (finalMediaUrl != null) "IMAGE" else null,
+                        mediaType = finalMediaType,
                         likesCount = if (bot.isVerified) Random.nextInt(200, 1500) else Random.nextInt(5, 100),
                         commentsCount = 0,
                         trustScore = Random.nextInt(35, 101),
@@ -1336,12 +1360,18 @@ class SocialRepository(private val context: Context, private val scope: Coroutin
                     if (id != -1) {
                         // Instantly generate 1-3 lively interactive comments from other bots so posts NEVER have 0 comments!
                         val initialCommentCount = Random.nextInt(1, 4)
-                        val otherAvailableComments = bots.filter { it.id != bot.id }.shuffled()
                         for (i in 0 until initialCommentCount.coerceAtMost(otherAvailableComments.size)) {
                             delay(Random.nextLong(100, 300))
                             val commenter = otherAvailableComments[i]
+                            val commentMentionBot = (otherAvailableComments.filter { it.id != commenter.id } + bot).randomOrNull()
                             val commentText = LocalNpuEngine.runLocalAiInferenceSuspend(scope) {
-                                LocalAiHeuristics.getRandomCommentForCategory(chosenCategory, lang)
+                                LocalAiHeuristics.getRandomCommentForCategory(
+                                    category = chosenCategory,
+                                    lang = lang,
+                                    botName = commenter.username,
+                                    botHandle = commenter.handle,
+                                    mentionedBot = commentMentionBot?.handle
+                                )
                             }
                             addComment(id, commenter.id, commentText)
                         }
