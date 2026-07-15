@@ -136,9 +136,9 @@ fun FeedScreen(
 
         // --- Fullscreen Video / Image Zoom Dialog ---
         if (zoomImageUrl != null) {
-            val isVideoInZoom = zoomImageUrl?.endsWith(".mp4", ignoreCase = true) == true || 
-                                zoomImageUrl?.contains("video", ignoreCase = true) == true ||
-                                zoomImageUrl?.contains("gtv-videos-bucket", ignoreCase = true) == true
+            val isVideoInZoom = zoomImageUrl?.lowercase()?.let { lower ->
+                lower.contains(".mp4") || lower.contains(".mkv") || lower.contains(".webm") || lower.contains("video") || lower.contains("mov") || lower.contains("gtv-videos-bucket")
+            } == true
 
             androidx.compose.ui.window.Dialog(
                 onDismissRequest = { zoomImageUrl = null },
@@ -311,7 +311,7 @@ fun FeedScreen(
                     Box(
                         modifier = Modifier
                             .size(10.dp)
-                            .background(if (isSimulating) AlertGreen else AlertYellow, CircleShape)
+                            .background(if (isSimulating) AlertGreen else TextGray, CircleShape)
                     )
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
@@ -1047,7 +1047,7 @@ fun PostItem(
                     if (post.sourceName.isNotEmpty()) {
                         Text(
                             text = "SOURCE: ${post.sourceName.uppercase()}",
-                            color = AlertYellow.copy(alpha = 0.8f),
+                            color = PureWhite.copy(alpha = 0.6f),
                             fontSize = 8.sp,
                             fontFamily = FontFamily.Monospace,
                             fontWeight = FontWeight.Bold
@@ -1058,14 +1058,14 @@ fun PostItem(
                 if (author != null && author.id != "user") {
                     Text(
                         text = if (isFollowing) (if (lang == "RU") "ОТПИСАТЬСЯ" else "UNFOLLOW") else (if (lang == "RU") "ПОДПИСАТЬСЯ" else "FOLLOW"),
-                        color = if (isFollowing) TextGray else AlertYellow,
+                        color = if (isFollowing) TextGray else StarkWhite,
                         fontSize = 10.sp,
                         fontFamily = FontFamily.Monospace,
                         fontWeight = FontWeight.Bold,
                         modifier = Modifier
                             .clickable { onFollowToggle() }
                             .padding(horizontal = 8.dp, vertical = 4.dp)
-                            .border(1.dp, if (isFollowing) TextGray else AlertYellow, RoundedCornerShape(2.dp))
+                            .border(1.dp, if (isFollowing) TextGray else StarkWhite.copy(alpha = 0.4f), RoundedCornerShape(2.dp))
                             .padding(4.dp)
                     )
                 }
@@ -1090,7 +1090,7 @@ fun PostItem(
                     val trustColor = when {
                         trust >= 90 -> AlertGreen
                         trust >= 75 -> PureWhite
-                        trust >= 60 -> AlertYellow
+                        trust >= 60 -> StarkWhite.copy(alpha = 0.7f)
                         else -> AlertRed
                     }
                     
@@ -1214,7 +1214,7 @@ fun PostItem(
                 Card(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .border(1.dp, AlertYellow, RoundedCornerShape(4.dp))
+                        .border(1.dp, PureWhite.copy(alpha = 0.15f), RoundedCornerShape(4.dp))
                         .clip(RoundedCornerShape(4.dp))
                         .clickable {
                             try {
@@ -1237,13 +1237,13 @@ fun PostItem(
                             Icon(
                                 imageVector = Icons.Default.Share,
                                 contentDescription = "External Link",
-                                tint = AlertYellow,
+                                tint = StarkWhite,
                                 modifier = Modifier.size(12.dp)
                             )
                             Spacer(modifier = Modifier.width(6.dp))
                             Text(
                                 text = "HOST: $hostDomain ▸ ПРЕДПРОСМОТР ССЫЛКИ",
-                                color = AlertYellow,
+                                color = StarkWhite,
                                 fontFamily = FontFamily.Monospace,
                                 fontSize = 8.sp,
                                 fontWeight = FontWeight.Bold
@@ -1276,7 +1276,7 @@ fun PostItem(
                             Column {
                                 Text(
                                     text = platformLabel.uppercase(),
-                                    color = AlertYellow,
+                                    color = StarkWhite,
                                     fontSize = 10.sp,
                                     fontFamily = FontFamily.Monospace,
                                     fontWeight = FontWeight.Bold
@@ -1712,7 +1712,7 @@ fun CreatePostDialog(
                             val link = " https://nog.network/rss/intel_$r"
                             text = text + link
                         },
-                        colors = ButtonDefaults.buttonColors(containerColor = PureBlack, contentColor = AlertYellow),
+                        colors = ButtonDefaults.buttonColors(containerColor = PureBlack, contentColor = StarkWhite),
                         border = BorderStroke(1.dp, BorderGray),
                         shape = RoundedCornerShape(4.dp),
                         modifier = Modifier.weight(1.2f).height(36.dp),
@@ -1983,7 +1983,7 @@ fun CommentsBottomSheet(
                                         Spacer(modifier = Modifier.width(6.dp))
                                         Text(
                                             text = "➔ @${comment.replyToAuthorName}",
-                                            color = AlertYellow,
+                                            color = PureWhite.copy(alpha = 0.6f),
                                             fontSize = 10.sp,
                                             fontFamily = FontFamily.Monospace,
                                             fontWeight = FontWeight.SemiBold
@@ -2029,7 +2029,7 @@ fun CommentsBottomSheet(
                 ) {
                     Text(
                         text = if (lang == "RU") "Ответ пользователю @$replyToAuthorName" else "Replying to @$replyToAuthorName",
-                        color = AlertYellow,
+                        color = StarkWhite,
                         fontSize = 11.sp,
                         fontFamily = FontFamily.Monospace
                     )
@@ -2218,7 +2218,7 @@ fun AiMindsExplorer(
                     )
                     Text(
                         text = characterDescription,
-                        color = AlertYellow,
+                        color = StarkWhite.copy(alpha = 0.8f),
                         fontSize = 10.sp,
                         fontFamily = FontFamily.Monospace,
                         modifier = Modifier.padding(top = 2.dp)
