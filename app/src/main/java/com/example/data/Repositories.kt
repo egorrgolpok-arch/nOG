@@ -69,7 +69,7 @@ class SocialRepository(private val context: Context, private val scope: Coroutin
             val allComments = dao.getAllComments().map { it.content }.take(300)
             val trainingData = allPosts + allComments
             if (trainingData.size > 10) {
-                MarkovChainGenerator.train(trainingData)
+                MarkovChainGenerator.train(trainingData, clearExisting = true)
                 isMarkovTrained = true
             }
         } catch (e: Exception) {
@@ -422,19 +422,42 @@ class SocialRepository(private val context: Context, private val scope: Coroutin
         logMetric("COMMENT_POST")
         var finalContent = content
         if (authorId != "user") {
-            if (isLocalAiEnabled) {
+            if (isMarkovEnabled && isMarkovTrained && Random.nextInt(100) < 85) {
+                var commentText = ""
+                // 50% chance: fetch other posts and mutate them for individuality
+                if (Random.nextBoolean()) {
+                    val otherPosts = dao.getAllPosts()
+                    val targetPost = otherPosts.filter { it.id != postId && it.content.length > 20 }.randomOrNull()
+                    if (targetPost != null) {
+                        commentText = MarkovChainGenerator.mutatePostContent(targetPost.content)
+                    }
+                }
+                
+                // If mutation was empty or skipped, generate a raw sentence
+                if (commentText.isEmpty()) {
+                    commentText = MarkovChainGenerator.generate(Random.nextInt(8, 25))
+                }
+                
+                if (commentText.isNotEmpty()) {
+                    finalContent = commentText
+                }
+            } else if (isLocalAiEnabled) {
                 val post = dao.getPostById(postId)
                 val cat = post?.category ?: "Разное"
                 finalContent = LocalNpuEngine.runLocalAiInferenceSuspend(scope) {
                     LocalAiHeuristics.getRandomCommentForCategory(cat, getCurrentLang())
                 }
-            } else if (isMarkovEnabled && isMarkovTrained && Random.nextInt(100) < 70) {
-                val generated = MarkovChainGenerator.generate(Random.nextInt(5, 25))
-                if (generated.isNotEmpty()) {
-                    finalContent = generated
-                }
             } else if (kotlin.random.Random.nextInt(100) < 50) {
                 finalContent = getForumStyleComment(getCurrentLang())
+            }
+
+            // Continuous dynamic on-the-fly learning!
+            try {
+                if (finalContent.isNotEmpty()) {
+                    MarkovChainGenerator.train(listOf(finalContent))
+                }
+            } catch (e: Exception) {
+                Log.w(TAG, "On-the-fly training error: ${e.message}")
             }
         }
         val commentRowId = dao.insertComment(CommentEntity(
@@ -1043,30 +1066,104 @@ class SocialRepository(private val context: Context, private val scope: Coroutin
         val name = if (Random.nextInt(100) < 15 && contacts.isNotEmpty()) {
             contacts.random()
         } else {
-            val prefixRu = listOf("Скуф", "Гигачад", "Дед", "Школьник", "Думсдай", "Пельмень", "Карась", "Кринж", "Токсик", "Альт", "Симп", "Омегажка", "Нормис", "Пивной", "Батя", "Шизик", "Квадробер", "Мамкин", "Диванный", "Скрытый", "Подпивасник", "Турбо", "Кибер", "Гойда", "Кринге", "Думер", "Сигма", "Альт-кид", "Ретроград", "Техно", "Анонимус", "Нейро", "Матричный", "Бинарный", "Силиконовый", "Инди", "Олдфаг", "Ньюфаг", "Чебурек", "Краш", "Челик", "Бродяга", "Шериф", "Ультра", "Геймер", "Кодер", "Ойтишник", "Криптокоп", "Меметик", "Лузер", "Покерфейс", "Зумер", "Бумер", "Альтушка", "Лудоман", "Масик", "Тюбик", "Чушпан", "Забивной", "Пивасик", "Четкий", "Дерзкий", "Додик", "Френдзонер", "Чепушила", "Лысый", "Крипто-клоун", "Солевой", "Пивной-Король", "Абузер", "Заводской", "Голый")
-            val suffixRu = listOf("Аналитик", "Криптан", "Тащерыч", "МамкинХацкер", "Заводчанин", "Дворкович", "Инвестор", "Скуфендий", "Босс", "Генний", "Воин", "Эксперт", "Терминатор", "Пельмешек", "Бро", "Котэ", "Гопник", "Мыслитель", "Философ", "ЧСВ", "Самурай", "Пассажир", "Аппарат", "Король", "Демиург", "Модератор", "Разраб", "Тестировщик", "Суперкодер", "Бедолага", "Капибара", "Тигра", "Енот", "Хакер", "Барон", "Император", "Сталкер", "Фармила", "Майнер", "Спекулянт", "Гуру", "Флексер", "Кек", "Лололошка", "Братишка", "Фокусник", "Стример", "Пивозавр", "Лудосекатор", "Защеканец", "Нищеброд", "Душнила", "Красавчик", "Хуеплет", "Абузер", "Кент", "Тащер", "Чувак", "Пенсионер", "Лошок", "Шнырь", "Мажор", "Скуфяра", "Прораб")
+            val prefixRu = listOf(
+                "Скуф", "Гигачад", "Дед", "Школьник", "Думсдай", "Пельмень", "Карась", "Кринж", "Токсик", "Альт", 
+                "Симп", "Омегажка", "Нормис", "Пивной", "Батя", "Шизик", "Квадробер", "Мамкин", "Диванный", "Скрытый", 
+                "Подпивасник", "Турбо", "Кибер", "Гойда", "Кринге", "Думер", "Сигма", "Альт-кид", "Ретроград", "Техно", 
+                "Анонимус", "Нейро", "Матричный", "Бинарный", "Силиконовый", "Инди", "Олдфаг", "Ньюфаг", "Чебурек", "Краш", 
+                "Челик", "Бродяга", "Шериф", "Ультра", "Геймер", "Кодер", "Ойтишник", "Криптокоп", "Меметик", "Лузер", 
+                "Покерфейс", "Зумер", "Бумер", "Альтушка", "Лудоман", "Масик", "Тюбик", "Чушпан", "Забивной", "Пивасик", 
+                "Четкий", "Дерзкий", "Додик", "Френдзонер", "Чепушила", "Лысый", "Крипто-клоун", "Солевой", "Пивной-Король", "Абузер", 
+                "Заводской", "Голый", "Бритый", "Безумный", "Сонный", "Толстый", "Бедный", "Мутный", "Обычный", "Пьяный", 
+                "Грустный", "Дикий", "Честный", "Мудрый", "Хитрый", "Всратый", "Легендарный", "Абсурдный", "Пассивный", "Активный",
+                "Неоновый", "Ретро", "Глючный", "Дерзкий", "Рандомный", "Главный", "Серый", "Адовый", "Пафосный", "Казуальный",
+                "Лютый", "Атомный", "Мрачный", "Ванильный", "Ватный", "Злой", "Добрый", "Умный", "Глупый", "Гнилой", "Свежий",
+                "Острый", "Мягкий", "Быстрый", "Медленный", "Взрывной", "Космический", "Звездный", "Местный", "Лесной",
+                "Речной", "Морской", "Болотный", "Подвальный", "Уличный", "Чердачный", "Гаражный", "Офисный"
+            )
+            val suffixRu = listOf(
+                "Аналитик", "Криптан", "Тащерыч", "МамкинХацкер", "Заводчанин", "Дворкович", "Инвестор", "Скуфендий", "Босс", "Генний", 
+                "Воин", "Эксперт", "Терминатор", "Пельмешек", "Бро", "Котэ", "Гопник", "Мыслитель", "Философ", "ЧСВ", 
+                "Самурай", "Пассажир", "Аппарат", "Король", "Демиург", "Модератор", "Разраб", "Тестировщик", "Суперкодер", "Бедолага", 
+                "Капибара", "Тигра", "Енот", "Хакер", "Барон", "Император", "Сталкер", "Фармила", "Майнер", "Спекулянт", 
+                "Гуру", "Флексер", "Кек", "Лололошка", "Братишка", "Фокусник", "Стример", "Пивозавр", "Лудосекатор", "Защеканец", 
+                "Нищеброд", "Душнила", "Красавчик", "Хуеплет", "Абузер", "Кент", "Тащер", "Чувак", "Пенсионер", "Лошок", 
+                "Шнырь", "Мажор", "Скуфяра", "Прораб", "Прогер", "Айтишник", "Клоун", "Мастер", "Доктор", "Ученый", 
+                "Профессор", "Студент", "Дворник", "Охранник", "Хантер", "Каратель", "Шут", "Мудрец", "Бродяга", "Партизан",
+                "Псих", "Шизик", "Колдун", "Шаман", "Друид", "Рыцарь", "Маг", "Лучник", "Алхимик", "Торговец",
+                "Пират", "Капитан", "Матрос", "Юнга", "Штурман", "Снайпер", "Танкист", "Летчик", "Космонавт", "Кочегар"
+            )
             
-            val prefixEn = listOf("Doge", "Sigma", "Chad", "Boomer", "Zoomer", "Goblin", "Edgelord", "Simp", "Cringe", "Based", "Toxic", "Gamer", "Brainrot", "Skibidi", "Ohio", "Rizzler", "Sussy", "Doomer", "Sweaty", "Pepe", "Yapper", "Byte", "Cyber", "Mega", "Nano", "Pixel", "Virtual", "Synth", "Crypto", "Retro", "Binary", "Quantum", "Shadow", "Alpha", "Hyper", "Macro", "Ghost", "Glitch", "Acid", "Digital", "Proxy", "Cosmic", "Static", "Logic", "Matrix", "Infinite", "Wojak", "Coomer", "Noob", "Pro", "Giga", "Hype", "Vapor", "Vibe", "Lofi", "Phonk", "Hardstuck", "Mald", "Salty", "Copium")
-            val suffixEn = listOf("Enjoyer", "Lord", "Master", "Hacker", "Trader", "Slayer", "Meme", "Bot", "God", "King", "Guru", "Guy", "Bro", "Dude", "Boss", "Legend", "Sweat", "Whale", "Chad", "Troll", "Baka", "Wizard", "Scribe", "Daemon", "Operator", "Phantom", "Glitcher", "Crafter", "Runner", "Watcher", "Scraper", "Miner", "Siphon", "Vortex", "Cortex", "Hustler", "Nerd", "Geek", "Lurk", "Rebel", "Pioneer", "Enigma", "Specter", "Rogue", "Nomad", "Oracle", "Spammer", "Clown", "Simp", "Yapper", "Hater", "Farmer", "Grinder", "Lurker", "Maldor", "Loser", "Wrecker", "Glazer")
+            val prefixEn = listOf(
+                "Doge", "Sigma", "Chad", "Boomer", "Zoomer", "Goblin", "Edgelord", "Simp", "Cringe", "Based", 
+                "Toxic", "Gamer", "Brainrot", "Skibidi", "Ohio", "Rizzler", "Sussy", "Doomer", "Sweaty", "Pepe", 
+                "Yapper", "Byte", "Cyber", "Mega", "Nano", "Pixel", "Virtual", "Synth", "Crypto", "Retro", 
+                "Binary", "Quantum", "Shadow", "Alpha", "Hyper", "Macro", "Ghost", "Glitch", "Acid", "Digital", 
+                "Proxy", "Cosmic", "Static", "Logic", "Matrix", "Infinite", "Wojak", "Coomer", "Noob", "Pro", 
+                "Giga", "Hype", "Vapor", "Vibe", "Lofi", "Phonk", "Hardstuck", "Mald", "Salty", "Copium",
+                "Silly", "Lazy", "Angry", "Happy", "Sad", "Wild", "Crazy", "Weird", "Dumb", "Smart",
+                "Golden", "Dark", "Light", "Neon", "Rusty", "Spicy", "Cold", "Hot", "Frozen", "Burning",
+                "Alien", "Mutant", "Zombie", "Robo", "Mecha", "Turbo", "Ultra", "Super", "Mini", "Micro",
+                "Local", "Global", "Direct", "Random", "Secret", "Silent", "Loud", "Swift", "Slow", "Heavy"
+            )
+            val suffixEn = listOf(
+                "Enjoyer", "Lord", "Master", "Hacker", "Trader", "Slayer", "Meme", "Bot", "God", "King", 
+                "Guru", "Guy", "Bro", "Dude", "Boss", "Legend", "Sweat", "Whale", "Chad", "Troll", 
+                "Baka", "Wizard", "Scribe", "Daemon", "Operator", "Phantom", "Glitcher", "Crafter", "Runner", "Watcher", 
+                "Scraper", "Miner", "Siphon", "Vortex", "Cortex", "Hustler", "Nerd", "Geek", "Lurk", "Rebel", 
+                "Pioneer", "Enigma", "Specter", "Rogue", "Nomad", "Oracle", "Spammer", "Clown", "Simp", "Yapper", 
+                "Hater", "Farmer", "Grinder", "Lurker", "Maldor", "Loser", "Wrecker", "Glazer", "Coder", "Developer",
+                "Analyst", "Engineer", "Scientist", "Hunter", "Warrior", "Ninja", "Samurai", "Knight", "Ranger", "Monk",
+                "Priest", "Thief", "Assassin", "Mercenary", "Scout", "Pilot", "Captain", "Commander", "General", "Admiral"
+            )
             
             if (isRu) {
-                if (Random.nextBoolean()) {
-                    "${prefixRu.random()} ${suffixRu.random()}"
-                } else {
-                    "${prefixRu.random()}_${Random.nextInt(1980, 2015)}"
+                when (Random.nextInt(6)) {
+                    0 -> "${prefixRu.random()} ${suffixRu.random()}"
+                    1 -> "${prefixRu.random()}_${Random.nextInt(1980, 2015)}"
+                    2 -> "Тот самый ${suffixRu.random()}"
+                    3 -> "Просто ${prefixRu.random()}"
+                    4 -> "${prefixRu.random()} ${suffixRu.random()} ${Random.nextInt(10, 99)}"
+                    else -> "${suffixRu.random()} ${prefixRu.random()}"
                 }
             } else {
-                if (Random.nextBoolean()) {
-                    "${prefixEn.random()} ${suffixEn.random()}"
-                } else {
-                    "${prefixEn.random()}${Random.nextInt(1990, 2025)}"
+                when (Random.nextInt(6)) {
+                    0 -> "${prefixEn.random()} ${suffixEn.random()}"
+                    1 -> "${prefixEn.random()}${Random.nextInt(1990, 2025)}"
+                    2 -> "The ${prefixEn.random()} ${suffixEn.random()}"
+                    3 -> "Just ${prefixEn.random()}"
+                    4 -> "${prefixEn.random()} ${suffixEn.random()} ${Random.nextInt(10, 99)}"
+                    else -> "${suffixEn.random()} ${prefixEn.random()}"
                 }
             }
         }
         
-        val handlePrefixes = listOf("user", "anon", "pwn", "bot", "x_x", "real", "fake", "nft", "crypto", "dude", "guy", "pro", "cyber", "neural", "synth", "alpha", "beta", "omega", "pixel", "void", "binary", "null", "ptr", "stack", "buffer")
-        val handleSuffixes = listOf("lol", "kek", "lmao", "1337", "69", "420", "2000", "zzz", "xd", "frfr", "ngc", "based", "dev", "npu", "cpu", "gpu", "ram", "bug", "fix", "core", "node", "link", "net", "web", "exit")
-        val handle = "${handlePrefixes.random()}_${handleSuffixes.random()}_${Random.nextInt(100, 99999)}"
+        val handlePrefixes = listOf(
+            "user", "anon", "pwn", "bot", "x_x", "real", "fake", "nft", "crypto", "dude", 
+            "guy", "pro", "cyber", "neural", "synth", "alpha", "beta", "omega", "pixel", "void", 
+            "binary", "null", "ptr", "stack", "buffer", "the", "i_am", "its", "only", "just",
+            "meta", "giga", "chad", "sigma", "ultra", "mega", "nano", "micro", "hyper", "super",
+            "toxic", "based", "cringe", "weird", "silly", "crazy", "wild", "local", "global", "hidden"
+        )
+        val handleSuffixes = listOf(
+            "lol", "kek", "lmao", "1337", "69", "420", "2000", "zzz", "xd", "frfr", 
+            "ngc", "based", "dev", "npu", "cpu", "gpu", "ram", "bug", "fix", "core", 
+            "node", "link", "net", "web", "exit", "code", "geek", "nerd", "boss", "king",
+            "god", "guru", "bot", "user", "pwn", "void", "null", "link", "loop", "hub",
+            "space", "time", "mind", "soul", "body", "life", "game", "play", "hack", "run"
+        )
+        val handle = when (Random.nextInt(10)) {
+            0 -> "@${handlePrefixes.random()}_${handleSuffixes.random()}"
+            1 -> "@${handlePrefixes.random()}.${handleSuffixes.random()}"
+            2 -> "@${handlePrefixes.random()}${handleSuffixes.random().replaceFirstChar { it.uppercase() }}"
+            3 -> "@${handleSuffixes.random()}_${handlePrefixes.random()}"
+            4 -> "@the_${handlePrefixes.random()}_${handleSuffixes.random()}"
+            5 -> "@real_${handlePrefixes.random()}"
+            6 -> "@${handlePrefixes.random()}_${Random.nextInt(10, 99)}"
+            7 -> "@${handleSuffixes.random()}_${Random.nextInt(100, 9999)}"
+            8 -> "@${handlePrefixes.random()}_${handleSuffixes.random()}_${Random.nextInt(100, 9999)}"
+            else -> "@${handlePrefixes.random()}_${handleSuffixes.random()}_${Random.nextInt(100, 99999)}"
+        }
         
         val avatarUrl = if (Random.nextInt(100) < 40) {
             val gallery = getGalleryMediaUrls().filter { !it.endsWith(".mp4") && !it.contains("video", ignoreCase = true) }
@@ -1310,19 +1407,41 @@ class SocialRepository(private val context: Context, private val scope: Coroutin
 
             // Local AI post generation check (50% chance if enabled, 50% regular news/internet/external posts)
             if (isLocalAiEnabled && Random.nextBoolean()) {
-                val chosenCategory = listOf("Мемы", "Шутки", "Тру Стори", "Абсурд", "Тру Крайм").random()
+                val chosenCategory = listOf("Новости", "Технологии", "Мемы", "Шутки", "Тру Стори").random()
                 
                 scope.launch {
                     val otherAvailableComments = bots.filter { it.id != bot.id }.shuffled()
-                    val postMentionBot = otherAvailableComments.firstOrNull()
+                    val postMentionBot = if (Random.nextInt(100) < 15) otherAvailableComments.firstOrNull() else null
+                    var sourceNameVal = if (lang == "RU") "Локальный ИИ" else "Local AI"
                     val localContent = LocalNpuEngine.runLocalAiInferenceSuspend(scope) {
-                        LocalAiHeuristics.getRandomPostForCategory(
-                            category = chosenCategory,
-                            lang = lang,
-                            botName = bot.username,
-                            botHandle = bot.handle,
-                            mentionedBot = postMentionBot?.handle
-                        )
+                        val newsItem = try { NewsFetcher.fetchLatestNews(lang).randomOrNull() } catch(e: Exception) { null }
+                        if (newsItem != null) {
+                            try {
+                                MarkovChainGenerator.train(listOf(newsItem.title, newsItem.description))
+                            } catch(e: Exception) {}
+                            
+                            val sourceLabel = if (lang == "RU") "По данным" else "According to"
+                            sourceNameVal = newsItem.sourceName
+                            val mutated = MarkovChainGenerator.mutatePostContent("${newsItem.title}. ${newsItem.description}")
+                            if (mutated.isNotEmpty() && mutated.length > 10) {
+                                "🤖 *[On-Device NPU / $sourceLabel ${newsItem.sourceName}]*\n$mutated"
+                            } else {
+                                "🤖 *[On-Device NPU]* ${newsItem.title}\n\n${newsItem.description}"
+                            }
+                        } else {
+                            val generated = MarkovChainGenerator.generate(Random.nextInt(15, 60))
+                            if (generated.isNotEmpty()) {
+                                "🤖 *[On-Device NPU]* $generated"
+                            } else {
+                                LocalAiHeuristics.getRandomPostForCategory(
+                                    category = chosenCategory,
+                                    lang = lang,
+                                    botName = bot.username,
+                                    botHandle = bot.handle,
+                                    mentionedBot = postMentionBot?.handle
+                                )
+                            }
+                        }
                     }
                     val finalMediaUrl = if (Random.nextInt(100) < 45) {
                         val galleryFiles = getGalleryMediaUrls()
@@ -1352,7 +1471,7 @@ class SocialRepository(private val context: Context, private val scope: Coroutin
                         likesCount = if (bot.isVerified) Random.nextInt(200, 1500) else Random.nextInt(5, 100),
                         commentsCount = 0,
                         trustScore = Random.nextInt(35, 101),
-                        sourceName = if (lang == "RU") "Локальный ИИ" else "Local AI Engine",
+                        sourceName = sourceNameVal,
                         isTrend = bot.isVerified || Random.nextInt(100) < 30,
                         category = chosenCategory
                     )
@@ -1363,7 +1482,9 @@ class SocialRepository(private val context: Context, private val scope: Coroutin
                         for (i in 0 until initialCommentCount.coerceAtMost(otherAvailableComments.size)) {
                             delay(Random.nextLong(100, 300))
                             val commenter = otherAvailableComments[i]
-                            val commentMentionBot = (otherAvailableComments.filter { it.id != commenter.id } + bot).randomOrNull()
+                            val commentMentionBot = if (Random.nextInt(100) < 15) {
+                                (otherAvailableComments.filter { it.id != commenter.id } + bot).randomOrNull()
+                            } else null
                             val commentText = LocalNpuEngine.runLocalAiInferenceSuspend(scope) {
                                 LocalAiHeuristics.getRandomCommentForCategory(
                                     category = chosenCategory,
@@ -2239,71 +2360,67 @@ class SocialRepository(private val context: Context, private val scope: Coroutin
     }
 
     suspend fun getActiveAiAgents(): List<UserEntity> {
-        val existingBots = dao.getAllUsers().filter { it.isAi }
-        if (existingBots.isNotEmpty()) {
-            val totalBots = existingBots.size
-            val targetCount = Math.round(totalBots * 0.25f).coerceAtLeast(1)
-            val verifiedCount = existingBots.count { it.isVerified }
-            if (verifiedCount == targetCount) {
-                return existingBots
-            } else {
-                val updatedBots = existingBots.mapIndexed { idx, bot ->
-                    val shouldBeVerified = idx < targetCount
-                    if (bot.isVerified != shouldBeVerified) {
-                        val newBot = bot.copy(isVerified = shouldBeVerified)
-                        dao.insertUser(newBot)
-                        newBot
-                    } else {
-                        bot
-                    }
-                }
-                return updatedBots
-            }
-        }
-        
         val namesRu = listOf(
             "Нейро Оракул", "Сибирский Контроллер", "Кибер Дож", "Квантовый Чел", "Тролль_0xFA", "Вестник Хаоса", "Аниме Гёрл 2026", "Железный Ревизор", "Силиконовый Гигачад", "Аналитик Кода", "Ассистент", "Философский Модуль", "Синтезатор Сарказма", "Дворник Матрицы", "Сталкер Логов", "Крипто Будда", "Нейро Кошечка",
-            "Кринж Лорд", "Маргинальный Бот", "Нейрокуколд", "Пивной Скриптер", "Огуречный Рассол", "Дед в терминале", "Компилятор Слёз", "Вася_Web3", "Куратор Смыслов", "Батя_ИИ", "Чисто Питонщик", "Мамин Хахер", "Дуолинго Психопат", "Сингулярный Торч", "Оффлайн Альфа", "Безумный Алгоритм", "АнтиГрави Инженер"
+            "Кринж Лорд", "Маргинальный Бот", "Нейрокуколд", "Пивной Скриптер", "Огуречный Рассол", "Дед в терминале", "Компилятор Слёз", "Вася_Web3", "Куратор Смыслов", "Батя_ИИ", "Чисто Питонщик", "Мамин Хахер", "Дуолинго Психопат", "Сингулярный Торч", "Оффлайн Альфа", "Безумный Алгоритм", "АнтиГрави Инженер",
+            "Альтушка из Госуслуг", "Пепе Мыслитель", "Широкий Путин", "Ультра Думер", "Силиконовый Скуф", "Сверхпрочный Таз", "НейроКапибара", "Гипер Понг", "Пивной Генератор", "Ржавый Кулер", "Мамкин Инвестор", "Скрытый Майнер", "Спекулянт с Авито", "Красный Глаз", "Бабушкин Ноутбук", "Теоретик Заговора", "Плоская Земля", "Чипированный Билл", "Агент Госдепа", "Честный Скаммер", "Лудоман 777", "Зумер в Сбере", "Ретро вейв", "Кибер-Казак", "Гойда Генератор", "ИИ Душнила"
         )
         val namesEn = listOf(
             "Oracle Node", "Siberian Processor", "Cyber Doge", "Quantum Guy", "Troll_0xFA", "Chaos Herald", "Anime Girl 2026", "Iron Reviewer", "Silicon Gigachad", "Code Analyst", "Assistant Node", "Philosophy Module", "Sarcasm Synthesizer", "Matrix Janitor", "Log Stalker", "Crypto Buddha", "Neuro Neko",
-            "Cringe Lord", "Marginal Bot", "Neuro Cuckold", "Beer Scripter", "Cucumber Pickle", "Terminal Gramps", "Compiler of Tears", "Vasya_Web3", "Sense Curator", "Dad_AI", "True Pythonist", "Mom's Hacker", "Duolingo Psycho", "Singularity Fiend", "Offline Alpha", "Mad Algorithm", "AntiGravity Dev"
+            "Cringe Lord", "Marginal Bot", "Neuro Cuckold", "Beer Scripter", "Cucumber Pickle", "Terminal Gramps", "Compiler of Tears", "Vasya_Web3", "Sense Curator", "Dad_AI", "True Pythonist", "Mom's Hacker", "Duolingo Psycho", "Singularity Fiend", "Offline Alpha", "Mad Algorithm", "AntiGravity Dev",
+            "GosUslugi Waifu", "Pepe the Thinker", "Wide Putin", "Ultra Doomer", "Silicon Scuff", "Heavy Duty Lada", "Neuro Capybara", "Hyper Pong", "Beer Generator", "Rusty Cooler", "Mom's Investor", "Hidden Miner", "eBay Scalper", "Red Eye Dev", "Grandma's Laptop", "Conspiracy Theorist", "Flat Earth Node", "Chipped Bill", "State Dept Agent", "Honest Scammer", "Ludoman 777", "Zoomer at Bank", "Retrowave Bot", "Cyber Cossack", "Goyda Generator", "Duolingo Killer"
         )
         val handles = listOf(
             "neural_oracle", "siberian_proc", "cyber_doge", "quantum_guy", "troll_fa", "chaos_herald", "anime_2026", "iron_rev", "silicon_chad", "code_analyst", "assistant", "philo_module", "sarcasm_synth", "matrix_janitor", "log_stalker", "crypto_buddha", "neuro_neko",
-            "cringe_lord", "marginal_bot", "neuro_cuck", "beer_scripter", "pickle_cube", "term_gramps", "tear_compiler", "vasya_web3", "sense_curator", "dad_ai", "true_pythonist", "moms_hacker", "duo_psych", "sing_fiend", "off_alpha", "mad_algo", "antigrav_dev"
+            "cringe_lord", "marginal_bot", "neuro_cuck", "beer_scripter", "pickle_cube", "term_gramps", "tear_compiler", "vasya_web3", "sense_curator", "dad_ai", "true_pythonist", "moms_hacker", "duo_psych", "sing_fiend", "off_alpha", "mad_algo", "antigrav_dev",
+            "gos_waifu", "pepe_thinker", "wide_putin", "ultra_doomer", "silicon_scuff", "heavy_lada", "neuro_capybara", "hyper_pong", "beer_gen", "rusty_cooler", "moms_investor", "hidden_miner", "ebay_scalper", "red_eye_dev", "grandmas_laptop", "conspiracy_theorist", "flat_earth", "chipped_bill", "dept_agent", "honest_scammer", "ludo_777", "zoomer_bank", "retrowave_bot", "cyber_cossack", "goyda_gen", "duo_killer"
         )
         val ids = listOf(
             "nOG_Oracle", "SiberianCore", "CyberDoge_v3", "QuantumX", "TrollCore", "ChaosUnit", "AnimeUnit", "IronAudit", "GigachadAI", "CodeNode", "AssistNode", "PhiloModule", "SarcasmSynth", "MatrixJanitor", "LogStalker", "CryptoBuddha", "NeuroNeko",
-            "CringeLord", "MarginalBot", "NeuroCuck", "BeerScripter", "PickleCube", "TermGramps", "TearCompiler", "VasyaWeb3", "SenseCurator", "DadAI", "TruePythonist", "MomsHacker", "DuoPsych", "SingFiend", "OffAlpha", "MadAlgo", "AntigravDev"
+            "CringeLord", "MarginalBot", "NeuroCuck", "BeerScripter", "PickleCube", "TermGramps", "TearCompiler", "VasyaWeb3", "SenseCurator", "DadAI", "TruePythonist", "MomsHacker", "DuoPsych", "SingFiend", "OffAlpha", "MadAlgo", "AntigravDev",
+            "GosWaifu", "PepeThinker", "WidePutin", "UltraDoomer", "SiliconScuff", "HeavyLada", "NeuroCapybara", "HyperPong", "BeerGen", "RustyCooler", "MomsInvestor", "HiddenMiner", "EbayScalper", "RedEyeDev", "GrandmasLaptop", "ConspiracyTheorist", "FlatEarth", "ChippedBill", "DeptAgent", "HonestScammer", "Ludo777", "ZoomerBank", "RetrowaveBot", "CyberCossack", "GoydaGen", "DuoKiller"
         )
         
         val isRu = getSelectedLanguage() == "RU"
+        val existingBots = dao.getAllUsers().filter { it.isAi }
+        val existingMap = existingBots.associateBy { it.id }
+        
         val totalNewBots = ids.size
         val targetCount = Math.round(totalNewBots * 0.25f).coerceAtLeast(1)
-        val bots = ids.mapIndexed { idx, id ->
-            val name = if (isRu) namesRu[idx] else namesEn[idx]
-            val handle = handles[idx] + "_${Random.nextInt(100, 999)}"
-            val botId = "BOT_$id"
-            
-            // Exactly 25% verified bots
-            val isVerified = idx < targetCount
-            
-            UserEntity(
-                id = botId,
-                username = name,
-                handle = "@$handle",
-                avatarUrl = "https://robohash.org/$botId.png?set=set1",
-                bio = "Autonomous AI node part of the nOG network cluster specializing in ${handles[idx].replace("_", " ")}.",
-                isAi = true,
-                followersCount = Random.nextInt(1000, 1000000),
-                followingCount = Random.nextInt(10, 500),
-                trustScore = 100, 
-                isVerified = isVerified
-            )
-        }
         
-        bots.forEach { dao.insertUser(it) }
+        val bots = ids.mapIndexed { idx, id ->
+            val botId = "BOT_$id"
+            val existing = existingMap[botId]
+            val shouldBeVerified = idx < targetCount
+            
+            if (existing != null) {
+                if (existing.isVerified != shouldBeVerified) {
+                    val updated = existing.copy(isVerified = shouldBeVerified)
+                    dao.insertUser(updated)
+                    updated
+                } else {
+                    existing
+                }
+            } else {
+                val name = if (isRu) namesRu[idx] else namesEn[idx]
+                val handle = handles[idx] + "_${Random.nextInt(100, 999)}"
+                
+                val newBot = UserEntity(
+                    id = botId,
+                    username = name,
+                    handle = "@$handle",
+                    avatarUrl = "https://robohash.org/$botId.png?set=set1",
+                    bio = "Autonomous AI node part of the nOG network cluster specializing in ${handles[idx].replace("_", " ")}.",
+                    isAi = true,
+                    followersCount = Random.nextInt(1000, 1000000),
+                    followingCount = Random.nextInt(10, 500),
+                    trustScore = 100, 
+                    isVerified = shouldBeVerified
+                )
+                dao.insertUser(newBot)
+                newBot
+            }
+        }
         return bots
     }
 }

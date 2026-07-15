@@ -20,7 +20,8 @@ data class NewsItem(
     val description: String, 
     val url: String, 
     val trustScore: Int,
-    val fullContent: String? = null
+    val fullContent: String? = null,
+    val imageUrl: String? = null
 )
 
 object NewsFetcher {
@@ -78,6 +79,11 @@ object NewsFetcher {
     }
 
     private val sources = listOf(
+        // === USER REQUESTED SOURCES ===
+        NewsSource("Forbes", "https://news.google.com/rss/search?q=when:24h+site:forbes.com&hl=en-US", 92, false),
+        NewsSource("Forbes Россия", "https://news.google.com/rss/search?q=when:24h+site:forbes.ru&hl=ru", 90, true),
+        NewsSource("eblo.id", "https://news.google.com/rss/search?q=when:24h+site:eblo.id&hl=ru", 75, true),
+
         // === FOREIGN / ENGLISH SOURCES (50 COMPLETELY UNIQUE) ===
         NewsSource("BBC News", "https://feeds.bbci.co.uk/news/rss.xml", 95, false),
         NewsSource("NYT World", "https://rss.nytimes.com/services/xml/rss/nyt/World.xml", 90, false),
@@ -279,6 +285,7 @@ object NewsFetcher {
             var currentTitle = ""
             var currentDesc = ""
             var currentUrl = ""
+            var currentImg = ""
             var insideItem = false
 
             val isGoogleNews = source.url.contains("news.google.com")
@@ -292,6 +299,7 @@ object NewsFetcher {
                             currentTitle = ""
                             currentDesc = ""
                             currentUrl = ""
+                            currentImg = ""
                         } else if (insideItem) {
                             if (name.equals("title", ignoreCase = true)) {
                                 currentTitle = parser.nextText()
@@ -301,6 +309,20 @@ object NewsFetcher {
                                 val href = parser.getAttributeValue(null, "href")
                                 if (href != null) currentUrl = href
                                 else currentUrl = parser.nextText()
+                            } else if (name.equals("enclosure", ignoreCase = true)) {
+                                val type = parser.getAttributeValue(null, "type")
+                                if (type != null && type.startsWith("image")) {
+                                    val u = parser.getAttributeValue(null, "url")
+                                    if (u != null) currentImg = u
+                                }
+                            } else if (name.equals("media:content", ignoreCase = true) || name.equals("content", ignoreCase = true)) {
+                                val u = parser.getAttributeValue(null, "url")
+                                if (u != null) {
+                                    currentImg = u
+                                }
+                            } else if (name.equals("media:thumbnail", ignoreCase = true)) {
+                                val u = parser.getAttributeValue(null, "url")
+                                if (u != null) currentImg = u
                             }
                         }
                     }
@@ -311,8 +333,23 @@ object NewsFetcher {
                             val cleanedTitle = cleanNewsTitle(currentTitle, source.name)
                             val cleanedDesc = cleanNewsDesc(cleanedTitle, currentDesc, isGoogleNews)
                             
+                            var extractedImg = currentImg
+                            if (extractedImg.isEmpty() && currentDesc.contains("<img")) {
+                                val imgMatch = Regex("<img[^>]+src=[\"']([^\"']+)[\"']").find(currentDesc)
+                                if (imgMatch != null) {
+                                    extractedImg = imgMatch.groups[1]?.value ?: ""
+                                }
+                            }
+                            
                             if (cleanedTitle.isNotEmpty()) {
-                                items.add(NewsItem(source.name, cleanedTitle, cleanedDesc, currentUrl, source.trustScore))
+                                items.add(NewsItem(
+                                    sourceName = source.name, 
+                                    title = cleanedTitle, 
+                                    description = cleanedDesc, 
+                                    url = currentUrl, 
+                                    trustScore = source.trustScore,
+                                    imageUrl = if (extractedImg.isNotEmpty()) extractedImg else null
+                                ))
                             }
                         }
                     }
@@ -399,6 +436,8 @@ object NewsFetcher {
     private fun getFallbackNews(isRu: Boolean): List<NewsItem> {
         return if (isRu) {
             listOf(
+                NewsItem("Forbes Россия", "Капитал российских миллиардеров вырос за счет ИИ-активов", "Российское издание Forbes подготовило отчет о росте технологического сектора. Главным драйвером стали локальные вычисления и децентрализованные сети.", "https://forbes.ru/news/1", 90, imageUrl = "https://images.unsplash.com/photo-1590283603385-17ffb3a7f29f?auto=format&fit=crop&w=600&q=80"),
+                NewsItem("eblo.id", "Запущен мем-токен EBLO, подкрепленный мощностями стиральных машин", "Криптосообщество взорвано запуском юмористического токена. Вся эмиссия майнится децентрализованными контроллерами бытовой техники.", "https://eblo.id/news/1", 75, imageUrl = "https://images.unsplash.com/photo-1550751827-4bd374c3f58b?auto=format&fit=crop&w=600&q=80"),
                 NewsItem("nOG Network", "Узел синхронизации: Ожидание внешних данных", "Входящий поток новостей временно недоступен. Проверьте соединение с основным шлюзом.", "https://nog.network", 100),
                 NewsItem("Анекдот.ру", "Анекдот про ИИ и программиста в баре", "Заходит программист в бар и заказывает ИИ-коктейль. Бармен наливает стакан пустых обещаний, добавляет щепотку хайпа, размешивает зубочисткой и берет 100 долларов. Программист пьет и говорит: 'Но тут же ничего нет!'. Бармен подмигивает: 'В этом и суть стартапа, бро!'", "https://anekdot.ru/1", 95),
                 NewsItem("Юмор ФМ", "О дебаггинге перед сном", "Решил программист перед сном посчитать овец. Насчитал 1.000.000.001 овцу, но обнаружил баг: в цикле сбился счетчик, пришлось начать заново с 0. В итоге встретил рассвет, дебажа отару.", "https://yumor.fm/1", 85),
@@ -416,6 +455,7 @@ object NewsFetcher {
             )
         } else {
             listOf(
+                NewsItem("Forbes", "How On-Device AI Models Are Disrupting The Silicon Valley Monopoly", "Forbes analyzes how compact, highly optimized 1B-3B model weights are empowering mobile users to perform complex offline tasks without relying on massive server clusters.", "https://forbes.com/news/1", 92, imageUrl = "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=600&q=80"),
                 NewsItem("nOG Network", "Sync Node: Awaiting External Data", "The incoming news stream is currently unreachable. Verify connectivity to the primary gateway.", "https://nog.network", 100),
                 NewsItem("Reddit r/jokes", "AI enters a bar...", "An AI model walks into a bar. The bartender says, 'We don't serve predictive language patterns here.' The AI replies, 'I knew you were going to say that.'", "https://reddit.com/r/jokes/1", 75),
                 NewsItem("9GAG", "How many developers does it take to change a lightbulb?", "None. It is a hardware issue, and the software department has already opened an investigation ticket.", "https://9gag.com/1", 70),
@@ -428,6 +468,35 @@ object NewsFetcher {
                 NewsItem("GameSpot", "Major studio update fixes all performance issues in recent RPG", "GameSpot reports that the 1.05 patch improves frame rates by up to 50% on mid-range hardware and restores missing visual shaders.", "https://gamespot.com/rpg/1", 80),
                 NewsItem("TechCrunch", "AI Startup launches decentralized truth verification algorithm", "The protocol leverages cryptographic proofs to rate public news articles based on cross-referenced reliable databases.", "https://techcrunch.com/funding/1", 92)
             )
+        }
+    }
+
+    fun getAllSources(): List<NewsSource> = sources
+
+    suspend fun fetchLatestNewsForSource(source: NewsSource, lang: String = "RU"): List<NewsItem> = withContext(Dispatchers.IO) {
+        try {
+            val request = Request.Builder()
+                .url(source.url)
+                .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36")
+                .build()
+            client.newCall(request).execute().use { response ->
+                val xmlBody = response.body?.string()
+                if (response.isSuccessful && !xmlBody.isNullOrEmpty()) {
+                    val trimmedBody = xmlBody.trim()
+                    if (trimmedBody.startsWith("<rss") || trimmedBody.startsWith("<feed") || trimmedBody.contains("<?xml")) {
+                        parseRss(trimmedBody, source).take(10)
+                    } else {
+                        emptyList()
+                    }
+                } else {
+                    emptyList()
+                }
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "Failed to fetch RSS from ${source.name}: ${e.message}")
+            // Return fallback specific to source if any
+            val fallbacks = getFallbackNews(lang == "RU")
+            fallbacks.filter { it.sourceName.contains(source.name, ignoreCase = true) }
         }
     }
 }

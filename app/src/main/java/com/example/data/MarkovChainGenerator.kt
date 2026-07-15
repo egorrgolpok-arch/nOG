@@ -18,12 +18,14 @@ object MarkovChainGenerator {
     // All known words for unigram fallback
     private val allWords = java.util.concurrent.CopyOnWriteArrayList<String>()
 
-    fun train(texts: List<String>) {
+    fun train(texts: List<String>, clearExisting: Boolean = false) {
         if (texts.isEmpty()) return
-        trigramChain.clear()
-        bigramChain.clear()
-        startKeysTrigram.clear()
-        allWords.clear()
+        if (clearExisting) {
+            trigramChain.clear()
+            bigramChain.clear()
+            startKeysTrigram.clear()
+            allWords.clear()
+        }
 
         for (rawText in texts) {
             val text = rawText.trim()
@@ -146,6 +148,47 @@ object MarkovChainGenerator {
         }
 
         // Capitalize the first letter nicely
+        return sentence.replaceFirstChar { if (it.isLowerCase()) it.titlecase(java.util.Locale.getDefault()) else it.toString() }
+    }
+
+    fun mutatePostContent(original: String): String {
+        val words = original.trim().split(Regex("\\s+")).filter { it.isNotEmpty() }.toMutableList()
+        if (words.isEmpty()) return ""
+        
+        val result = mutableListOf<String>()
+        var i = 0
+        val size = words.size
+        
+        while (i < size) {
+            // With 30% probability, we mutate the word sequence using bigram probabilities or splicing short chains
+            if (Random.nextDouble() < 0.3 && i < size - 1) {
+                val key = words[i].lowercase()
+                val possibilities = bigramChain[key]
+                if (!possibilities.isNullOrEmpty() && Random.nextDouble() < 0.7) {
+                    result.add(words[i])
+                    result.add(possibilities.random())
+                    i += 2 // skip next word for stylistic shift
+                } else {
+                    val shortChain = generate(Random.nextInt(1, 4))
+                    if (shortChain.isNotEmpty()) {
+                        result.add(shortChain)
+                    }
+                    result.add(words[i])
+                    i++
+                }
+            } else {
+                result.add(words[i])
+                i++
+            }
+        }
+        
+        var sentence = result.joinToString(" ").trim()
+        if (sentence.isEmpty()) return ""
+        
+        // Formating cleanup
+        if (!sentence.endsWith(".") && !sentence.endsWith("!") && !sentence.endsWith("?") && !sentence.endsWith("...")) {
+            sentence += listOf(".", "!", "...", "!?").random()
+        }
         return sentence.replaceFirstChar { if (it.isLowerCase()) it.titlecase(java.util.Locale.getDefault()) else it.toString() }
     }
 }

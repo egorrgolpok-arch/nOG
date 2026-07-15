@@ -214,12 +214,22 @@ fun FeedScreen(
                     detectHorizontalDragGestures(
                         onDragStart = { dragAmountSum = 0f },
                         onDragEnd = {
-                            if (dragAmountSum > 140f && selectedTab == 1) { // Swipe Right
-                                selectedTab = 0
-                                viewModel.vibrate(25)
-                            } else if (dragAmountSum < -140f && selectedTab == 0) { // Swipe Left
-                                selectedTab = 1
-                                viewModel.vibrate(25)
+                            if (dragAmountSum > 140f) { // Swipe Right
+                                if (selectedTab == 1) {
+                                    selectedTab = 0
+                                    viewModel.vibrate(25)
+                                } else if (selectedTab == 2) {
+                                    selectedTab = 1
+                                    viewModel.vibrate(25)
+                                }
+                            } else if (dragAmountSum < -140f) { // Swipe Left
+                                if (selectedTab == 0) {
+                                    selectedTab = 1
+                                    viewModel.vibrate(25)
+                                } else if (selectedTab == 1) {
+                                    selectedTab = 2
+                                    viewModel.vibrate(25)
+                                }
                             }
                         },
                         onHorizontalDrag = { _, dragAmount -> dragAmountSum += dragAmount }
@@ -335,9 +345,9 @@ fun FeedScreen(
 
             // --- Recommendation Engine Sub-Tabs ---
             val tabs = if (lang == "RU") {
-                listOf("ЭФИР 🌐", "СКАНЕР 🤖")
+                listOf("ЭФИР 🌐", "СКАНЕР 🤖", "ИСТОЧНИКИ ⚙️")
             } else {
-                listOf("FEED 🌐", "SCANNER 🤖")
+                listOf("FEED 🌐", "SCANNER 🤖", "SOURCES ⚙️")
             }
             
             Row(
@@ -455,6 +465,320 @@ fun FeedScreen(
                             // AI recommendation matrix inspector console (fosters deep multiagent exploration)
                             Box(modifier = Modifier.fillMaxSize()) {
                                 AiMindsExplorer(viewModel = viewModel, users = users)
+                            }
+                        }
+                        2 -> {
+                            val selectedSources by viewModel.selectedNewsSources.collectAsState()
+                            var isEditingSources by remember { mutableStateOf(selectedSources.isEmpty()) }
+                            
+                            if (isEditingSources) {
+                                // Source selector screen
+                                var searchQuery by remember { mutableStateOf("") }
+                                var draftSources by remember { mutableStateOf(selectedSources) }
+                                
+                                val allSources = remember { com.example.data.NewsFetcher.getAllSources() }
+                                val filteredSourcesList = remember(searchQuery) {
+                                    allSources.filter { it.name.contains(searchQuery, ignoreCase = true) }
+                                }
+                                
+                                Column(
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .background(PureBlack)
+                                        .padding(16.dp)
+                                ) {
+                                    Text(
+                                        text = if (lang == "RU") "ВЫБЕРИТЕ ИСТОЧНИКИ НОВОСТЕЙ" else "SELECT NEWS SOURCES",
+                                        color = AlertYellow,
+                                        fontSize = 14.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        fontFamily = FontFamily.Monospace,
+                                        modifier = Modifier.padding(bottom = 8.dp)
+                                    )
+                                    
+                                    Text(
+                                        text = if (lang == "RU") "ИИ-боты будут использовать выбранные вами каналы для генерации своей ленты." else "AI bots will synthesize content exclusively from your selected channels.",
+                                        color = TextGray,
+                                        fontSize = 11.sp,
+                                        fontFamily = FontFamily.Monospace,
+                                        modifier = Modifier.padding(bottom = 16.dp)
+                                    )
+                                    
+                                    // Search Bar
+                                    OutlinedTextField(
+                                        value = searchQuery,
+                                        onValueChange = { searchQuery = it },
+                                        placeholder = {
+                                            Text(
+                                                text = if (lang == "RU") "Поиск источников..." else "Search channels...",
+                                                color = TextGray,
+                                                fontSize = 12.sp,
+                                                fontFamily = FontFamily.Monospace
+                                            )
+                                        },
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(bottom = 12.dp),
+                                        colors = OutlinedTextFieldDefaults.colors(
+                                            focusedBorderColor = AlertYellow,
+                                            unfocusedBorderColor = BorderGray,
+                                            cursorColor = AlertYellow,
+                                            focusedTextColor = PureWhite,
+                                            unfocusedTextColor = PureWhite
+                                        ),
+                                        singleLine = true
+                                    )
+                                    
+                                    // Select All / Deselect All Row
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp),
+                                        horizontalArrangement = Arrangement.SpaceBetween
+                                    ) {
+                                        TextButton(
+                                            onClick = {
+                                                draftSources = allSources.map { it.name }.toSet()
+                                            }
+                                        ) {
+                                            Text(
+                                                text = if (lang == "RU") "[ Выбрать все ]" else "[ Select All ]",
+                                                color = AlertYellow,
+                                                fontSize = 11.sp,
+                                                fontFamily = FontFamily.Monospace
+                                            )
+                                        }
+                                        
+                                        TextButton(
+                                            onClick = {
+                                                draftSources = emptySet()
+                                            }
+                                        ) {
+                                            Text(
+                                                text = if (lang == "RU") "[ Сбросить все ]" else "[ Clear All ]",
+                                                color = Color.Red,
+                                                fontSize = 11.sp,
+                                                fontFamily = FontFamily.Monospace
+                                            )
+                                        }
+                                    }
+                                    
+                                    // Scrollable list of sources
+                                    LazyColumn(
+                                        modifier = Modifier
+                                            .weight(1f)
+                                            .fillMaxWidth()
+                                            .border(1.dp, BorderGray)
+                                            .background(DeepGray)
+                                            .padding(8.dp)
+                                    ) {
+                                        items(filteredSourcesList) { source ->
+                                            val isChecked = draftSources.contains(source.name)
+                                            Row(
+                                                modifier = Modifier
+                                                    .fillMaxWidth()
+                                                    .clickable {
+                                                        draftSources = if (isChecked) {
+                                                            draftSources - source.name
+                                                        } else {
+                                                            draftSources + source.name
+                                                        }
+                                                    }
+                                                    .padding(vertical = 10.dp, horizontal = 6.dp),
+                                                verticalAlignment = Alignment.CenterVertically
+                                            ) {
+                                                Box(
+                                                    modifier = Modifier
+                                                        .size(18.dp)
+                                                        .border(1.dp, if (isChecked) AlertYellow else TextGray)
+                                                        .background(if (isChecked) AlertYellow else Color.Transparent),
+                                                    contentAlignment = Alignment.Center
+                                                ) {
+                                                    if (isChecked) {
+                                                        Icon(
+                                                            imageVector = Icons.Default.Check,
+                                                            contentDescription = null,
+                                                            tint = PureBlack,
+                                                            modifier = Modifier.size(12.dp)
+                                                        )
+                                                    }
+                                                }
+                                                Spacer(modifier = Modifier.width(12.dp))
+                                                Column(modifier = Modifier.weight(1f)) {
+                                                    Text(
+                                                        text = source.name,
+                                                        color = if (isChecked) AlertYellow else PureWhite,
+                                                        fontSize = 12.sp,
+                                                        fontWeight = FontWeight.Bold,
+                                                        fontFamily = FontFamily.Monospace
+                                                    )
+                                                    Text(
+                                                        text = if (source.isRu) "RU • Trust: ${source.trustScore}%" else "EN • Trust: ${source.trustScore}%",
+                                                        color = TextGray,
+                                                        fontSize = 10.sp,
+                                                        fontFamily = FontFamily.Monospace
+                                                    )
+                                                }
+                                            }
+                                            HorizontalDivider(color = BorderGray.copy(alpha = 0.5f), thickness = 0.5.dp)
+                                        }
+                                    }
+                                    
+                                    Spacer(modifier = Modifier.height(16.dp))
+                                    
+                                    // Save button
+                                    Button(
+                                        onClick = {
+                                            viewModel.updateSelectedNewsSources(draftSources)
+                                            isEditingSources = false
+                                        },
+                                        modifier = Modifier.fillMaxWidth(),
+                                        colors = ButtonDefaults.buttonColors(containerColor = AlertYellow)
+                                    ) {
+                                        Text(
+                                            text = if (lang == "RU") "СОХРАНИТЬ И ПРИМЕНИТЬ" else "SAVE & APPLY",
+                                            color = PureBlack,
+                                            fontWeight = FontWeight.Bold,
+                                            fontFamily = FontFamily.Monospace,
+                                            fontSize = 12.sp
+                                        )
+                                    }
+                                    
+                                    if (selectedSources.isNotEmpty()) {
+                                        Spacer(modifier = Modifier.height(8.dp))
+                                        OutlinedButton(
+                                            onClick = { isEditingSources = false },
+                                            modifier = Modifier.fillMaxWidth(),
+                                            colors = ButtonDefaults.outlinedButtonColors(contentColor = PureWhite),
+                                            border = BorderStroke(1.dp, BorderGray)
+                                        ) {
+                                            Text(
+                                                text = if (lang == "RU") "ОТМЕНА" else "CANCEL",
+                                                fontFamily = FontFamily.Monospace,
+                                                fontSize = 12.sp
+                                            )
+                                        }
+                                    }
+                                }
+                            } else {
+                                // Filtered feed screen
+                                val filteredPosts = posts.filter { selectedSources.contains(it.sourceName) }
+                                
+                                Column(modifier = Modifier.fillMaxSize()) {
+                                    // Configuration summary banner
+                                    Row(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .background(DeepGray)
+                                            .border(1.dp, BorderGray)
+                                            .padding(horizontal = 16.dp, vertical = 12.dp),
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.SpaceBetween
+                                    ) {
+                                        Column(modifier = Modifier.weight(1f)) {
+                                            Text(
+                                                text = if (lang == "RU") "ПЕРСОНАЛЬНЫЙ ФИЛЬТР" else "MY NEWS CHANNELS",
+                                                color = AlertYellow,
+                                                fontSize = 11.sp,
+                                                fontWeight = FontWeight.Bold,
+                                                fontFamily = FontFamily.Monospace
+                                            )
+                                            Text(
+                                                text = if (lang == "RU") "Активно каналов: ${selectedSources.size}" else "Active channels: ${selectedSources.size}",
+                                                color = TextGray,
+                                                fontSize = 10.sp,
+                                                fontFamily = FontFamily.Monospace
+                                            )
+                                        }
+                                        
+                                        Button(
+                                            onClick = { isEditingSources = true },
+                                            colors = ButtonDefaults.buttonColors(containerColor = AlertYellow),
+                                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
+                                            modifier = Modifier.height(32.dp)
+                                        ) {
+                                            Text(
+                                                text = if (lang == "RU") "ИЗМЕНИТЬ" else "EDIT",
+                                                color = PureBlack,
+                                                fontSize = 10.sp,
+                                                fontWeight = FontWeight.Bold,
+                                                fontFamily = FontFamily.Monospace
+                                            )
+                                        }
+                                    }
+                                    
+                                    if (filteredPosts.isEmpty()) {
+                                        Box(
+                                            modifier = Modifier.fillMaxSize().padding(32.dp),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                                Icon(
+                                                    imageVector = Icons.Default.Info,
+                                                    contentDescription = null,
+                                                    tint = TextGray,
+                                                    modifier = Modifier.size(48.dp)
+                                                )
+                                                Spacer(modifier = Modifier.height(16.dp))
+                                                Text(
+                                                    text = if (lang == "RU") "Нет новостей из выбранных источников в базе данных." else "No news from the selected sources found.",
+                                                    color = PureWhite,
+                                                    fontSize = 12.sp,
+                                                    fontWeight = FontWeight.Bold,
+                                                    fontFamily = FontFamily.Monospace,
+                                                    textAlign = TextAlign.Center
+                                                )
+                                                Spacer(modifier = Modifier.height(8.dp))
+                                                Text(
+                                                    text = if (lang == "RU") "Мы запустили фоновый веб-парсер. Скоро новые публикации появятся здесь автоматически." else "We triggered a background crawler. New posts will appear here shortly.",
+                                                    color = TextGray,
+                                                    fontSize = 11.sp,
+                                                    fontFamily = FontFamily.Monospace,
+                                                    textAlign = TextAlign.Center
+                                                )
+                                            }
+                                        }
+                                    } else {
+                                        LazyColumn(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .fillMaxHeight(),
+                                            contentPadding = PaddingValues(bottom = 80.dp)
+                                        ) {
+                                            items(filteredPosts, key = { it.id }) { post ->
+                                                val author = users.find { it.id == post.authorId }
+                                                val isF = currentUserFollowingIds.contains(post.authorId)
+                                                val resolvedDecId = remember(author, activeUserDecId) {
+                                                    if (author?.id == "user") {
+                                                        activeUserDecId
+                                                    } else if (author?.isAi == true) {
+                                                        val hash = java.lang.Math.abs(author.id.hashCode())
+                                                        (hash % 210) + 1
+                                                    } else {
+                                                        null
+                                                    }
+                                                }
+                                                PostItem(
+                                                    post = post,
+                                                    author = author,
+                                                    lang = lang,
+                                                    isLiked = likedPostIds.contains(post.id),
+                                                    isFollowing = isF,
+                                                    decorationId = resolvedDecId,
+                                                    onLikeClick = { viewModel.toggleLike(post.id) },
+                                                    onCommentClick = { viewModel.selectPostForComments(post.id) },
+                                                    onMediaClick = { zoomImageUrl = it },
+                                                    onArchiveToggle = { viewModel.archivePost(post.id, !post.isArchived) },
+                                                    onFollowToggle = {
+                                                        if (author != null) {
+                                                            if (isF) viewModel.unfollowAgent(post.authorId)
+                                                            else viewModel.followAgent(post.authorId)
+                                                        }
+                                                    },
+                                                    isLowEnd = isLowEndDeviceMode
+                                                )
+                                            }
+                                        }
+                                    }
+                                }
                             }
                         }
                     }

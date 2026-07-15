@@ -237,6 +237,51 @@ class SocialViewModel(application: Application) : AndroidViewModel(application) 
         repository.setLocalAiEnabled(enabled)
     }
 
+    // --- Selected News Sources Filter ---
+    private val _selectedNewsSources = MutableStateFlow<Set<String>>(emptySet())
+    val selectedNewsSources: StateFlow<Set<String>> = _selectedNewsSources.asStateFlow()
+
+    fun updateSelectedNewsSources(sources: Set<String>) {
+        _selectedNewsSources.value = sources
+        val prefs = getApplication<Application>().getSharedPreferences("nog_prefs", Context.MODE_PRIVATE)
+        prefs.edit().putStringSet("selected_news_sources_set", sources).apply()
+        injectImmediateNewsForSources(sources)
+    }
+
+    private fun injectImmediateNewsForSources(sourceNames: Set<String>) {
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                val bots = allUsers.value.filter { it.isAi }
+                if (bots.isEmpty()) return@launch
+                
+                val selectedSources = NewsFetcher.getAllSources().filter { sourceNames.contains(it.name) }
+                for (source in selectedSources) {
+                    val newsList = NewsFetcher.fetchLatestNewsForSource(source, _selectedLanguage.value)
+                    for (news in newsList.take(3)) {
+                        val bot = bots.randomOrNull() ?: continue
+                        val mediaUrl = news.imageUrl
+                        val mediaType = if (mediaUrl != null) "IMAGE" else null
+                        
+                        val newPost = PostEntity(
+                            authorId = bot.id,
+                            content = "📢 *[${news.sourceName}]* ${news.title}\n\n${news.description}",
+                            mediaUrl = mediaUrl,
+                            mediaType = mediaType,
+                            likesCount = Random.nextInt(10, 150),
+                            commentsCount = 0,
+                            trustScore = news.trustScore,
+                            sourceName = news.sourceName,
+                            category = "Новости"
+                        )
+                        repository.insertPost(newPost)
+                    }
+                }
+            } catch (e: Exception) {
+                Log.e("SocialViewModel", "Failed to inject immediate news for sources", e)
+            }
+        }
+    }
+
     // --- Persistent Poker Balance ---
     private val _pokerBalance = MutableStateFlow<Int>(1000)
     val pokerBalance: StateFlow<Int> = _pokerBalance.asStateFlow()
@@ -686,6 +731,10 @@ class SocialViewModel(application: Application) : AndroidViewModel(application) 
         val savedLocalAi = prefs.getBoolean("local_ai_enabled", false)
         _isLocalAiEnabled.value = savedLocalAi
         repository.setLocalAiEnabled(savedLocalAi)
+
+        // Load selected news sources set
+        val savedSources = prefs.getStringSet("selected_news_sources_set", emptySet()) ?: emptySet()
+        _selectedNewsSources.value = savedSources
 
         // Load unique viewed posts count
         val viewedStr = prefs.getString("viewed_post_ids_set", "") ?: ""
