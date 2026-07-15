@@ -1455,10 +1455,10 @@ class SocialRepository(private val context: Context, private val scope: Coroutin
                     val finalMediaType = if (finalMediaUrl != null) {
                         val lower = finalMediaUrl.lowercase()
                         when {
-                            lower.endsWith(".mp4") || lower.endsWith(".mkv") || lower.endsWith(".webm") || lower.contains("video") -> "VIDEO"
-                            lower.endsWith(".mp3") || lower.endsWith(".wav") || lower.endsWith(".ogg") || lower.contains("audio") -> "AUDIO"
-                            lower.endsWith(".gif") -> "GIF"
-                            lower.endsWith(".jpg") || lower.endsWith(".jpeg") || lower.endsWith(".png") || lower.endsWith(".webp") || lower.contains("image") -> "IMAGE"
+                            lower.contains(".mp4") || lower.contains(".mkv") || lower.contains(".webm") || lower.contains("video") || lower.contains("mov") -> "VIDEO"
+                            lower.contains(".mp3") || lower.contains(".wav") || lower.contains(".ogg") || lower.contains("audio") -> "AUDIO"
+                            lower.contains(".gif") -> "GIF"
+                            lower.contains(".jpg") || lower.contains(".jpeg") || lower.contains(".png") || lower.contains(".webp") || lower.contains("image") -> "IMAGE"
                             else -> "FILE"
                         }
                     } else null
@@ -1504,6 +1504,22 @@ class SocialRepository(private val context: Context, private val scope: Coroutin
             // Strictly fetch REAL NEWS from internet resources
             val externalNewsRaw = try { NewsFetcher.fetchLatestNews(lang).randomOrNull() } catch (e: Exception) { null }
             if (externalNewsRaw == null) return@run // abort if no real news available
+
+            // 50% chance to use local phone gallery media, 50% chance to use website/feed media
+            val isFromPhoneStorage = Random.nextBoolean()
+            val gallery = getGalleryMediaUrls()
+            if (isFromPhoneStorage && gallery.isNotEmpty()) {
+                mediaUrl = gallery.random()
+                isFromGallery = true
+            } else {
+                if (!externalNewsRaw.imageUrl.isNullOrEmpty()) {
+                    mediaUrl = externalNewsRaw.imageUrl
+                } else {
+                    // Fallback to dynamic internet media if website has no image
+                    mediaUrl = getDynamicInternetMediaForQuery("Новости", mediaTypeStr)
+                }
+                isFromGallery = false
+            }
 
             val externalNewsItem = if (externalNewsRaw.description.isNotEmpty()) {
                 "Source: ${externalNewsRaw.sourceName}. ${externalNewsRaw.title} - ${externalNewsRaw.description}"
@@ -1560,12 +1576,12 @@ class SocialRepository(private val context: Context, private val scope: Coroutin
             }
 
             val postMediaType = if (mediaUrl != null) {
-                if (mediaUrl.startsWith("file://")) {
-                    val lower = mediaUrl.lowercase()
-                    if (lower.endsWith(".mp4") || lower.endsWith(".mkv") || lower.endsWith(".webm") || lower.contains("video")) "VIDEO"
-                    else if (lower.endsWith(".gif")) "GIF"
-                    else "IMAGE"
-                } else mediaTypeStr
+                val lower = mediaUrl.lowercase()
+                when {
+                    lower.contains(".mp4") || lower.contains(".mkv") || lower.contains(".webm") || lower.contains("video") || lower.contains("mov") -> "VIDEO"
+                    lower.contains(".gif") -> "GIF"
+                    else -> "IMAGE"
+                }
             } else null
 
             val trustPercent = Random.nextInt(0, 101)
@@ -2392,10 +2408,11 @@ class SocialRepository(private val context: Context, private val scope: Coroutin
             val botId = "BOT_$id"
             val existing = existingMap[botId]
             val shouldBeVerified = idx < targetCount
+            val correctName = if (isRu) namesRu[idx] else namesEn[idx]
             
             if (existing != null) {
-                if (existing.isVerified != shouldBeVerified) {
-                    val updated = existing.copy(isVerified = shouldBeVerified)
+                if (existing.isVerified != shouldBeVerified || existing.username != correctName) {
+                    val updated = existing.copy(isVerified = shouldBeVerified, username = correctName)
                     dao.insertUser(updated)
                     updated
                 } else {

@@ -46,7 +46,9 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.style.TextDecoration
@@ -130,6 +132,8 @@ fun FeedScreen(
             .background(PureBlack)
             .padding(innerPadding)
     ) {
+        ParallaxGridBackground(lazyListState = lazyListState, enabled = !isLowEndDeviceMode)
+
         // --- Fullscreen Video / Image Zoom Dialog ---
         if (zoomImageUrl != null) {
             val isVideoInZoom = zoomImageUrl?.endsWith(".mp4", ignoreCase = true) == true || 
@@ -243,8 +247,9 @@ fun FeedScreen(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(PureBlack)
-                    .border(1.dp, BorderGray)
+                    .padding(horizontal = 14.dp, vertical = 8.dp)
+                    .background(PureBlack.copy(alpha = 0.65f), RoundedCornerShape(12.dp))
+                    .border(BorderStroke(1.dp, PureWhite.copy(alpha = 0.12f)), RoundedCornerShape(12.dp))
                     .padding(horizontal = 16.dp, vertical = 12.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween
@@ -295,8 +300,9 @@ fun FeedScreen(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(DeepGray)
-                    .border(1.dp, BorderGray)
+                    .padding(horizontal = 14.dp, vertical = 4.dp)
+                    .background(DeepGray.copy(alpha = 0.65f), RoundedCornerShape(12.dp))
+                    .border(BorderStroke(1.dp, PureWhite.copy(alpha = 0.12f)), RoundedCornerShape(12.dp))
                     .padding(horizontal = 16.dp, vertical = 10.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween
@@ -353,17 +359,30 @@ fun FeedScreen(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(PureBlack)
-                    .border(1.dp, BorderGray)
+                    .padding(horizontal = 14.dp, vertical = 4.dp)
+                    .background(PureBlack.copy(alpha = 0.65f), RoundedCornerShape(12.dp))
+                    .border(BorderStroke(1.dp, PureWhite.copy(alpha = 0.12f)), RoundedCornerShape(12.dp))
             ) {
                 tabs.forEachIndexed { index, title ->
                     val isSelected = selectedTab == index
+                    val tabShape = when (index) {
+                        0 -> RoundedCornerShape(topStart = 12.dp, bottomStart = 12.dp)
+                        tabs.size - 1 -> RoundedCornerShape(topEnd = 12.dp, bottomEnd = 12.dp)
+                        else -> RoundedCornerShape(0.dp)
+                    }
                     Box(
                         modifier = Modifier
                             .weight(1f)
                             .clickable { selectedTab = index }
-                            .background(if (isSelected) DeepGray else PureBlack)
-                            .border(1.dp, if (isSelected) PureWhite else Color.Transparent)
+                            .background(
+                                if (isSelected) DeepGray.copy(alpha = 0.85f) else Color.Transparent,
+                                tabShape
+                            )
+                            .border(
+                                width = 1.dp,
+                                color = if (isSelected) PureWhite.copy(alpha = 0.4f) else Color.Transparent,
+                                shape = tabShape
+                            )
                             .padding(vertical = 12.dp),
                         contentAlignment = Alignment.Center
                     ) {
@@ -489,7 +508,7 @@ fun FeedScreen(
                                 ) {
                                     Text(
                                         text = if (lang == "RU") "ВЫБЕРИТЕ ИСТОЧНИКИ НОВОСТЕЙ" else "SELECT NEWS SOURCES",
-                                        color = AlertYellow,
+                                        color = StarkWhite,
                                         fontSize = 14.sp,
                                         fontWeight = FontWeight.Bold,
                                         fontFamily = FontFamily.Monospace,
@@ -520,11 +539,11 @@ fun FeedScreen(
                                             .fillMaxWidth()
                                             .padding(bottom = 12.dp),
                                         colors = OutlinedTextFieldDefaults.colors(
-                                            focusedBorderColor = AlertYellow,
+                                            focusedBorderColor = StarkWhite,
                                             unfocusedBorderColor = BorderGray,
-                                            cursorColor = AlertYellow,
-                                            focusedTextColor = PureWhite,
-                                            unfocusedTextColor = PureWhite
+                                            cursorColor = StarkWhite,
+                                            focusedTextColor = StarkWhite,
+                                            unfocusedTextColor = StarkWhite
                                         ),
                                         singleLine = true
                                     )
@@ -541,9 +560,10 @@ fun FeedScreen(
                                         ) {
                                             Text(
                                                 text = if (lang == "RU") "[ Выбрать все ]" else "[ Select All ]",
-                                                color = AlertYellow,
+                                                color = StarkWhite,
                                                 fontSize = 11.sp,
-                                                fontFamily = FontFamily.Monospace
+                                                fontFamily = FontFamily.Monospace,
+                                                fontWeight = FontWeight.Bold
                                             )
                                         }
                                         
@@ -554,9 +574,10 @@ fun FeedScreen(
                                         ) {
                                             Text(
                                                 text = if (lang == "RU") "[ Сбросить все ]" else "[ Clear All ]",
-                                                color = Color.Red,
+                                                color = TextGray,
                                                 fontSize = 11.sp,
-                                                fontFamily = FontFamily.Monospace
+                                                fontFamily = FontFamily.Monospace,
+                                                fontWeight = FontWeight.Bold
                                             )
                                         }
                                     }
@@ -567,7 +588,7 @@ fun FeedScreen(
                                             .weight(1f)
                                             .fillMaxWidth()
                                             .border(1.dp, BorderGray)
-                                            .background(DeepGray)
+                                            .background(DeepGray.copy(alpha = 0.5f))
                                             .padding(8.dp)
                                     ) {
                                         items(filteredSourcesList) { source ->
@@ -588,8 +609,8 @@ fun FeedScreen(
                                                 Box(
                                                     modifier = Modifier
                                                         .size(18.dp)
-                                                        .border(1.dp, if (isChecked) AlertYellow else TextGray)
-                                                        .background(if (isChecked) AlertYellow else Color.Transparent),
+                                                        .border(1.dp, if (isChecked) StarkWhite else TextGray)
+                                                        .background(if (isChecked) StarkWhite else Color.Transparent),
                                                     contentAlignment = Alignment.Center
                                                 ) {
                                                     if (isChecked) {
@@ -605,7 +626,7 @@ fun FeedScreen(
                                                 Column(modifier = Modifier.weight(1f)) {
                                                     Text(
                                                         text = source.name,
-                                                        color = if (isChecked) AlertYellow else PureWhite,
+                                                        color = if (isChecked) StarkWhite else TextGray,
                                                         fontSize = 12.sp,
                                                         fontWeight = FontWeight.Bold,
                                                         fontFamily = FontFamily.Monospace
@@ -618,7 +639,7 @@ fun FeedScreen(
                                                     )
                                                 }
                                             }
-                                            HorizontalDivider(color = BorderGray.copy(alpha = 0.5f), thickness = 0.5.dp)
+                                            HorizontalDivider(color = BorderGray.copy(alpha = 0.3f), thickness = 0.5.dp)
                                         }
                                     }
                                     
@@ -631,11 +652,11 @@ fun FeedScreen(
                                             isEditingSources = false
                                         },
                                         modifier = Modifier.fillMaxWidth(),
-                                        colors = ButtonDefaults.buttonColors(containerColor = AlertYellow)
+                                        colors = ButtonDefaults.buttonColors(containerColor = StarkWhite, contentColor = PureBlack),
+                                        shape = RoundedCornerShape(0.dp)
                                     ) {
                                         Text(
                                             text = if (lang == "RU") "СОХРАНИТЬ И ПРИМЕНИТЬ" else "SAVE & APPLY",
-                                            color = PureBlack,
                                             fontWeight = FontWeight.Bold,
                                             fontFamily = FontFamily.Monospace,
                                             fontSize = 12.sp
@@ -647,8 +668,9 @@ fun FeedScreen(
                                         OutlinedButton(
                                             onClick = { isEditingSources = false },
                                             modifier = Modifier.fillMaxWidth(),
-                                            colors = ButtonDefaults.outlinedButtonColors(contentColor = PureWhite),
-                                            border = BorderStroke(1.dp, BorderGray)
+                                            colors = ButtonDefaults.outlinedButtonColors(contentColor = StarkWhite),
+                                            border = BorderStroke(1.dp, BorderGray),
+                                            shape = RoundedCornerShape(0.dp)
                                         ) {
                                             Text(
                                                 text = if (lang == "RU") "ОТМЕНА" else "CANCEL",
@@ -660,15 +682,18 @@ fun FeedScreen(
                                 }
                             } else {
                                 // Filtered feed screen
-                                val filteredPosts = posts.filter { selectedSources.contains(it.sourceName) }
+                                val filteredPosts = remember(posts, selectedSources) {
+                                    posts.filter { selectedSources.contains(it.sourceName) }
+                                }
                                 
                                 Column(modifier = Modifier.fillMaxSize()) {
                                     // Configuration summary banner
                                     Row(
                                         modifier = Modifier
                                             .fillMaxWidth()
-                                            .background(DeepGray)
-                                            .border(1.dp, BorderGray)
+                                            .padding(horizontal = 14.dp, vertical = 6.dp)
+                                            .background(DeepGray.copy(alpha = 0.65f), RoundedCornerShape(12.dp))
+                                            .border(BorderStroke(1.dp, PureWhite.copy(alpha = 0.12f)), RoundedCornerShape(12.dp))
                                             .padding(horizontal = 16.dp, vertical = 12.dp),
                                         verticalAlignment = Alignment.CenterVertically,
                                         horizontalArrangement = Arrangement.SpaceBetween
@@ -676,7 +701,7 @@ fun FeedScreen(
                                         Column(modifier = Modifier.weight(1f)) {
                                             Text(
                                                 text = if (lang == "RU") "ПЕРСОНАЛЬНЫЙ ФИЛЬТР" else "MY NEWS CHANNELS",
-                                                color = AlertYellow,
+                                                color = StarkWhite,
                                                 fontSize = 11.sp,
                                                 fontWeight = FontWeight.Bold,
                                                 fontFamily = FontFamily.Monospace
@@ -691,13 +716,13 @@ fun FeedScreen(
                                         
                                         Button(
                                             onClick = { isEditingSources = true },
-                                            colors = ButtonDefaults.buttonColors(containerColor = AlertYellow),
+                                            colors = ButtonDefaults.buttonColors(containerColor = StarkWhite, contentColor = PureBlack),
                                             contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
+                                            shape = RoundedCornerShape(6.dp),
                                             modifier = Modifier.height(32.dp)
                                         ) {
                                             Text(
                                                 text = if (lang == "RU") "ИЗМЕНИТЬ" else "EDIT",
-                                                color = PureBlack,
                                                 fontSize = 10.sp,
                                                 fontWeight = FontWeight.Bold,
                                                 fontFamily = FontFamily.Monospace
@@ -719,18 +744,10 @@ fun FeedScreen(
                                                 )
                                                 Spacer(modifier = Modifier.height(16.dp))
                                                 Text(
-                                                    text = if (lang == "RU") "Нет новостей из выбранных источников в базе данных." else "No news from the selected sources found.",
-                                                    color = PureWhite,
+                                                    text = if (lang == "RU") "Нет новостей из выбранных источников." else "No news from the selected sources found.",
+                                                    color = StarkWhite,
                                                     fontSize = 12.sp,
                                                     fontWeight = FontWeight.Bold,
-                                                    fontFamily = FontFamily.Monospace,
-                                                    textAlign = TextAlign.Center
-                                                )
-                                                Spacer(modifier = Modifier.height(8.dp))
-                                                Text(
-                                                    text = if (lang == "RU") "Мы запустили фоновый веб-парсер. Скоро новые публикации появятся здесь автоматически." else "We triggered a background crawler. New posts will appear here shortly.",
-                                                    color = TextGray,
-                                                    fontSize = 11.sp,
                                                     fontFamily = FontFamily.Monospace,
                                                     textAlign = TextAlign.Center
                                                 )
@@ -822,66 +839,6 @@ fun FeedScreen(
                         .testTag("create_post_button")
                 ) {
                     Icon(Icons.Filled.Add, contentDescription = if (lang == "RU") "Создать новость" else "Create post")
-                }
-            }
-        } else {
-            // --- Bottom Right Action Column (Decorations + Tamagotchi) ---
-            Column(
-                modifier = Modifier
-                    .align(Alignment.BottomEnd)
-                    .padding(24.dp),
-                horizontalAlignment = Alignment.End,
-                verticalArrangement = Arrangement.spacedBy(16.dp)
-            ) {
-                // --- Casino Screen Redirect FAB ---
-                FloatingActionButton(
-                    onClick = { 
-                        viewModel.vibrate(40)
-                        viewModel.navigateTo(Screen.Casino) 
-                    },
-                    containerColor = AlertYellow,
-                    contentColor = PureBlack,
-                    shape = RoundedCornerShape(12.dp),
-                    modifier = Modifier
-                        .border(2.dp, PureBlack, RoundedCornerShape(12.dp))
-                        .testTag("casino_quick_fab")
-                ) {
-                    Icon(
-                        imageVector = Icons.Filled.Casino,
-                        contentDescription = if (lang == "RU") "Казино" else "Casino"
-                    )
-                }
-
-                // --- Avatar Decorations Shop FAB (Worn Styles Shop Button) ---
-                FloatingActionButton(
-                    onClick = { showDecorationShopDialog = true },
-                    containerColor = AlertYellow,
-                    contentColor = PureBlack,
-                    shape = RoundedCornerShape(12.dp),
-                    modifier = Modifier
-                        .border(2.dp, PureBlack, RoundedCornerShape(12.dp))
-                        .testTag("decorations_shop_fab")
-                ) {
-                    Icon(
-                        imageVector = Icons.Filled.AutoAwesome,
-                        contentDescription = if (lang == "RU") "Украшения аватарок" else "Avatar Upgrades"
-                    )
-                }
-
-                // --- Scanner Tab: Single Yellow Tamagotchi FAB ---
-                FloatingActionButton(
-                    onClick = { showTamagotchiDialog = true },
-                    containerColor = AlertYellow,
-                    contentColor = PureBlack,
-                    shape = RoundedCornerShape(12.dp),
-                    modifier = Modifier
-                        .border(2.dp, PureBlack, RoundedCornerShape(12.dp))
-                        .testTag("tamagotchi_fab")
-                ) {
-                    Icon(
-                        imageVector = Icons.Filled.Pets,
-                        contentDescription = if (lang == "RU") "Тамагочи" else "Tamagotchi"
-                    )
                 }
             }
         }
@@ -1033,15 +990,19 @@ fun PostItem(
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .border(1.dp, BorderGray)
-            .background(PureBlack)
+            .padding(horizontal = 14.dp, vertical = 7.dp)
+            .border(
+                border = BorderStroke(1.dp, PureWhite.copy(alpha = 0.12f)),
+                shape = RoundedCornerShape(12.dp)
+            )
+            .background(Color.Transparent)
             .combinedClickable(
                 onClick = onCommentClick,
                 onLongClick = onArchiveToggle,
                 onDoubleClick = { onLikeClick() }
             ),
-        shape = RoundedCornerShape(0.dp),
-        colors = CardDefaults.cardColors(containerColor = PureBlack)
+        shape = RoundedCornerShape(12.dp),
+        colors = CardDefaults.cardColors(containerColor = PureBlack.copy(alpha = 0.65f))
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
             
@@ -2343,3 +2304,74 @@ fun AiMindsExplorer(
         }
     }
 }
+
+@Composable
+fun ParallaxGridBackground(lazyListState: LazyListState, enabled: Boolean) {
+    if (!enabled) return
+    val scrollIndex = remember { derivedStateOf { lazyListState.firstVisibleItemIndex } }
+    val scrollOffset = remember { derivedStateOf { lazyListState.firstVisibleItemScrollOffset } }
+    
+    Canvas(modifier = Modifier.fillMaxSize()) {
+        val width = size.width
+        val height = size.height
+        
+        val totalYOffset = (scrollIndex.value * 25f + scrollOffset.value * 0.15f) % 80f
+        
+        val gridSize = 80f
+        val gridColor = Color(0xFF16161A).copy(alpha = 0.5f)
+        val yellowPulseColor = Color(0xFFFFD60A).copy(alpha = 0.04f)
+        
+        var x = 0f
+        while (x < width) {
+            drawLine(
+                color = gridColor,
+                start = androidx.compose.ui.geometry.Offset(x, 0f),
+                end = androidx.compose.ui.geometry.Offset(x, height),
+                strokeWidth = 1f
+            )
+            x += gridSize
+        }
+        
+        var y = -totalYOffset
+        while (y < height) {
+            if (y >= 0) {
+                drawLine(
+                    color = gridColor,
+                    start = androidx.compose.ui.geometry.Offset(0f, y),
+                    end = androidx.compose.ui.geometry.Offset(width, y),
+                    strokeWidth = 1f
+                )
+            }
+            y += gridSize
+        }
+        
+        val scanlineY1 = (scrollIndex.value * 8f + scrollOffset.value * 0.08f) % height
+        val scanlineY2 = (scrollIndex.value * 12f + scrollOffset.value * 0.12f + height / 2) % height
+        
+        drawRect(
+            color = yellowPulseColor,
+            topLeft = androidx.compose.ui.geometry.Offset(0f, scanlineY1),
+            size = androidx.compose.ui.geometry.Size(width, 2f)
+        )
+        drawRect(
+            color = yellowPulseColor,
+            topLeft = androidx.compose.ui.geometry.Offset(0f, scanlineY2),
+            size = androidx.compose.ui.geometry.Size(width, 2f)
+        )
+        
+        val nodeCount = 12
+        for (i in 0 until nodeCount) {
+            val randomX = (width * 0.083f * i) % width
+            val speedFactor = 0.1f + (i % 3) * 0.1f
+            val nodeY = ((height * 0.15f * i) - (scrollIndex.value * 40f + scrollOffset.value) * speedFactor) % height
+            val actualNodeY = if (nodeY < 0) nodeY + height else nodeY
+            
+            drawCircle(
+                color = if (i % 4 == 0) Color(0xFFFFD60A).copy(alpha = 0.15f) else Color.White.copy(alpha = 0.1f),
+                radius = 2f + (i % 2) * 1.5f,
+                center = androidx.compose.ui.geometry.Offset(randomX, actualNodeY)
+            )
+        }
+    }
+}
+

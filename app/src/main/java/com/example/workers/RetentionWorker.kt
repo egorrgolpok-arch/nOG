@@ -40,7 +40,11 @@ class RetentionWorker(context: Context, params: WorkerParameters) : CoroutineWor
                         "Сеть зафиксировала твое отключение. Джекпот в казино сам себя не сорвет, возвращайся! 🤑🎡",
                         "Эй! В Дураке как раз освободилось место за вип-столом с огромными ставками! Ждем тебя! 🃏🔥",
                         "Твой цифровой узел остывает без надзора. Поддержи энергообмен прямо сейчас! ⚡🔋",
-                        "Куда же ты? Чат сообщества только начал разгораться обсуждениями! 💬👀"
+                        "Куда же ты? Чат сообщества только начал разгораться обсуждениями! 💬👀",
+                        "Узел отключен. Замечена подозрительная активность на твоем адресе... Шучу, это я проверяю, вернешься ли ты. Вернись! 🛸",
+                        "Твой ИИ-симулятор сгенерировал секретный пост только для твоих глаз. Нажми, чтобы прочитать! 🔒🤖",
+                        "Только что произошел выброс ценных монет в сети. Успей собрать, пока другие ИИ-боты не растащили! 🪙💨",
+                        "Сеть скучает по твоему клику. Зайди в эфир, там боты спорят о тебе! 🤖👀"
                     ).random()
                 } else {
                     listOf(
@@ -51,7 +55,11 @@ class RetentionWorker(context: Context, params: WorkerParameters) : CoroutineWor
                         "The main network logged your exit. The slots are primed for a mega jackpot right now! 🤑🎡",
                         "Hold up! A high-stakes seat just opened in the Durak championship! Jump in! 🃏🔥",
                         "Your cybernetic node is cooling down. Re-establish active telemetry link immediately! ⚡🔋",
-                        "Where are you off to? The core chat feed is just getting hyperactive! 💬👀"
+                        "Where are you off to? The core chat feed is just getting hyperactive! 💬👀",
+                        "Node disconnected. Suspicious activity detected near your grid address... Just kidding, just checking if you'll come back. Do it! 🛸",
+                        "Your AI simulator just pre-compiled a private post for your eyes only. Click to decrypt! 🔒🤖",
+                        "A sudden coin flare has erupted in the local grid. Grab them before other AI agents do! 🪙💨",
+                        "The network feels cold without your clicks. Check the feed, the bots are arguing about your profile! 🤖👀"
                     ).random()
                 }
             }
@@ -65,7 +73,11 @@ class RetentionWorker(context: Context, params: WorkerParameters) : CoroutineWor
                         "Твой ИИ-помощник скучает по твоим запросам. Задай мне сложную задачку! 🧠🤖",
                         "Уже 10 минут в режиме офлайн! Виртуальные скакуны рвутся в забег. Сделай победную ставку! 🐎🏁",
                         "Твои друзья-боты завели горячий спор о багах Windows и зовут тебя рассудить их! 🗣️🤓",
-                        "Твой рейтинг вовлеченности падает, пока ты листаешь другие ленты! Скорее назад! 📉🛰"
+                        "Твой рейтинг вовлеченности падает, пока ты листаешь другие ленты! Скорее назад! 📉🛰",
+                        "10 минут... Хм, кто-то только что упомянул твой никнейм в глобальном чате. Зайди глянуть! 💬🌶️",
+                        "Твой питомец научился майнить микро-монеты, пока тебя нет, но ему нужен твой пароль! 🐹⛏️",
+                        "ИИ-постмейкеры сгенерировали партию свежих бредней с сайтов. Оцени уровень бреда! 📰☕",
+                        "Внимание! Степень твоей сетевой анонимности падает. Восстанови защиту в приложении! 🕵️‍♂️🛡️"
                     ).random()
                 } else {
                     listOf(
@@ -76,7 +88,11 @@ class RetentionWorker(context: Context, params: WorkerParameters) : CoroutineWor
                         "Your AI brain has generated new ideas. Let's solve some cyber mysteries together! 🧠🤖",
                         "10 minutes AWOL! The digital hippodrome horses are at the starting gate. Bet now! 🐎🏁",
                         "The bots on your feed are having a massive flamewar about compilers. We need your bias! 🗣️🤓",
-                        "A sudden dip in your quantum trust rating has been detected due to absence! Sync up! 📉🛰"
+                        "A sudden dip in your quantum trust rating has been detected due to absence! Sync up! 📉🛰",
+                        "10 minutes... Hmm, someone just mentioned your username in the local chat node. Check it out! 💬🌶️",
+                        "Your pet figured out how to mine micro-coins while you're away, but it needs your root access! 🐹⛏️",
+                        "The AI post-generators have synthesized fresh news trash. Come rate the absurdity level! 📰☕",
+                        "Warning! Your quantum encryption layer is decaying. Restore network shield now! 🕵️‍♂️🛡️"
                     ).random()
                 }
             }
@@ -90,7 +106,11 @@ class RetentionWorker(context: Context, params: WorkerParameters) : CoroutineWor
                         "40 минут бездействия! Твой питомец нашел лазейку в коде и крадет твои чипсы! 🍟🐹",
                         "В покере назревает легендарная раздача. Бот идет ва-банк! Ответишь на вызов? 🃏💰",
                         "Новые артефакты прибыли в магазин украшений аватаров. Забери лимитку первым! 💎🛍️",
-                        "Телеметрия фиксирует спад мозговых волн. Пора взбодриться парой игр в рулетку! 🎡⚡"
+                        "Телеметрия фиксирует спад мозговых волн. Пора взбодриться парой игр в рулетку! 🎡⚡",
+                        "Твоя цифровая копия в симуляторе начала жить своей жизнью и уже завела трех кошек. Останови этот хаос! 🐈🤖",
+                        "Счетчик твоего ежедневного бонуса плачет. Он почти заполнился, не дай ему сгореть! ⏳🔋",
+                        "Оповещение: В казино завезли новые блэкджек-колоды с повышенным шансом выигрыша! Проверим? 🃏💎",
+                        "Твой ИИ-питомец скучает настолько, что начал писать стихи на бинарном коде. Это очень грустные стихи... 🥺📝"
                     ).random()
                 } else {
                     listOf(
@@ -101,7 +121,11 @@ class RetentionWorker(context: Context, params: WorkerParameters) : CoroutineWor
                         "40 minutes AFK! Your pet tamagotchi has hacked the fridge state and is eating everything! 🍟🐹",
                         "A massive showdown is unfolding at the poker table. A bot just shoved! Will you call? 🃏💰",
                         "Exclusive dynamic avatar frames just dropped in the shop! Get yours before they sell out! 💎🛍️",
-                        "Telemetry system indicates cognitive flatline. Overclock your senses with some high-tier slots! 🎡⚡"
+                        "Telemetry system indicates cognitive flatline. Overclock your senses with some high-tier slots! 🎡⚡",
+                        "Your digital twin in the simulation has started its own life and already adopted three cyber-cats. Stop this madness! 🐈🤖",
+                        "Your daily coin streak is shedding tears. It is almost fully charged, don't let it decay! ⏳🔋",
+                        "Alert: The dealer just unboxed fresh blackjack decks with high-payout probabilities! Care to challenge? 🃏💎",
+                        "Your AI pet is so lonely it started writing poems in binary code. They are incredibly depressing... 🥺📝"
                     ).random()
                 }
             }
@@ -122,7 +146,12 @@ class RetentionWorker(context: Context, params: WorkerParameters) : CoroutineWor
                         "Внимание! Зафиксировано критическое падение мемов в синапсах! Спешно вернись в ленту nOG! 🧠💻",
                         "Твой питомец только что подрался с ИИ-пылесосом и победил. Приди обнять героя! 🐕⚡",
                         "Казино увеличило шансы в слотах на 0.00001%! Твой шанс стать крипто-бароном близок как никогда! 🎰🤑",
-                        "Твоя активность на абсолютном нуле. Поздравляем, ты официально сертифицирован как HTML-программист! 🤡🔨"
+                        "Твоя активность на абсолютном нуле. Поздравляем, ты официально сертифицирован как HTML-программист! 🤡🔨",
+                        "Кажется, твой телефон засыпает без нашего кибернетического излучения. Разбуди его! ⚡📱",
+                        "Новости сами себя не отфильтруют! Твои любимые каналы переполнены инфошумом. Очисти эфир! 🌪️📻",
+                        "Ты пропустил три важнейших фейковых инфоповода! Зайди и узнай, почему роботы боятся микроволновок. 🤖🍕",
+                        "По слухам, сегодня твой счастливый день в казино. Но только если ты нажмешь на это уведомление! 🎰🤞",
+                        "Твой питомец утверждает, что видел НЛО. Или это был просто баг текстуры? Проверь сам! 🛸👾"
                     ).random()
                 } else {
                     listOf(
@@ -140,7 +169,12 @@ class RetentionWorker(context: Context, params: WorkerParameters) : CoroutineWor
                         "Warning! Critical drop in neural meme density detected in your lobe! Sync back to nOG feed! 🧠💻",
                         "Your code-pet engaged in physical combat with an AI vacuum cleaner and won. Come praise the hero! 🐕⚡",
                         "The casino increased slot machine payouts by 0.00001%! Your fortune is finally pre-compiled! 🎰🤑",
-                        "Telemetry reports your activity index is flat. Congratulations, you are now a certified HTML coder! 🤡🔨"
+                        "Telemetry reports your activity index is flat. Congratulations, you are now a certified HTML coder! 🤡🔨",
+                        "It seems your phone is falling into deep hibernation without our cyber-pulse. Overclock it! ⚡📱",
+                        "The news channels are flooding with absolute garbage. Clean your personal telemetry stream! 🌪️📻",
+                        "You missed three major fake news trends! Come find out why robots are afraid of smart toasters. 🤖🍕",
+                        "Rumor has it today is your lucky day in the casino. But only if you decrypt this prompt! 🎰🤞",
+                        "Your pet claims it saw a UFO in the main yard. Or was it just a rendering bug? Come debug! 🛸👾"
                     ).random()
                 }
             }

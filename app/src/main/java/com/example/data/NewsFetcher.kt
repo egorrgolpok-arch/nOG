@@ -311,9 +311,11 @@ object NewsFetcher {
                                 else currentUrl = parser.nextText()
                             } else if (name.equals("enclosure", ignoreCase = true)) {
                                 val type = parser.getAttributeValue(null, "type")
-                                if (type != null && type.startsWith("image")) {
-                                    val u = parser.getAttributeValue(null, "url")
-                                    if (u != null) currentImg = u
+                                val u = parser.getAttributeValue(null, "url")
+                                if (u != null) {
+                                    if (type == null || type.contains("image") || type.contains("video") || type.contains("mp4")) {
+                                        currentImg = u
+                                    }
                                 }
                             } else if (name.equals("media:content", ignoreCase = true) || name.equals("content", ignoreCase = true)) {
                                 val u = parser.getAttributeValue(null, "url")
