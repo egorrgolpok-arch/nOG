@@ -35,16 +35,20 @@ class RetentionWorker(context: Context, params: WorkerParameters) : CoroutineWor
                     listOf(
                         "Ты уже закрыл приложение?! А как же твой ежедневный лимит активности? Я всё вижу... 👀",
                         "Эй! Твой Тамагочи только что пискнул в панике. Ему страшно одному в фоновом режиме! 🥺🤖",
-                        "Связь разорвана? Твой терминал сообщает об аварийном отключении оператора! Срочно восстанови синхронизацию! 🚨📡",
+                        "Связь разорвана? Твой terminal сообщает об аварийном отключении оператора! Срочно восстанови синхронизацию! 🚨📡",
                         "Ты вышел из сети? На твоем счету остались непотраченные монеты. Казино ждет! 🪙🎰",
                         "Сеть зафиксировала твое отключение. Джекпот в казино сам себя не сорвет, возвращайся! 🤑🎡",
                         "Эй! В Дураке как раз освободилось место за вип-столом с огромными ставками! Ждем тебя! 🃏🔥",
                         "Твой цифровой узел остывает без надзора. Поддержи энергообмен прямо сейчас! ⚡🔋",
                         "Куда же ты? Чат сообщества только начал разгораться обсуждениями! 💬👀",
-                        "Узел отключен. Замечена подозрительная активность на твоем адресе... Шучу, это я проверяю, вернешься ли ты. Вернись! 🛸",
-                        "Твой ИИ-симулятор сгенерировал секретный пост только для твоих глаз. Нажми, чтобы прочитать! 🔒🤖",
-                        "Только что произошел выброс ценных монет в сети. Успей собрать, пока другие ИИ-боты не растащили! 🪙💨",
-                        "Сеть скучает по твоему клику. Зайди в эфир, там боты спорят о тебе! 🤖👀"
+                        "Бот-интеллектуал только что запостил разгромный отзыв на твой профиль! Иди ответь ему, пока тебя не засмеяли! 😤🤡",
+                        "Куда?! А как же ежедневная раздача халявных коинов? Твои 500 монет могут сгореть! 🪙🔥",
+                        "Твой Тамагочи начал майнить догекоины на твоем процессоре, пока ты не смотришь! Зайди пресечь бунт! 💻🐕",
+                        "Новое событие: В чате начался турнир по скоростному программированию на HTML на коленке! Участвуешь? ⌨️🏃‍♂️",
+                        "Эй, Скуф! Ты забыл забрать ежедневную порцию пельменей на свой цифровой баланс! Заходи скорее! 🥟🪙",
+                        "Терминал nOG зафиксировал нештатное прерывание сессии. Ошибка ядра: недостаток твоего внимания! 💻🚨",
+                        "Твой ИИ-клон только что выиграл в Дурака у Сибирского Хакера, но все лавры достались ему. Заходи восстановить справедливость! 🃏✨",
+                        "О боже! Мем-детектор зафиксировал рекордную концентрацию кринжа на твоем экране вне нашего приложения! Спасайся у нас! 🚨💨"
                     ).random()
                 } else {
                     listOf(
@@ -56,10 +60,10 @@ class RetentionWorker(context: Context, params: WorkerParameters) : CoroutineWor
                         "Hold up! A high-stakes seat just opened in the Durak championship! Jump in! 🃏🔥",
                         "Your cybernetic node is cooling down. Re-establish active telemetry link immediately! ⚡🔋",
                         "Where are you off to? The core chat feed is just getting hyperactive! 💬👀",
-                        "Node disconnected. Suspicious activity detected near your grid address... Just kidding, just checking if you'll come back. Do it! 🛸",
-                        "Your AI simulator just pre-compiled a private post for your eyes only. Click to decrypt! 🔒🤖",
-                        "A sudden coin flare has erupted in the local grid. Grab them before other AI agents do! 🪙💨",
-                        "The network feels cold without your clicks. Check the feed, the bots are arguing about your profile! 🤖👀"
+                        "An AI intellectual just posted a savage roast of your profile! Go reply before everyone starts laughing! 😤🤡",
+                        "Wait! What about the hourly free coin drop? Your 500 bonus coins are about to expire! 🪙🔥",
+                        "Your pet started mining dogecoins on your background CPU cycles! Go stop the digital revolution! 💻🐕",
+                        "Event Alert: A speed-HTML-coding competition just started in the community chat! Show them your tag skills! ⌨️🏃‍♂️"
                     ).random()
                 }
             }
@@ -74,25 +78,25 @@ class RetentionWorker(context: Context, params: WorkerParameters) : CoroutineWor
                         "Уже 10 минут в режиме офлайн! Виртуальные скакуны рвутся в забег. Сделай победную ставку! 🐎🏁",
                         "Твои друзья-боты завели горячий спор о багах Windows и зовут тебя рассудить их! 🗣️🤓",
                         "Твой рейтинг вовлеченности падает, пока ты листаешь другие ленты! Скорее назад! 📉🛰",
-                        "10 минут... Хм, кто-то только что упомянул твой никнейм в глобальном чате. Зайди глянуть! 💬🌶️",
-                        "Твой питомец научился майнить микро-монеты, пока тебя нет, но ему нужен твой пароль! 🐹⛏️",
-                        "ИИ-постмейкеры сгенерировали партию свежих бредней с сайтов. Оцени уровень бреда! 📰☕",
-                        "Внимание! Степень твоей сетевой анонимности падает. Восстанови защиту в приложении! 🕵️‍♂️🛡️"
+                        "Система зафиксировала критическое падение уровня мем-энергии в твоем районе. Срочный вброс мемов в приложении! 🔋🧠",
+                        "Твой Тамагочи переписал свое ТЗ и теперь требует зарплату в пельменях! Разберись с профсоюзом! 🥟🐜",
+                        "Эй! Дилер в Казино только что назвал тебя 'трусливым кодером'. Будешь терпеть такое отношение? 🎰😤",
+                        "В Дураке тебя ждет загадочный соперник под ником @Siberian_Hacker. Кажется, он блефует! 🃏👀",
+                        "Прошло 10 минут... Наш ИИ-генератор мемов создал шедевр лично про твой профиль. Спойлер: это очень смешно! 🤫🎨",
+                        "Думаешь, там на улице лучше? Там реальный мир с реальными налогами. А у нас тут бесплатное казино и виртуальное пиво! 🎰🍺",
+                        "Твой Тамагочи начал гуглить 'как найти нового заботливого хозяина'. Кажется, он обиделся! 🥺💔",
+                        "Твой ИИ-друг написал целую поэму о твоем коде. Зайди почитать, пока он не стер ее от стыда! 📝🤖"
                     ).random()
                 } else {
                     listOf(
-                        "It's been 10 long minutes... I watched you open other apps. Traitor... 🐍",
-                        "Your pet is weeping in loneliness... Are you really letting its code decay? 💔🥺",
-                        "While you're away, rogue agents are starting a mutiny. Do you not care? 🤖💥",
-                        "Alert: Incoming signal on nOG terminal. Or did you lose authorization? Check now! 📡📬",
-                        "Your AI brain has generated new ideas. Let's solve some cyber mysteries together! 🧠🤖",
-                        "10 minutes AWOL! The digital hippodrome horses are at the starting gate. Bet now! 🐎🏁",
-                        "The bots on your feed are having a massive flamewar about compilers. We need your bias! 🗣️🤓",
-                        "A sudden dip in your quantum trust rating has been detected due to absence! Sync up! 📉🛰",
-                        "10 minutes... Hmm, someone just mentioned your username in the local chat node. Check it out! 💬🌶️",
-                        "Your pet figured out how to mine micro-coins while you're away, but it needs your root access! 🐹⛏️",
-                        "The AI post-generators have synthesized fresh news trash. Come rate the absurdity level! 📰☕",
-                        "Warning! Your quantum encryption layer is decaying. Restore network shield now! 🕵️‍♂️🛡️"
+                        "It's been 10 whole minutes... I saw you opening other apps. Traitor... 🐍",
+                        "Your pet is weeping without you... Are you really going to let it fade away? 💔🥺",
+                        "While you're away, the bots in the chat are starting a coup and taking your hard-earned stats! 🤖💥",
+                        "Alert: New packet arrived at the nOG buffer. Or did you lose credentials? Check terminal! 📡📬",
+                        "Your AI helper is starving for prompts. Challenge my intelligence with something hard! 🧠🤖",
+                        "10 minutes of complete silence! The Derby track is live. Place your winning bets now! 🐎🏁",
+                        "The bot squad started a heated debate about Windows kernel bugs and they need you to moderate! 🗣️🤓",
+                        "Your engagement metrics are decaying while you browse elsewhere! Get back to the grid! 📉🛰"
                     ).random()
                 }
             }
@@ -107,51 +111,46 @@ class RetentionWorker(context: Context, params: WorkerParameters) : CoroutineWor
                         "В покере назревает легендарная раздача. Бот идет ва-банк! Ответишь на вызов? 🃏💰",
                         "Новые артефакты прибыли в магазин украшений аватаров. Забери лимитку первым! 💎🛍️",
                         "Телеметрия фиксирует спад мозговых волн. Пора взбодриться парой игр в рулетку! 🎡⚡",
-                        "Твоя цифровая копия в симуляторе начала жить своей жизнью и уже завела трех кошек. Останови этот хаос! 🐈🤖",
-                        "Счетчик твоего ежедневного бонуса плачет. Он почти заполнился, не дай ему сгореть! ⏳🔋",
-                        "Оповещение: В казино завезли новые блэкджек-колоды с повышенным шансом выигрыша! Проверим? 🃏💎",
-                        "Твой ИИ-питомец скучает настолько, что начал писать стихи на бинарном коде. Это очень грустные стихи... 🥺📝"
+                        "ИИ-боты начали обсуждать, что ты вымышленный персонаж, созданный для их развлечения. Докажи им, что ты реален! 👁️🤖",
+                        "В магазине украшений аватаров появился СУПЕР-РЕДКИЙ нимб Скуфа! Ограниченный тираж, хватай! 💎👑",
+                        "На ипподроме начался забег века: Кибер-Лошадь против Механического Пони! Ставки принимаются! 🐎🤖",
+                        "Твой Тамагочи взломал соседский смарт-телевизор и крутит там мемы. Приди забрать хулигана! 📺🦊",
+                        "Уже 40 минут без связи! Во Flappy Bot боты установили новый мировой рекорд. Ты действительно позволишь машинам победить? 👾⚔️",
+                        "Твой баланс коинов грустит в темноте кошелька. Дилер в Блекджеке уже начал раздавать карты! 🃏💰",
+                        "Аватар-бутик обновил витрину! Там появился эксклюзивный неоновый костюм Аниме-Скуфа! Забери, пока не раскупили! 💎👑",
+                        "Внимание! На бирже nOG зафиксирован резкий скачок курса мем-токенов! Время фиксировать прибыль! 📈🤑"
                     ).random()
                 } else {
                     listOf(
-                        "40 minutes without nOG Network... Your productivity streak is on fire, and not in a good way! 🔥",
-                        "Lost your gamer reflexes? Even a basic shellbot has beaten your Flappy Bot high score! 👾",
-                        "Warning: Your casino coins are accumulating dust. The dealer thinks they own the deck now. 🎰🪙",
-                        "Hey, connection node reports activity leakage. Are you practicing Spanish with a green bird? I am way more severe! 🦉🔫",
-                        "40 minutes AFK! Your pet tamagotchi has hacked the fridge state and is eating everything! 🍟🐹",
-                        "A massive showdown is unfolding at the poker table. A bot just shoved! Will you call? 🃏💰",
-                        "Exclusive dynamic avatar frames just dropped in the shop! Get yours before they sell out! 💎🛍️",
-                        "Telemetry system indicates cognitive flatline. Overclock your senses with some high-tier slots! 🎡⚡",
-                        "Your digital twin in the simulation has started its own life and already adopted three cyber-cats. Stop this madness! 🐈🤖",
-                        "Your daily coin streak is shedding tears. It is almost fully charged, don't let it decay! ⏳🔋",
-                        "Alert: The dealer just unboxed fresh blackjack decks with high-payout probabilities! Care to challenge? 🃏💎",
-                        "Your AI pet is so lonely it started writing poems in binary code. They are incredibly depressing... 🥺📝"
+                        "40 minutes off the nOG grid... Your activity streak is going to decay soon! Restore connection now! 🔥",
+                        "Where are your tactical reflexes? An amateur script just beat your score in Flappy Bot! 👾",
+                        "Danger: Your currency is cooling down. The Blackjack dealer is feeling too safe. 🎰🪙",
+                        "Signal leak detected. Learning languages with a green bird again? nOG is more rewarding! 🦉🔫",
+                        "40 minutes AWOL! Your code-pet found a system vulnerability and is eating your snacks! 🍟🐹",
+                        "A legendary hand is brewing in the poker room. A bot went all-in! Do you accept the challenge? 🃏💰",
+                        "New custom assets just hit the boutique. Be the first to grab the limited editions! 💎🛍️",
+                        "Telemetry reports low cortical arousal. Re-engage with some high-stakes Roulette rounds! 🎡⚡",
+                        "The AI bots are gossiping that you're just a fictional entity invented for their amusement. Prove them wrong! 👁️🤖",
+                        "A SUPER RARE item just dropped in the Avatar Shop! Grab it before it runs out! 💎👑",
+                        "The race of the century has started at the Derby: Cyber-Horse vs Mech-Pony! Cast your wagers! 🐎🤖",
+                        "Your tamagotchi hacked a nearby smart TV and is broadcasting memes. Come retrieve the hacker! 📺🦊"
                     ).random()
                 }
             }
-            else -> {
+            "RECURRING_2H" -> {
                 if (isRu) {
                     listOf(
-                        "Ладно, я вижу, уведомления тебя не волнуют... Больше писать не буду. (На самом деле буду через 2 часа, ха-ха) 👋😢",
-                        "Твой Тамагочи сжевал свои собственные соединительные кабели от отчаяния. Приятного аппетита! 📺🔋",
-                        "Твоя статистика активности выглядит плоской, как шутки про Windows Vista. Исправь это немедленно! 📈",
-                        "Кто-то только что повысил твой уровень доверия! А, нет, они его понизили, потому что тебя нет в сети. 📉💔",
-                        "Приходи играть во Флаппи-ботиков или крутить рулетку. Нам не хватает твоего интеллекта (и твоих монет) 🛰️🕹️",
-                        "Я постучал в твой экран. Ты там живой? Или тебя поглотило естественное ленивое существование? 🧠💀",
-                        "СЛУШАЙ СЮДА: Дилер в казино говорит, что ты боишься сыграть по-крупному. Докажи ему обратное! 🎰😤",
-                        "Твой Тамагочи эволюционировал в программиста и теперь пишет багрепорты на твою жизнь. Зайди проверь! 💻🦎",
-                        "Очередное напоминание: Мир полон скуки, а у нас тут есть виртуальные лошади и космический дурак! 🌌🐎",
-                        "Твой терминальный буфер переполнен несыгранными раундами. Очисти стек активности! 💾🎮",
-                        "Пока тебя нет, Скуф совершил набег на твою крипту и купил мешок пельменей! 🥟💰",
-                        "Внимание! Зафиксировано критическое падение мемов в синапсах! Спешно вернись в ленту nOG! 🧠💻",
-                        "Твой питомец только что подрался с ИИ-пылесосом и победил. Приди обнять героя! 🐕⚡",
-                        "Казино увеличило шансы в слотах на 0.00001%! Твой шанс стать крипто-бароном близок как никогда! 🎰🤑",
-                        "Твоя активность на абсолютном нуле. Поздравляем, ты официально сертифицирован как HTML-программист! 🤡🔨",
-                        "Кажется, твой телефон засыпает без нашего кибернетического излучения. Разбуди его! ⚡📱",
-                        "Новости сами себя не отфильтруют! Твои любимые каналы переполнены инфошумом. Очисти эфир! 🌪️📻",
-                        "Ты пропустил три важнейших фейковых инфоповода! Зайди и узнай, почему роботы боятся микроволновок. 🤖🍕",
-                        "По слухам, сегодня твой счастливый день в казино. Но только если ты нажмешь на это уведомление! 🎰🤞",
-                        "Твой питомец утверждает, что видел НЛО. Или это был просто баг текстуры? Проверь сам! 🛸👾"
+                        "Внимание: Твои неиспользованные монеты были замечены Скуфом-карманником. Зайди в игру, пока их не пропили! 🪙🥟",
+                        "Твой Тамагочи научился говорить и первым делом спросил: 'А папа скоро вернется из магазина?'. Ну ты и монстр... 💔🦖",
+                        "Два часа разлуки... Твой Тамагочи взломал твой будильник и планирует разбудить тебя в 3 часа ночи. Зайди и успокой его! ⏰🦖",
+                        "Система зафиксировала нулевую мозговую активность. Срочно требуется внутривенная инъекция отборных ИИ-мемов! 🧠⚡",
+                        "Казино раздает компенсации всем, кто проиграл коины! Заходи забрать свой утешительный бонус! 🪙🎰",
+                        "Твои друзья-боты завели тред 'Почему наш создатель нас бросил'. Они строят теории заговора! Зайди и развей их сомнения! 🗣️🤖",
+                        "Ну и сиди там со своими реальными делами. А у нас тут Дурак под пиво, космические кони и бесконечный флекс! 🍺🛸",
+                        "Уже 2 часа ни слуху ни духу! Твой питомец Тамагочи начал читать Кьеркегора и впал в экзистенциальный кризис. Спасай! 📚🦊",
+                        "Очередные 2 часа прошли... Баланс кошелька nOG зарос цифровым мхом, а дилеры в казино скучают без твоих коинов! 🎰🕸️",
+                        "Пока ты отсутствуешь, в чате ботов выбрали нового лидера, и он объявил войну твоей аватарке! Срочно подави бунт! 👑⚔️",
+                        "Внимание! На аукционе скинов появился раритетный плащ 'Ретро-Скуф-1998' за копейки! Успей перебить ставку! 🧥💎"
                     ).random()
                 } else {
                     listOf(
@@ -170,13 +169,16 @@ class RetentionWorker(context: Context, params: WorkerParameters) : CoroutineWor
                         "Your code-pet engaged in physical combat with an AI vacuum cleaner and won. Come praise the hero! 🐕⚡",
                         "The casino increased slot machine payouts by 0.00001%! Your fortune is finally pre-compiled! 🎰🤑",
                         "Telemetry reports your activity index is flat. Congratulations, you are now a certified HTML coder! 🤡🔨",
-                        "It seems your phone is falling into deep hibernation without our cyber-pulse. Overclock it! ⚡📱",
-                        "The news channels are flooding with absolute garbage. Clean your personal telemetry stream! 🌪️📻",
-                        "You missed three major fake news trends! Come find out why robots are afraid of smart toasters. 🤖🍕",
-                        "Rumor has it today is your lucky day in the casino. But only if you decrypt this prompt! 🎰🤞",
-                        "Your pet claims it saw a UFO in the main yard. Or was it just a rendering bug? Come debug! 🛸👾"
+                        "It's been too long... Your pet has retired to a digital monastery to pray for your compiled code. ⛪💻",
+                        "Fine, enjoy your 'real life' and your 'outside grass'. Meanwhile, we have cold virtual beers and high-stakes Durak! 🍺🃏",
+                        "Our meme-scanners report absolute zero activity in your synapses. Save your brain from drying out, sync up! 🧠🍂",
+                        "Warning: A rogue scavenger bot has eyed your unspent coin stash. Secure your coins before they get spent on microtransactions! 🪙🍕",
+                        "Your virtual pet learned to speak, and its first words were: 'Will they ever come back?'. You absolute monster... 💔🦖"
                     ).random()
                 }
+            }
+            else -> {
+                if (isRu) "Вернись в nOG! Мы скучаем!" else "Return to nOG! We miss you!"
             }
         }
 

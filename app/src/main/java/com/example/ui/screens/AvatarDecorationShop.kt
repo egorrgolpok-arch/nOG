@@ -8,6 +8,7 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.delay
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -159,7 +160,7 @@ object DecorationGenerator {
         return AvatarDecoration(id, rawName, rarity, basePrice, styleType)
     }
 
-    // 10 Luxury Exclusives
+    // 20 Luxury Exclusives
     fun getExclusiveDecorations(lang: String): List<AvatarDecoration> {
         return listOf(
             AvatarDecoration(
@@ -211,14 +212,114 @@ object DecorationGenerator {
                 210, 
                 if (lang == "RU") "Черный Нимб Шестого Ангела 🪽" else "Sixth Angel Dark Ring 🪽", 
                 "ЭКСКЛЮЗИВНАЯ", 1000000, 20
+            ),
+            AvatarDecoration(
+                211, 
+                if (lang == "RU") "Платиновый Шлем Киберсамурая ⚔️" else "Platinum Cybersamurai Helmet ⚔️", 
+                "ЭКСКЛЮЗИВНАЯ", 1200000, 21
+            ),
+            AvatarDecoration(
+                212, 
+                if (lang == "RU") "Священный Нимб Архангела 👼" else "Archangel Holy Halo 👼", 
+                "ЭКСКЛЮЗИВНАЯ", 1300000, 22
+            ),
+            AvatarDecoration(
+                213, 
+                if (lang == "RU") "Неоновый Щит Защитника Ноды 🛡️" else "Neon Node Defender Shield 🛡️", 
+                "ЭКСКЛЮЗИВНАЯ", 1400000, 23
+            ),
+            AvatarDecoration(
+                214, 
+                if (lang == "RU") "Голографический Окуляр Оракула 👁️" else "Oracle Holographic Eye 👁️", 
+                "ЭКСКЛЮЗИВНАЯ", 1500000, 24
+            ),
+            AvatarDecoration(
+                215, 
+                if (lang == "RU") "Кристаллы Энергии Пустоты 🔮" else "Void Energy Crystals 🔮", 
+                "ЭКСКЛЮЗИВНАЯ", 1600000, 25
+            ),
+            AvatarDecoration(
+                216, 
+                if (lang == "RU") "Аура Божественного Дракона 🐉" else "Divine Dragon Aura 🐉", 
+                "ЭКСКЛЮЗИВНАЯ", 1800000, 26
+            ),
+            AvatarDecoration(
+                217, 
+                if (lang == "RU") "Венец Вечного Императора 👑" else "Eternal Emperor Wreath 👑", 
+                "ЭКСКЛЮЗИВНАЯ", 2000000, 27
+            ),
+            AvatarDecoration(
+                218, 
+                if (lang == "RU") "Гиперкубическая Квантовая Сфера 🧊" else "Hypercubic Quantum Sphere 🧊", 
+                "ЭКСКЛЮЗИВНАЯ", 2200000, 28
+            ),
+            AvatarDecoration(
+                219, 
+                if (lang == "RU") "Огненная Колесница Феникса 🦅" else "Phoenix Fire Chariot 🦅", 
+                "ЭКСКЛЮЗИВНАЯ", 2500000, 29
+            ),
+            AvatarDecoration(
+                220, 
+                if (lang == "RU") "Сверхновая Космическая Туманность 🌌" else "Supernova Cosmic Nebula 🌌", 
+                "ЭКСКЛЮЗИВНАЯ", 3000000, 30
+            ),
+            AvatarDecoration(
+                221, 
+                if (lang == "RU") "Кибернетический Ангельский Аура-Глоб 🛸" else "Cybernetic Angelic Aura Globe 🛸", 
+                "ЭКСКЛЮЗИВНАЯ", 3500000, 31
+            ),
+            AvatarDecoration(
+                222, 
+                if (lang == "RU") "Шлем Темного Жнеца nOG AI 💀" else "Dark Reaper Helmet nOG AI 💀", 
+                "ЭКСКЛЮЗИВНАЯ", 4000000, 32
+            ),
+            AvatarDecoration(
+                223, 
+                if (lang == "RU") "Корона Звездного Лорда Метавселенной 👑" else "Crown of Star Lord Metaverse 👑", 
+                "ЭКСКЛЮЗИВНАЯ", 4500000, 33
+            ),
+            AvatarDecoration(
+                224, 
+                if (lang == "RU") "Огненный Кристалл Магматического Бога 🌋" else "Magma God Fire Crystal 🌋", 
+                "ЭКСКЛЮЗИВНАЯ", 5000000, 34
+            ),
+            AvatarDecoration(
+                225, 
+                if (lang == "RU") "Неоновое Кольцо Черной Дыры 🌀" else "Neon Black Hole Ring 🌀", 
+                "ЭКСКЛЮЗИВНАЯ", 5500000, 35
+            ),
+            AvatarDecoration(
+                226, 
+                if (lang == "RU") "Аура Межзвездного Странника 🪐" else "Interstellar Wanderer Aura 🪐", 
+                "ЭКСКЛЮЗИВНАЯ", 6000000, 36
+            ),
+            AvatarDecoration(
+                227, 
+                if (lang == "RU") "Священный Шлем Валькирии Будущего 🪽" else "Sacred Valkyrie Future Helmet 🪽", 
+                "ЭКСКЛЮЗИВНАЯ", 7000000, 37
+            ),
+            AvatarDecoration(
+                228, 
+                if (lang == "RU") "Голограмма Искусственного Интеллекта nOG 🧠" else "Holographic AI Mind nOG 🧠", 
+                "ЭКСКЛЮЗИВНАЯ", 8000000, 38
+            ),
+            AvatarDecoration(
+                229, 
+                if (lang == "RU") "Цифровой Гало-Шитпостер 🎰" else "Digital Halo Shitposter 🎰", 
+                "ЭКСКЛЮЗИВНАЯ", 9000000, 39
+            ),
+            AvatarDecoration(
+                230, 
+                if (lang == "RU") "Королевское Солнечное Затмение ☀️" else "Royal Solar Eclipse Ring ☀️", 
+                "ЭКСКЛЮЗИВНАЯ", 10000000, 40
             )
         )
     }
 
-    // Get 200 normal + 10 exclusives
+    // Get 300 normal + 30 exclusives
     fun getAll(lang: String): List<AvatarDecoration> {
         val list = mutableListOf<AvatarDecoration>()
-        for (i in 1..200) {
+        for (i in 1..300) {
             list.add(generateDecoration(i, lang))
         }
         return list
@@ -257,6 +358,21 @@ fun AvatarWithDecoration(
         if (decorationId != null && decorationId > 0) {
             val isSmall = sizeDp <= 56
             
+            // Retrieve AI decoration properties if ID is 9999
+            val context = LocalContext.current
+            val aiDecProps = remember(decorationId) {
+                if (decorationId == 9999) {
+                    val prefs = context.getSharedPreferences("nog_prefs", Context.MODE_PRIVATE)
+                    val name = prefs.getString("ai_dec_name", "nOG AI Artifact") ?: "nOG AI Artifact"
+                    val rarity = prefs.getString("ai_dec_rarity", "НЕВЕБЕЙШАЯ") ?: "НЕВЕБЕЙШАЯ"
+                    val styleType = prefs.getInt("ai_dec_style_type", 1)
+                    val colorOffset = prefs.getInt("ai_dec_color_offset", 0)
+                    Triple(name, rarity, Pair(styleType, colorOffset))
+                } else {
+                    Triple("", "", Pair(0, 0))
+                }
+            }
+            
             val angleRotation: Float
             val scalePulse: Float
             val breatheAlpha: Float
@@ -277,7 +393,7 @@ fun AvatarWithDecoration(
                     label = "rot"
                 )
                 angleRotation = rotationState.value
-
+ 
                 val scaleState = if (isSmall) {
                     null
                 } else {
@@ -292,7 +408,7 @@ fun AvatarWithDecoration(
                     )
                 }
                 scalePulse = scaleState?.value ?: 1f
-
+ 
                 val alphaState = if (isSmall) {
                     null
                 } else {
@@ -308,7 +424,7 @@ fun AvatarWithDecoration(
                 }
                 breatheAlpha = alphaState?.value ?: 0.9f
             }
-
+ 
             Canvas(
                 modifier = Modifier
                     .size((sizeDp + 16).dp)
@@ -322,13 +438,15 @@ fun AvatarWithDecoration(
                 val angleRotation = 0f
                 val scalePulse = 1f
                 val breatheAlpha = 1f
-
+ 
                 val centerOffset = Offset(size.width / 2f, size.height / 2f)
                 val avatarRadius = (sizeDp.dp.toPx()) / 2f
                 val decorRadius = avatarRadius + 4.dp.toPx()
-
+ 
                 // Procedurally resolve styleType & colors using deterministic math on decorationId
-                val decorationItem = if (decorationId >= 201) {
+                val decorationItem = if (decorationId == 9999) {
+                    AvatarDecoration(9999, aiDecProps.first, aiDecProps.second, 0, aiDecProps.third.first)
+                } else if (decorationId >= 201) {
                     DecorationGenerator.getExclusiveDecorations("EN").find { it.id == decorationId }
                 } else {
                     DecorationGenerator.generateDecoration(decorationId, "EN")
@@ -350,10 +468,11 @@ fun AvatarWithDecoration(
                     Color(0xFF00E676), // Spring Mint Glow
                     Color(0xFFFF9100)  // Gold Amber
                 )
-
-                val primaryColor = premiumProceduralColors[decorationId % premiumProceduralColors.size]
-                val secondaryColor = premiumProceduralColors[(decorationId + 3) % premiumProceduralColors.size]
-                val tertiaryColor = premiumProceduralColors[(decorationId + 7) % premiumProceduralColors.size]
+ 
+                val colorOffset = if (decorationId == 9999) aiDecProps.third.second else decorationId
+                val primaryColor = premiumProceduralColors[colorOffset % premiumProceduralColors.size]
+                val secondaryColor = premiumProceduralColors[(colorOffset + 3) % premiumProceduralColors.size]
+                val tertiaryColor = premiumProceduralColors[(colorOffset + 7) % premiumProceduralColors.size]
 
                 when (styleType) {
                     1 -> { // Neon Procedural Ring with multiple dots
@@ -792,13 +911,141 @@ fun AvatarWithDecoration(
                         drawRect(Color(0xFF00E676).copy(alpha = 0.3f), topLeft = Offset(centerOffset.x - avatarRadius, centerOffset.y - avatarRadius), size = Size(avatarRadius * 2, avatarRadius * 2), style = Stroke(width = 1.dp.toPx()))
                         drawCircle(Color(0xFF00FF33), radius = decorRadius, style = Stroke(width = 2.dp.toPx()))
                     }
-                    else -> { // Angelic Holy Dark Sovereign Ring (ID 210 / backup)
+                    20 -> { // Angelic Holy Dark Sovereign Ring (ID 210)
                         drawCircle(Color(0xFF1A237E), radius = decorRadius, style = Stroke(width = 3.dp.toPx()))
                         drawOval(
                             color = Color(0xFFD500F9).copy(alpha = breatheAlpha),
                             topLeft = Offset(centerOffset.x - avatarRadius * 0.9f, centerOffset.y - avatarRadius * 1.45f),
                             size = Size(avatarRadius * 1.8f, 10.dp.toPx()),
                             style = Stroke(width = 2.5.dp.toPx())
+                        )
+                    }
+                    21 -> { // Platinum Cybersamurai Helmet
+                        val helmetPath = Path().apply {
+                            moveTo(centerOffset.x - avatarRadius * 0.5f, centerOffset.y - avatarRadius * 0.8f)
+                            lineTo(centerOffset.x - avatarRadius * 0.7f, centerOffset.y - avatarRadius * 1.5f) // left horn
+                            lineTo(centerOffset.x - avatarRadius * 0.2f, centerOffset.y - avatarRadius * 1.1f)
+                            lineTo(centerOffset.x, centerOffset.y - avatarRadius * 1.6f) // center crest
+                            lineTo(centerOffset.x + avatarRadius * 0.2f, centerOffset.y - avatarRadius * 1.1f)
+                            lineTo(centerOffset.x + avatarRadius * 0.7f, centerOffset.y - avatarRadius * 1.5f) // right horn
+                            lineTo(centerOffset.x + avatarRadius * 0.5f, centerOffset.y - avatarRadius * 0.8f)
+                            close()
+                        }
+                        drawPath(helmetPath, color = Color(0xFFE2E2E2)) // Platinum silver
+                        drawCircle(Color(0xFFFF1744), radius = decorRadius, style = Stroke(width = 1.5.dp.toPx()))
+                    }
+                    22 -> { // Archangel Holy Halo
+                        drawOval(
+                            brush = Brush.radialGradient(listOf(Color.White, Color(0xFFFFD700), Color.Transparent)),
+                            topLeft = Offset(centerOffset.x - avatarRadius * 0.8f, centerOffset.y - avatarRadius * 1.5f),
+                            size = Size(avatarRadius * 1.6f, 15.dp.toPx())
+                        )
+                        drawOval(
+                            color = Color(0xFFFFEA00),
+                            topLeft = Offset(centerOffset.x - avatarRadius * 0.7f, centerOffset.y - avatarRadius * 1.45f),
+                            size = Size(avatarRadius * 1.4f, 10.dp.toPx()),
+                            style = Stroke(width = 2.dp.toPx())
+                        )
+                    }
+                    23 -> { // Neon Node Defender Shield
+                        val shieldPath = Path().apply {
+                            for (i in 0..5) {
+                                val angle = Math.toRadians((60 * i + angleRotation / 3).toDouble())
+                                val px = centerOffset.x + (decorRadius + 4.dp.toPx()) * kotlin.math.cos(angle).toFloat()
+                                val py = centerOffset.y + (decorRadius + 4.dp.toPx()) * kotlin.math.sin(angle).toFloat()
+                                if (i == 0) moveTo(px, py) else lineTo(px, py)
+                            }
+                            close()
+                        }
+                        drawPath(shieldPath, color = Color(0xFF00FFFF).copy(alpha = 0.4f), style = Stroke(width = 2.dp.toPx()))
+                    }
+                    24 -> { // Oracle Holographic Eye
+                        drawCircle(Color(0xFF38EF7D).copy(alpha = breatheAlpha), radius = decorRadius, style = Stroke(width = 1.5.dp.toPx()))
+                        drawCircle(Color(0xFF38EF7D), radius = decorRadius + 4.dp.toPx(), style = Stroke(width = 1.dp.toPx(), pathEffect = PathEffect.dashPathEffect(floatArrayOf(20f, 20f), angleRotation)))
+                        drawLine(Color(0xFF38EF7D), start = Offset(centerOffset.x - decorRadius - 6.dp.toPx(), centerOffset.y), end = Offset(centerOffset.x - decorRadius, centerOffset.y), strokeWidth = 2f)
+                        drawLine(Color(0xFF38EF7D), start = Offset(centerOffset.x + decorRadius, centerOffset.y), end = Offset(centerOffset.x + decorRadius + 6.dp.toPx(), centerOffset.y), strokeWidth = 2f)
+                    }
+                    25 -> { // Void Energy Crystals
+                        for (i in 0..3) {
+                            val angle = Math.toRadians((90 * i + angleRotation * 1.5).toDouble())
+                            val cx = centerOffset.x + (decorRadius + 5.dp.toPx()) * kotlin.math.cos(angle).toFloat()
+                            val cy = centerOffset.y + (decorRadius + 5.dp.toPx()) * kotlin.math.sin(angle).toFloat()
+                            val crystalPath = Path().apply {
+                                moveTo(cx, cy - 6.dp.toPx())
+                                lineTo(cx + 4.dp.toPx(), cy)
+                                lineTo(cx, cy + 6.dp.toPx())
+                                lineTo(cx - 4.dp.toPx(), cy)
+                                close()
+                            }
+                            drawPath(crystalPath, color = Color(0xFFD500F9))
+                        }
+                    }
+                    26 -> { // Divine Dragon Aura
+                        drawCircle(
+                            brush = Brush.sweepGradient(listOf(Color(0xFFE040FB), Color(0xFF00E5FF), Color(0xFFE040FB))),
+                            radius = decorRadius,
+                            style = Stroke(width = 3.dp.toPx(), pathEffect = PathEffect.dashPathEffect(floatArrayOf(60f, 40f), -angleRotation))
+                        )
+                    }
+                    27 -> { // Eternal Emperor Wreath
+                        for (i in -4..4) {
+                            if (i == 0) continue
+                            val angleLeft = 180 + i * 25
+                            val angleRight = 0 - i * 25
+                            
+                            val radLeft = Math.toRadians(angleLeft.toDouble())
+                            val lx = centerOffset.x + decorRadius * kotlin.math.cos(radLeft).toFloat()
+                            val ly = centerOffset.y + decorRadius * kotlin.math.sin(radLeft).toFloat()
+                            drawCircle(Color(0xFFFFD700), radius = 3.dp.toPx(), center = Offset(lx, ly))
+                            
+                            val radRight = Math.toRadians(angleRight.toDouble())
+                            val rx = centerOffset.x + decorRadius * kotlin.math.cos(radRight).toFloat()
+                            val ry = centerOffset.y + decorRadius * kotlin.math.sin(radRight).toFloat()
+                            drawCircle(Color(0xFFFFD700), radius = 3.dp.toPx(), center = Offset(rx, ry))
+                        }
+                        drawCircle(Color(0xFFFFD700).copy(alpha = 0.6f), radius = decorRadius - 1.dp.toPx(), style = Stroke(width = 1.dp.toPx()))
+                    }
+                    28 -> { // Hypercubic Quantum Sphere
+                        drawRect(
+                            color = Color(0xFF00E5FF),
+                            topLeft = Offset(centerOffset.x - avatarRadius * 0.75f, centerOffset.y - avatarRadius * 0.75f),
+                            size = Size(avatarRadius * 1.5f, avatarRadius * 1.5f),
+                            style = Stroke(width = 1.5.dp.toPx())
+                        )
+                        drawCircle(Color(0xFFFF1493).copy(alpha = breatheAlpha), radius = decorRadius, style = Stroke(width = 1.dp.toPx()))
+                    }
+                    29 -> { // Phoenix Fire Chariot
+                        val leftWing = Path().apply {
+                            moveTo(centerOffset.x - avatarRadius * 0.9f, centerOffset.y)
+                            cubicTo(
+                                centerOffset.x - avatarRadius * 1.5f, centerOffset.y - avatarRadius * 0.8f,
+                                centerOffset.x - avatarRadius * 2.1f, centerOffset.y + avatarRadius * 0.3f,
+                                centerOffset.x - avatarRadius * 0.9f, centerOffset.y + avatarRadius * 0.6f
+                            )
+                        }
+                        val rightWing = Path().apply {
+                            moveTo(centerOffset.x + avatarRadius * 0.9f, centerOffset.y)
+                            cubicTo(
+                                centerOffset.x + avatarRadius * 1.5f, centerOffset.y - avatarRadius * 0.8f,
+                                centerOffset.x + avatarRadius * 2.1f, centerOffset.y + avatarRadius * 0.3f,
+                                centerOffset.x + avatarRadius * 0.9f, centerOffset.y + avatarRadius * 0.6f
+                            )
+                        }
+                        drawPath(leftWing, brush = Brush.verticalGradient(listOf(Color(0xFFFF4500), Color(0xFFFFEA00))))
+                        drawPath(rightWing, brush = Brush.verticalGradient(listOf(Color(0xFFFF4500), Color(0xFFFFEA00))))
+                    }
+                    30 -> { // Supernova Cosmic Nebula
+                        drawCircle(
+                            brush = Brush.sweepGradient(listOf(Color(0xFFFF007F), Color(0xFF7F00FF), Color(0xFF00FFFF), Color(0xFFFF007F))),
+                            radius = decorRadius,
+                            style = Stroke(width = 4.dp.toPx())
+                        )
+                    }
+                    else -> { // Default glowing aura ring
+                        drawCircle(
+                            color = primaryColor.copy(alpha = breatheAlpha),
+                            radius = decorRadius,
+                            style = Stroke(width = 2.dp.toPx())
                         )
                     }
                 }
@@ -814,8 +1061,19 @@ fun AvatarDecorationShopDialog(
     lang: String,
     onDismiss: () -> Unit
 ) {
+    val context = LocalContext.current
+    val prefs = remember(context) { context.getSharedPreferences("nog_prefs", Context.MODE_PRIVATE) }
     var showPurchaseDialogForDec by remember { mutableStateOf<AvatarDecoration?>(null) }
+    var showAiPurchaseDialog by remember { mutableStateOf(false) }
     var selectedCategoryTab by remember { mutableStateOf(0) } // 0 = Все (All), 1 = Купленные (Owned), 2 = Эксклюзивы (Exclusives)
+    
+    var aiGenerationState by remember { mutableStateOf(0) } // 0 = Idle, 1 = Generating, 2 = Success
+    var aiGenName by remember { mutableStateOf("") }
+    var aiGenRarity by remember { mutableStateOf("") }
+    var aiGenStyleType by remember { mutableStateOf(1) }
+    var aiGenColorOffset by remember { mutableStateOf(0) }
+    var aiGenPrice by remember { mutableStateOf(0) }
+    var aiErrorMsg by remember { mutableStateOf<String?>(null) }
     
     // Refresh states and balances
     LaunchedEffect(Unit) {
@@ -829,11 +1087,11 @@ fun AvatarDecorationShopDialog(
     val isClaimable by viewModel.isDailyRewardClaimable.collectAsState()
     val currentUser by viewModel.currentUser.collectAsState()
 
-    // Determine current weekly exclusive (ID 201 to 210 deterministically based on real week)
+    // Determine current weekly exclusive (ID 201 to 230 deterministically based on real week)
     val calendar = Calendar.getInstance()
     val weekOfYear = calendar.get(Calendar.WEEK_OF_YEAR)
     val year = calendar.get(Calendar.YEAR)
-    val exclusiveIndex = (year * 52 + weekOfYear) % 10
+    val exclusiveIndex = (year * 52 + weekOfYear) % 30
     val activeWeeklyExclusiveId = 201 + exclusiveIndex
 
     val allDecorations = remember(lang) { DecorationGenerator.getAll(lang) }
@@ -1004,6 +1262,288 @@ fun AvatarDecorationShopDialog(
                                 fontWeight = FontWeight.Bold,
                                 fontFamily = FontFamily.Monospace
                             )
+                        }
+                    }
+                }
+
+                // --- nOG AI DECORATION GENERATOR ---
+                Spacer(modifier = Modifier.height(12.dp))
+                
+                val coroutineScope = rememberCoroutineScope()
+                val isVerified = currentUser?.isVerified == true
+                
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(Color(0xFF12121A))
+                        .border(
+                            width = 1.dp,
+                            brush = Brush.linearGradient(
+                                listOf(Color(0xFFFF007F), Color(0xFF7F00FF), Color(0xFF00FFFF))
+                            ),
+                            shape = RoundedCornerShape(4.dp)
+                        )
+                        .padding(12.dp)
+                ) {
+                    Column(modifier = Modifier.fillMaxWidth()) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = if (lang == "RU") "🧬 nOG AI СИНТЕЗАТОР" else "🧬 nOG AI SYNTHESIZER",
+                                    color = Color(0xFF00FFFF),
+                                    fontSize = 13.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    fontFamily = FontFamily.Monospace
+                                )
+                                Text(
+                                    text = if (lang == "RU") "Генерация случайного уникального украшения" else "Synthesize a completely random unique decoration",
+                                    color = StarkWhite,
+                                    fontSize = 11.sp,
+                                    fontFamily = FontFamily.Monospace
+                                )
+                            }
+                            
+                            if (aiGenerationState == 0) {
+                                Button(
+                                    onClick = {
+                                        val lastGenerated = prefs.getLong("ai_dec_last_generated_time", 0L)
+                                        val timePassed = System.currentTimeMillis() - lastGenerated
+                                        val cooldownMs = 5 * 3600 * 1000L // 5 hours
+                                        
+                                        if (!isVerified && timePassed < cooldownMs) {
+                                            val remainingMs = cooldownMs - timePassed
+                                            val hrs = remainingMs / (3600 * 1000)
+                                            val mins = (remainingMs % (3600 * 1000)) / (60 * 1000)
+                                            aiErrorMsg = if (lang == "RU") {
+                                                "Ожидайте еще $hrs ч. $mins мин. (с галочкой лимита нет! ✅)"
+                                            } else {
+                                                "Cooldown: $hrs hrs $mins mins (no limits with checkmark! ✅)"
+                                            }
+                                        } else {
+                                            viewModel.vibrate(100)
+                                            aiErrorMsg = null
+                                            aiGenerationState = 1 // Start synthesis animation
+                                            
+                                            coroutineScope.launch {
+                                                delay(3000) // beautiful 3s animation delay
+                                                
+                                                val rand = java.util.Random()
+                                                val rarities = listOf("ОБЫЧНАЯ", "РЕДКАЯ", "АХУЕННАЯ", "ЭКСКЛЮЗИВНАЯ", "НЕВЕБЕЙШАЯ")
+                                                val raritiesEn = listOf("COMMON", "RARE", "AWESOME", "EXCLUSIVE", "UNBELIEVABLE")
+                                                val rarIndex = rand.nextInt(rarities.size)
+                                                aiGenRarity = if (lang == "RU") rarities[rarIndex] else raritiesEn[rarIndex]
+                                                
+                                                aiGenStyleType = rand.nextInt(30) + 1
+                                                aiGenColorOffset = rand.nextInt(100)
+                                                aiGenPrice = rand.nextInt(280000) + 20000
+                                                
+                                                val prefixesRu = listOf("Квантовый ", "Кибернетический ", "Хроматический ", "Сингулярный ", "Трансцендентный ", "Сверхпроводимый ", "Эфирный ", "Гиперборейский ", "Фотонный ", "Плазменный ")
+                                                val prefixesEn = listOf("Quantum ", "Cybernetic ", "Chromatic ", "Singular ", "Transcendent ", "Superconducting ", "Aetherial ", "Hyperborean ", "Photonic ", "Plasma ")
+                                                val coresRu = listOf("Нексус ", "Кристалл ", "Вихрь ", "Глитч ", "Фрагмент ", "Резонатор ", "Спектр ", "Венец ", "Синтезатор ", "Модуль ")
+                                                val coresEn = listOf("Nexus ", "Crystal ", "Vortex ", "Glitch ", "Fragment ", "Resonator ", "Spectrum ", "Crest ", "Synthesizer ", "Module ")
+                                                val suffix = listOf(" nOG AI", " v2.0 AI", " (Beta-S)").random()
+                                                
+                                                val pIdx = rand.nextInt(prefixesRu.size)
+                                                val cIdx = rand.nextInt(coresRu.size)
+                                                aiGenName = if (lang == "RU") {
+                                                    "${prefixesRu[pIdx]}${coresRu[cIdx]}$suffix"
+                                                } else {
+                                                    "${prefixesEn[pIdx]}${coresEn[cIdx]}$suffix"
+                                                }
+                                                
+                                                prefs.edit().putLong("ai_dec_last_generated_time", System.currentTimeMillis()).apply()
+                                                
+                                                prefs.edit()
+                                                    .putString("ai_dec_name", aiGenName)
+                                                    .putString("ai_dec_rarity", aiGenRarity)
+                                                    .putInt("ai_dec_style_type", aiGenStyleType)
+                                                    .putInt("ai_dec_color_offset", aiGenColorOffset)
+                                                    .apply()
+                                                    
+                                                aiGenerationState = 2 // Done generating!
+                                            }
+                                        }
+                                    },
+                                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF7F00FF), contentColor = PureWhite),
+                                    shape = RoundedCornerShape(2.dp),
+                                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
+                                    modifier = Modifier.height(30.dp)
+                                ) {
+                                    Text(
+                                        text = if (lang == "RU") "СИНТЕЗ" else "SYNTHESIZE",
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        fontFamily = FontFamily.Monospace
+                                    )
+                                }
+                            }
+                        }
+                        
+                        if (aiErrorMsg != null) {
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Text(
+                                text = aiErrorMsg!!,
+                                color = Color(0xFFFF1744),
+                                fontSize = 11.sp,
+                                fontFamily = FontFamily.Monospace,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                        
+                        // ANIMATION STATE: nOG AI IS GENERATING
+                        if (aiGenerationState == 1) {
+                            Spacer(modifier = Modifier.height(12.dp))
+                            Column(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalAlignment = Alignment.CenterHorizontally
+                            ) {
+                                // Pulsing beautiful circular loading indicator
+                                val infiniteTransition = rememberInfiniteTransition(label = "ai_load")
+                                val rotation = infiniteTransition.animateFloat(
+                                    initialValue = 0f,
+                                    targetValue = 360f,
+                                    animationSpec = infiniteRepeatable(animation = tween(1000, easing = LinearEasing)),
+                                    label = "rot"
+                                )
+                                Box(
+                                    modifier = Modifier
+                                        .size(40.dp)
+                                        .border(2.dp, Color(0xFFFF007F), CircleShape)
+                                        .graphicsLayer { rotationZ = rotation.value },
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Box(
+                                        modifier = Modifier
+                                            .size(24.dp)
+                                            .background(Color(0xFF00FFFF), CircleShape)
+                                    )
+                                }
+                                Spacer(modifier = Modifier.height(8.dp))
+                                Text(
+                                    text = if (lang == "RU") "nOG AI ГЕНЕРИРУЕТ..." else "nOG AI GENERATING...",
+                                    color = Color(0xFFFF007F),
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    fontFamily = FontFamily.Monospace,
+                                    textAlign = TextAlign.Center
+                                )
+                            }
+                        }
+                        
+                        // SUCCESS STATE: SHOW RESULTING DECORATION + CLAIM BUTTON
+                        if (aiGenerationState == 2) {
+                            Spacer(modifier = Modifier.height(12.dp))
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .background(DeepGray)
+                                    .border(1.dp, BorderGray)
+                                    .padding(8.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                // Draw the dynamic generated decoration
+                                AvatarWithDecoration(
+                                    avatarUrl = currentUser?.avatarUrl,
+                                    decorationId = 9999,
+                                    sizeDp = 48
+                                )
+                                
+                                Spacer(modifier = Modifier.width(12.dp))
+                                
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        text = aiGenName,
+                                        color = PureWhite,
+                                        fontSize = 12.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        fontFamily = FontFamily.Monospace,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Text(
+                                            text = aiGenRarity,
+                                            color = when (aiGenRarity) {
+                                                "ОБЫЧНАЯ", "COMMON" -> TextGray
+                                                "РЕДКАЯ", "RARE" -> Color(0xFF29B6F6)
+                                                "АХУЕННАЯ", "AWESOME" -> Color(0xFF81C784)
+                                                "ЭКСКЛЮЗИВНАЯ", "EXCLUSIVE" -> Color(0xFFFFB74D)
+                                                else -> Color(0xFFE040FB)
+                                            },
+                                            fontSize = 10.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            fontFamily = FontFamily.Monospace
+                                        )
+                                        Spacer(modifier = Modifier.width(6.dp))
+                                        Text(
+                                            text = "💰 $aiGenPrice",
+                                            color = Color(0xFFFFD700),
+                                            fontSize = 10.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            fontFamily = FontFamily.Monospace
+                                        )
+                                    }
+                                }
+                                
+                                Column(
+                                    horizontalAlignment = Alignment.End
+                                ) {
+                                    Button(
+                                        onClick = {
+                                            viewModel.vibrate(50)
+                                            viewModel.wearTemporaryAIDecoration(
+                                                aiGenName,
+                                                aiGenRarity,
+                                                aiGenStyleType,
+                                                aiGenColorOffset
+                                            )
+                                            aiGenerationState = 0 // Return to idle!
+                                        },
+                                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF00E676), contentColor = PureWhite),
+                                        shape = RoundedCornerShape(2.dp),
+                                        contentPadding = PaddingValues(horizontal = 6.dp, vertical = 2.dp),
+                                        modifier = Modifier.height(24.dp)
+                                    ) {
+                                        Text(
+                                            text = if (lang == "RU") "БЕСПЛАТНО" else "FREE",
+                                            fontSize = 8.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            fontFamily = FontFamily.Monospace
+                                        )
+                                    }
+                                    Spacer(modifier = Modifier.height(4.dp))
+                                    Button(
+                                        onClick = {
+                                            viewModel.vibrate(50)
+                                            showAiPurchaseDialog = true
+                                        },
+                                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFFF007F), contentColor = PureWhite),
+                                        shape = RoundedCornerShape(2.dp),
+                                        contentPadding = PaddingValues(horizontal = 6.dp, vertical = 2.dp),
+                                        modifier = Modifier.height(24.dp)
+                                    ) {
+                                        Text(
+                                            text = if (lang == "RU") "КУПИТЬ..." else "BUY...",
+                                            fontSize = 8.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            fontFamily = FontFamily.Monospace
+                                        )
+                                    }
+                                    Spacer(modifier = Modifier.height(4.dp))
+                                    Text(
+                                        text = if (lang == "RU") "5 мин бесплатно или на срок!" else "5 mins free or purchase!",
+                                        color = TextGray,
+                                        fontSize = 7.sp,
+                                        fontFamily = FontFamily.Monospace
+                                    )
+                                }
+                            }
                         }
                     }
                 }
@@ -1392,6 +1932,101 @@ fun AvatarDecorationShopDialog(
             shape = RoundedCornerShape(4.dp)
         )
     }
+
+    if (showAiPurchaseDialog) {
+        val price1Day = aiGenPrice
+        val price3Days = (aiGenPrice * 2.2f).toInt()
+        val price1Week = (aiGenPrice * 4.5f).toInt()
+
+        AlertDialog(
+            onDismissRequest = { showAiPurchaseDialog = false },
+            title = {
+                Text(
+                    text = if (lang == "RU") "Купить nOG AI: $aiGenName" else "Buy nOG AI: $aiGenName",
+                    color = PureWhite,
+                    fontFamily = FontFamily.Monospace,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 15.sp
+                )
+            },
+            text = {
+                Column(modifier = Modifier.fillMaxWidth()) {
+                    Text(
+                        text = if (lang == "RU") {
+                            "Выберите срок действия уникального сгенерированного украшения. Покупка спишет монеты и закрепит его за вами."
+                        } else {
+                            "Select duration for this unique generated decoration. Coins will be deducted to secure it for you."
+                        },
+                        color = TextGray,
+                        fontSize = 12.sp,
+                        fontFamily = FontFamily.Monospace,
+                        modifier = Modifier.padding(bottom = 16.dp)
+                    )
+
+                    // 1 Day Option
+                    DurationOptionRow(
+                        durationText = if (lang == "RU") "1 День" else "1 Day",
+                        priceCoins = price1Day,
+                        userCoins = userCoins,
+                        onClick = {
+                            viewModel.vibrate(50)
+                            val ok = viewModel.buyTemporaryAIDecoration(aiGenName, aiGenRarity, aiGenStyleType, aiGenColorOffset, 1, price1Day)
+                            if (ok) {
+                                showAiPurchaseDialog = false
+                                aiGenerationState = 0
+                            }
+                        }
+                    )
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    // 3 Days Option
+                    DurationOptionRow(
+                        durationText = if (lang == "RU") "3 Дня" else "3 Days",
+                        priceCoins = price3Days,
+                        userCoins = userCoins,
+                        onClick = {
+                            viewModel.vibrate(50)
+                            val ok = viewModel.buyTemporaryAIDecoration(aiGenName, aiGenRarity, aiGenStyleType, aiGenColorOffset, 3, price3Days)
+                            if (ok) {
+                                showAiPurchaseDialog = false
+                                aiGenerationState = 0
+                            }
+                        }
+                    )
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    // 1 Week Option
+                    DurationOptionRow(
+                        durationText = if (lang == "RU") "1 Неделя" else "1 Week",
+                        priceCoins = price1Week,
+                        userCoins = userCoins,
+                        onClick = {
+                            viewModel.vibrate(50)
+                            val ok = viewModel.buyTemporaryAIDecoration(aiGenName, aiGenRarity, aiGenStyleType, aiGenColorOffset, 7, price1Week)
+                            if (ok) {
+                                showAiPurchaseDialog = false
+                                aiGenerationState = 0
+                            }
+                        }
+                    )
+                }
+            },
+            confirmButton = {},
+            dismissButton = {
+                TextButton(onClick = { showAiPurchaseDialog = false }) {
+                    Text(
+                        text = if (lang == "RU") "ОТМЕНА" else "CANCEL",
+                        color = Color.LightGray,
+                        fontFamily = FontFamily.Monospace
+                    )
+                }
+            },
+            containerColor = DeepGray,
+            shape = RoundedCornerShape(4.dp)
+        )
+    }
 }
 
 @Composable
@@ -1674,18 +2309,29 @@ object CaseGenerator {
         "Майнерский", "Урановый", "Сумасшедший", "Коммунистический", "Капиталистический", "Силиконовый",
         "Паленый", "Оверклокнутый", "Синтетический", "Глючный", "Мемный", "Гипертрофированный",
         "Картонный", "Адский", "Золотой", "Космический", "Тайный", "Школьный", "Дворовый",
-        "Скуфоидный", "Альтушечный", "Гигачадовский", "Рофлановый", "Пепешный", "Омежный", "Скамный"
+        "Скуфоидный", "Альтушечный", "Гигачадовский", "Рофлановый", "Пепешный", "Омежный", "Скамный",
+        "Антикварный", "Кибернетический", "Лютый", "Абсурдный", "Бесполезный", "Ржавый", "Запрещенный", "Денежный",
+        "Элитный", "Бриллиантовый", "Платиновый", "Атомный", "Квантовый", "Пиратский", "Флексящий", "Императорский",
+        "Помойный", "Шедевральный", "Олдскульный", "Нейросетевой", "Матричный", "Легендарный", "Астральный", "Призрачный",
+        "Волшебный", "Думерский", "Сигма-самецкий", "Гопнический", "Днепровский", "Блатный", "Ретроградный"
     )
     private val nounCaseRu = listOf(
         "Кулер", "Резистор", "Аватар", "Конденсатор", "Тред", "Сервер", "Кабель", "Абузер",
         "Блокчейн", "Модератор", "Чипсет", "Интеграл", "Носок", "Верификатор", "Корпус",
         "Баг", "Код", "Скриншот", "Провод", "Ноут", "Шланг", "Анлим", "Гигачад", "Шитпост",
-        "Компот", "Сигма", "Думер", "Скуф", "Пельмень", "Кефир", "Сухарик", "Хомяк", "Инфоцыган"
+        "Компот", "Сигма", "Думер", "Скуф", "Пельмень", "Кефир", "Сухарик", "Хомяк", "Инфоцыган",
+        "Апгрейд", "Резонатор", "Синтезатор", "Бакс", "Майбах", "Айфон", "Доширак", "Глитч", "Фрагмент",
+        "Нексус", "Спектр", "Венец", "Модуль", "Проводник", "Транзистор", "Инжектор", "Вентилятор", "Чип",
+        "Микрочип", "Терминал", "Сервак", "Пул", "Токен", "Вайб", "Оффтоп", "Карась", "Подпивас", "Косарь",
+        "Олигарх", "Дворник"
     )
     private val suffixCaseRu = listOf(
         "в масле", "от Габена", "в депрессии", "из DNS", "под пивом", "с подсветкой", "из 2007",
         "без регистрации", "3.0", "Pro Max", "на коленке", "киберпанк", "для нищих", "для олигархов",
-        "из подвала", "от Дурова", "в кредит", "с алика", "на читах", "за 16 копеек", "с завода", "из Чижика"
+        "из подвала", "от Дурова", "в кредит", "с алика", "на читах", "за 16 копеек", "с завода", "из Чижика",
+        "с помойки", "из Светофора", "за три копейки", "с подливой", "для Сигм", "с золотой каймой",
+        "прямиком из Китая", "из 90-х", "из будущего", "на стероидах", "с чипами 5G", "от Илона Маска",
+        "от Меллстроя", "с Авито", "с вечной гарантией", "в рассрочку на 100 лет", "для настоящих скуфов"
     )
 
     private val adjCaseEn = listOf(
@@ -1694,18 +2340,29 @@ object CaseGenerator {
         "Mining", "Uranium", "Crazy", "Communist", "Capitalist", "Silicon",
         "Counterfeit", "Overclocked", "Synthetic", "Glitchy", "Meme", "Overblown",
         "Cardboard", "Infernal", "Golden", "Cosmic", "Secret", "School", "Yard",
-        "Skufoid", "Altushny", "Gigachadded", "Roflan", "Pepegish", "Omegish", "Scammy"
+        "Skufoid", "Altushny", "Gigachadded", "Roflan", "Pepegish", "Omegish", "Scammy",
+        "Antique", "Cybernetic", "Fierce", "Absurd", "Useless", "Rusty", "Forbidden", "Moneyed",
+        "Elite", "Diamond", "Platinum", "Atomic", "Quantum", "Pirate", "Flexing", "Imperial",
+        "Garbage", "Masterpiece", "Oldschool", "Neural", "Matrix", "Legendary", "Astral", "Phantom",
+        "Magical", "Doomer", "Sigma", "Gopnik", "Dnipro", "Thug", "Retrograde"
     )
     private val nounCaseEn = listOf(
         "Cooler", "Resistor", "Avatar", "Capacitor", "Thread", "Server", "Cable", "Abuser",
         "Blockchain", "Moderator", "Chipset", "Integral", "Sock", "Validator", "Case",
         "Bug", "Code", "Screenshot", "Wire", "Laptop", "Hose", "Unlim", "Gigachad", "Shitpost",
-        "Compote", "Sigma", "Doomer", "Skuf", "Dumpling", "Kefir", "Rusk", "Hamster", "Infogypsy"
+        "Compote", "Sigma", "Doomer", "Skuf", "Dumpling", "Kefir", "Rusk", "Hamster", "Infogypsy",
+        "Upgrade", "Resonator", "Synthesizer", "Buck", "Maybach", "iPhone", "Doshirak", "Glitch", "Fragment",
+        "Nexus", "Spectrum", "Crown", "Module", "Conductor", "Transistor", "Injector", "Fan", "Chip",
+        "Microchip", "Terminal", "Host", "Pool", "Token", "Vibe", "Offtopic", "Crucian", "Underbeer", "Grand",
+        "Oligarch", "Janitor"
     )
     private val suffixCaseEn = listOf(
         "in oil", "by Gabe", "in depression", "from DNS", "under beer", "with RGB", "since 2007",
         "without signup", "3.0", "Pro Max", "on knee", "cyberpunk", "for beggars", "for oligarchs",
-        "from basement", "by Durov", "on credit", "from Aliexpress", "on cheats", "for 16 cents", "from factory", "from Chizhik"
+        "from basement", "by Durov", "on credit", "from Aliexpress", "on cheats", "for 16 cents", "from factory", "from Chizhik",
+        "from dumpster", "from discount market", "for three pennies", "with gravy", "for Sigmas", "with gold frame",
+        "straight from China", "from the 90s", "from the future", "on steroids", "with 5G chips", "by Elon Musk",
+        "by Mellstroy", "from Craigslist", "with lifetime warranty", "on 100-year plan", "for true skufs"
     )
 
     private val descTemplatesRu = listOf(
@@ -1713,37 +2370,63 @@ object CaseGenerator {
         "Эксклюзивная подборка, содержащая {adj} {noun}. Выпавшее украшение может озолотить или обанкротить вас.",
         "Этот сундук запечатал лично {noun} в 2007 году. Ретро-вайб с диким риском потерпеть финансовое фиаско.",
         "Говорят, в этом кейсе спрятан {adj} {noun}. Окупаемость крайне мала, но азарт слишком сладок!",
-        "Загадочный артефакт, содержащий {noun} {suffix}. Остерегайтесь подделок и тотального ухода в минус!"
+        "Загадочный артефакт, содержащий {noun} {suffix}. Остерегайтесь подделок и тотального ухода в минус!",
+        "Кейс премиум-класса, содержащий ценнейший {adj} {noun} {suffix}. Вы будете плакать от счастья или от потери последних сбережений!",
+        "Этот ящик нашли на заброшенной майнинг-ферме в Сибири. Внутри лежит {adj} {noun}, завернутый в {suffix}.",
+        "Лимитированный тираж от тайного сообщества nOG. Легенда гласит, что {noun} внутри имеет {suffix}.",
+        "Запрещенный к продаже в 150 странах мира. Содержит безумный {adj} {noun} напрямую {suffix}.",
+        "Чисто пацанский сундук с района, в котором спрятан {adj} {noun} {suffix}. Живи красиво или проиграй все!",
+        "Капсула времени, внутри которой спит {adj} {noun}. Твой шанс сорвать куш с безумным {suffix}.",
+        "Космический контейнер, запущенный на орбиту. Приземлился прямо к нам, неся в себе {adj} {noun} {suffix}."
     )
     private val descTemplatesEn = listOf(
         "A case made of {noun} leftovers and filled with {suffix}. Extreme risk of going broke!",
         "An exclusive curation containing {adj} {noun}. The dropped frame might make you rich or leave you bankrupted.",
         "This crate was sealed by {noun} back in 2007. Retro vibes with an immense risk of total financial failure.",
         "Rumor has it, a {adj} {noun} is hidden deep inside. Low profit margins, but the thrill is immaculate!",
-        "A mysterious artifact holding {noun} {suffix}. Beware of bootlegs and heavy wallet minuses!"
+        "A mysterious artifact holding {noun} {suffix}. Beware of bootlegs and heavy wallet minuses!",
+        "A premium-class case containing the most valuable {adj} {noun} {suffix}. You will cry from happiness or from losing your life savings!",
+        "This crate was found on an abandoned Siberian mining farm. Inside lies {adj} {noun}, wrapped in {suffix}.",
+        "A limited edition release from the secret nOG community. Legend says the {noun} inside has {suffix}.",
+        "Banned from sale in over 150 countries. Contains a crazy {adj} {noun} directly {suffix}.",
+        "A pure street-cred box containing a hidden {adj} {noun} {suffix}. Live like a king or go bust!",
+        "A time capsule within which sleeps {adj} {noun}. Your ticket to win big with a crazy {suffix}.",
+        "A cosmic container launched into orbit. Landed straight in our backyard, carrying a {adj} {noun} {suffix}."
     )
 
     fun generateCases(lang: String): List<CaseType> {
         val basePrices = listOf(
+            200, 500, 1000, 2500, 5000, 8000, 12000,
             16000, 21000, 28000, 36000, 48000, 
             64000, 80000, 95000, 115000, 140000,
             175000, 220000, 280000, 360000, 460000,
             600000, 800000, 1000000, 1500000, 2500000,
-            4000000, 6000000, 9000000, 12000000, 18000000
+            4000000, 6000000, 9000000, 12000000, 18000000,
+            25000000, 35000000, 50000000, 75000000, 100000000,
+            150000000, 220000000, 300000000, 450000000, 600000000,
+            800000000, 1000000000, 2000000000
         )
         val minRarities = listOf(
+            "ОБЫЧНАЯ", "ОБЫЧНАЯ", "ОБЫЧНАЯ", "ОБЫЧНАЯ", "ОБЫЧНАЯ", "ОБЫЧНАЯ", "ОБЫЧНАЯ",
             "ОБЫЧНАЯ", "ОБЫЧНАЯ", "ОБЫЧНАЯ", "РЕДКАЯ", "РЕДКАЯ", 
             "РЕДКАЯ", "АХУЕННАЯ", "АХУЕННАЯ", "АХУЕННАЯ", "АХУЕННАЯ",
             "НЕВЕБЕЙШАЯ", "НЕВЕБЕЙШАЯ", "НЕВЕБЕЙШАЯ", "НЕВЕБЕЙШАЯ", "НЕВЕБЕЙШАЯ",
             "НЕВЕБЕЙШАЯ", "НЕВЕБЕЙШАЯ", "НЕВЕБЕЙШАЯ", "НЕВЕБЕЙШАЯ", "НЕВЕБЕЙШАЯ",
-            "НЕВЕБЕЙШАЯ", "НЕВЕБЕЙШАЯ", "НЕВЕБЕЙШАЯ", "НЕВЕБЕЙШАЯ", "НЕВЕБЕЙШАЯ"
+            "НЕВЕБЕЙШАЯ", "НЕВЕБЕЙШАЯ", "НЕВЕБЕЙШАЯ", "НЕВЕБЕЙШАЯ", "НЕВЕБЕЙШАЯ",
+            "ЭКСКЛЮЗИВНАЯ", "ЭКСКЛЮЗИВНАЯ", "ЭКСКЛЮЗИВНАЯ", "ЭКСКЛЮЗИВНАЯ", "ЭКСКЛЮЗИВНАЯ",
+            "ЭКСКЛЮЗИВНАЯ", "ЭКСКЛЮЗИВНАЯ", "ЭКСКЛЮЗИВНАЯ", "ЭКСКЛЮЗИВНАЯ", "ЭКСКЛЮЗИВНАЯ",
+            "ЭКСКЛЮЗИВНАЯ", "ЭКСКЛЮЗИВНАЯ", "ЭКСКЛЮЗИВНАЯ"
         )
         val premiumChances = listOf(
-            0.01f, 0.02f, 0.03f, 0.04f, 0.05f, 
-            0.06f, 0.08f, 0.10f, 0.12f, 0.15f,
-            0.18f, 0.22f, 0.26f, 0.30f, 0.35f,
-            0.40f, 0.45f, 0.50f, 0.60f, 0.70f,
-            0.75f, 0.80f, 0.85f, 0.90f, 0.95f
+            0.001f, 0.002f, 0.005f, 0.01f, 0.015f, 0.02f, 0.025f,
+            0.03f, 0.04f, 0.05f, 0.06f, 0.07f, 
+            0.08f, 0.10f, 0.12f, 0.15f, 0.18f,
+            0.20f, 0.22f, 0.24f, 0.26f, 0.28f,
+            0.30f, 0.32f, 0.35f, 0.38f, 0.40f,
+            0.42f, 0.45f, 0.48f, 0.50f, 0.55f,
+            0.60f, 0.65f, 0.70f, 0.75f, 0.80f,
+            0.82f, 0.85f, 0.88f, 0.90f, 0.92f,
+            0.95f, 0.98f, 0.99f
         )
         
         val gradients = listOf(
@@ -1766,7 +2449,7 @@ object CaseGenerator {
 
         val emojis = listOf("📦", "🎰", "🔥", "☢️", "💎", "🔫", "💀", "👑", "🍕", "🛸", "🐹", "🐎", "🦉", "🤡", "🦧")
 
-        return List(25) { i ->
+        return List(45) { i ->
             val rand = Random((i + 5).toLong() * 8813)
             val adjRu = adjCaseRu[rand.nextInt(adjCaseRu.size)]
             val nounRu = nounCaseRu[rand.nextInt(nounCaseRu.size)]
@@ -2154,8 +2837,11 @@ fun CaseOpenerDialog(
                     else -> "НЕВЕБЕЙШАЯ"
                 }
             }
+            "ЭКСКЛЮЗИВНАЯ" -> {
+                "ЭКСКЛЮЗИВНАЯ"
+            }
             else -> {
-                "НЕВЕБЕЙШАЯ"
+                "ОБЫЧНАЯ"
             }
         }
         

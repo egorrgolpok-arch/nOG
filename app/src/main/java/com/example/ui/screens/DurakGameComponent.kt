@@ -214,7 +214,7 @@ fun DurakGameComponent(
             // Randomly assign a decoration out of the custom decoration portfolio!
             val hasDec = Random.nextFloat() < 0.8f
             val randomDecId = if (hasDec) {
-                if (Random.nextFloat() < 0.25f) Random.nextInt(201, 211) else Random.nextInt(1, 201)
+                if (Random.nextFloat() < 0.25f) Random.nextInt(201, 221) else Random.nextInt(1, 251)
             } else {
                 null
             }

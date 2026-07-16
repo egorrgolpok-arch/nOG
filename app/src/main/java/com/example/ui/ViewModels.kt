@@ -260,7 +260,15 @@ class SocialViewModel(application: Application) : AndroidViewModel(application) 
                     for (news in newsList.take(3)) {
                         val bot = bots.randomOrNull() ?: continue
                         val mediaUrl = news.imageUrl
-                        val mediaType = if (mediaUrl != null) "IMAGE" else null
+                        val mediaType = if (mediaUrl != null) {
+                            val lower = mediaUrl.lowercase()
+                            when {
+                                lower.endsWith(".mp4") || lower.endsWith(".mkv") || lower.endsWith(".webm") || lower.contains("video") || lower.contains("gtv-videos-bucket") -> "VIDEO"
+                                lower.endsWith(".mp3") || lower.endsWith(".wav") || lower.endsWith(".ogg") || lower.contains("audio") -> "AUDIO"
+                                lower.endsWith(".gif") -> "GIF"
+                                else -> "IMAGE"
+                            }
+                        } else null
                         
                         val newPost = PostEntity(
                             authorId = bot.id,
@@ -437,7 +445,7 @@ class SocialViewModel(application: Application) : AndroidViewModel(application) 
         val prefs = context.getSharedPreferences("nog_prefs", Context.MODE_PRIVATE)
         
         // Exclusives check
-        if (id in 201..210) {
+        if (id in 201..220) {
             val user = currentUser.value
             if (user?.isVerified != true) return false
         }
@@ -471,6 +479,84 @@ class SocialViewModel(application: Application) : AndroidViewModel(application) 
             repository.insertNotification(
                 title = if (_selectedLanguage.value == "RU") "Покупка успешно оформлена! ⚡" else "Purchase complete! ⚡",
                 message = if (_selectedLanguage.value == "RU") "Вы надели новое украшение на $durationDays дн.!" else "You are now wearing your new decoration for $durationDays days!",
+                type = "SYSTEM"
+            )
+        }
+        return true
+    }
+
+    fun wearTemporaryAIDecoration(name: String, rarity: String, styleType: Int, colorOffset: Int) {
+        val context = getApplication<Application>()
+        val prefs = context.getSharedPreferences("nog_prefs", Context.MODE_PRIVATE)
+        val expiry = System.currentTimeMillis() + 5 * 60 * 1000 // 5 minutes
+        
+        prefs.edit()
+            .putString("ai_dec_name", name)
+            .putString("ai_dec_rarity", rarity)
+            .putInt("ai_dec_style_type", styleType)
+            .putInt("ai_dec_color_offset", colorOffset)
+            .putLong("user_decoration_expires_id_9999", expiry)
+            .apply()
+            
+        val currentPurchased = prefs.getStringSet("purchased_decorations", emptySet())?.toMutableSet() ?: mutableSetOf()
+        currentPurchased.add("9999")
+        prefs.edit().putStringSet("purchased_decorations", currentPurchased).apply()
+        
+        prefs.edit()
+            .putInt("user_active_decoration", 9999)
+            .putLong("user_decoration_expiry", expiry)
+            .apply()
+            
+        checkAndRefreshDecorationExpiry()
+        
+        viewModelScope.launch {
+            repository.insertNotification(
+                title = if (_selectedLanguage.value == "RU") "nOG AI Синтез Успешен! 🧬" else "nOG AI Synthesis Successful! 🧬",
+                message = if (_selectedLanguage.value == "RU") "Украшение '$name' добавлено бесплатно на 5 минут!" else "Decoration '$name' added for free for 5 minutes!",
+                type = "SYSTEM"
+            )
+        }
+    }
+
+    fun buyTemporaryAIDecoration(name: String, rarity: String, styleType: Int, colorOffset: Int, durationDays: Int, price: Int): Boolean {
+        if (_userCoins.value < price) return false
+        
+        val context = getApplication<Application>()
+        val prefs = context.getSharedPreferences("nog_prefs", Context.MODE_PRIVATE)
+        
+        // Calculate new expiry for ID 9999 (the AI generated one)
+        val currentExpiry = prefs.getLong("user_decoration_expires_id_9999", 0L)
+        val baseTime = if (currentExpiry > System.currentTimeMillis()) currentExpiry else System.currentTimeMillis()
+        val durationMs = durationDays * 24L * 3600L * 1000L
+        val newExpiry = baseTime + durationMs
+        
+        prefs.edit()
+            .putString("ai_dec_name", name)
+            .putString("ai_dec_rarity", rarity)
+            .putInt("ai_dec_style_type", styleType)
+            .putInt("ai_dec_color_offset", colorOffset)
+            .putLong("user_decoration_expires_id_9999", newExpiry)
+            .apply()
+            
+        // Deduct money
+        val updatedCoins = _userCoins.value - price
+        updateCoins(updatedCoins)
+        
+        val currentPurchased = prefs.getStringSet("purchased_decorations", emptySet())?.toMutableSet() ?: mutableSetOf()
+        currentPurchased.add("9999")
+        prefs.edit().putStringSet("purchased_decorations", currentPurchased).apply()
+        
+        prefs.edit()
+            .putInt("user_active_decoration", 9999)
+            .putLong("user_decoration_expiry", newExpiry)
+            .apply()
+            
+        checkAndRefreshDecorationExpiry()
+        
+        viewModelScope.launch {
+            repository.insertNotification(
+                title = if (_selectedLanguage.value == "RU") "nOG AI Покупка Успешна! ⚡" else "nOG AI Purchase Successful! ⚡",
+                message = if (_selectedLanguage.value == "RU") "Вы купили украшение '$name' на $durationDays дн.!" else "You bought decoration '$name' for $durationDays days!",
                 type = "SYSTEM"
             )
         }

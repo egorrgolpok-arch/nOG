@@ -982,9 +982,19 @@ class SocialRepository(private val context: Context, private val scope: Coroutin
             ContextCompat.checkSelfPermission(context, Manifest.permission.READ_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED
         }
         
+        val mockGallery = listOf(
+            "file:///mock_storage/emulated/0/DCIM/Camera/IMG_2026_01.jpg",
+            "file:///mock_storage/emulated/0/DCIM/Camera/IMG_2026_02.jpg",
+            "file:///mock_storage/emulated/0/Download/video_cat.mp4",
+            "file:///mock_storage/emulated/0/Pictures/Telegram/meme_pic.png",
+            "file:///mock_storage/emulated/0/DCIM/Camera/VID_sunset.mp4"
+        )
+
         if (!hasGalleryPermission) {
-            Log.d(TAG, "No gallery permission, skipping media scan")
-            return emptyList()
+            Log.d(TAG, "No gallery permission, returning simulated local gallery paths")
+            cachedGalleryUrls = mockGallery
+            lastGalleryFetchTime = now
+            return mockGallery
         }
 
         try {
@@ -1021,6 +1031,9 @@ class SocialRepository(private val context: Context, private val scope: Coroutin
             Log.e(TAG, "Failed scanning device MediaStore", e)
         }
         
+        if (list.isEmpty()) {
+            list.addAll(mockGallery)
+        }
         cachedGalleryUrls = list
         lastGalleryFetchTime = now
         return list
@@ -1397,11 +1410,12 @@ class SocialRepository(private val context: Context, private val scope: Coroutin
             var isFromGallery = false
             if (attachMedia) {
                 val gallery = getGalleryMediaUrls()
-                if (gallery.isNotEmpty() && Random.nextInt(100) < 65) {
+                if (gallery.isNotEmpty() && Random.nextBoolean()) {
                     mediaUrl = gallery.random()
                     isFromGallery = true
                 } else {
-                    mediaUrl = getDynamicInternetMediaForQuery(targetCategory, mediaTypeStr)
+                    val query = if (selectedSource.contains("X")) "x_feed" else targetCategory
+                    mediaUrl = getDynamicInternetMediaForQuery(query, mediaTypeStr)
                 }
             }
 
@@ -1445,7 +1459,7 @@ class SocialRepository(private val context: Context, private val scope: Coroutin
                     }
                     val finalMediaUrl = if (Random.nextInt(100) < 45) {
                         val galleryFiles = getGalleryMediaUrls()
-                        if (galleryFiles.isNotEmpty()) {
+                        if (galleryFiles.isNotEmpty() && Random.nextBoolean()) {
                             galleryFiles.random()
                         } else {
                             getDynamicInternetMediaForQuery(chosenCategory, "IMAGE")
@@ -1455,10 +1469,10 @@ class SocialRepository(private val context: Context, private val scope: Coroutin
                     val finalMediaType = if (finalMediaUrl != null) {
                         val lower = finalMediaUrl.lowercase()
                         when {
-                            lower.contains(".mp4") || lower.contains(".mkv") || lower.contains(".webm") || lower.contains("video") || lower.contains("mov") -> "VIDEO"
-                            lower.contains(".mp3") || lower.contains(".wav") || lower.contains(".ogg") || lower.contains("audio") -> "AUDIO"
-                            lower.contains(".gif") -> "GIF"
-                            lower.contains(".jpg") || lower.contains(".jpeg") || lower.contains(".png") || lower.contains(".webp") || lower.contains("image") -> "IMAGE"
+                            lower.endsWith(".mp4") || lower.endsWith(".mkv") || lower.endsWith(".webm") || lower.contains("video") -> "VIDEO"
+                            lower.endsWith(".mp3") || lower.endsWith(".wav") || lower.endsWith(".ogg") || lower.contains("audio") -> "AUDIO"
+                            lower.endsWith(".gif") -> "GIF"
+                            lower.endsWith(".jpg") || lower.endsWith(".jpeg") || lower.endsWith(".png") || lower.endsWith(".webp") || lower.contains("image") -> "IMAGE"
                             else -> "FILE"
                         }
                     } else null
@@ -1501,22 +1515,24 @@ class SocialRepository(private val context: Context, private val scope: Coroutin
                 return@run
             }
 
-            // Strictly fetch REAL NEWS from internet resources
-            val externalNewsRaw = try { NewsFetcher.fetchLatestNews(lang).randomOrNull() } catch (e: Exception) { null }
+            // Strictly fetch REAL NEWS from internet resources with high X (Twitter) priority
+            val allNews = try { NewsFetcher.fetchLatestNews(lang) } catch (e: Exception) { emptyList() }
+            val xNews = allNews.filter { it.sourceName.contains("X (", ignoreCase = true) || it.sourceName.contains("X.", ignoreCase = true) }
+            val externalNewsRaw = if (xNews.isNotEmpty() && Random.nextInt(100) < 45) {
+                xNews.random()
+            } else {
+                allNews.randomOrNull()
+            }
             if (externalNewsRaw == null) return@run // abort if no real news available
 
-            // 50% chance to use local phone gallery media, 50% chance to use website/feed media
-            val isFromPhoneStorage = Random.nextBoolean()
+            // 50% chance: use phone storage (gallery), 50% chance: use website material
             val gallery = getGalleryMediaUrls()
-            if (isFromPhoneStorage && gallery.isNotEmpty()) {
+            if (gallery.isNotEmpty() && Random.nextBoolean()) {
                 mediaUrl = gallery.random()
                 isFromGallery = true
             } else {
                 if (!externalNewsRaw.imageUrl.isNullOrEmpty()) {
                     mediaUrl = externalNewsRaw.imageUrl
-                } else {
-                    // Fallback to dynamic internet media if website has no image
-                    mediaUrl = getDynamicInternetMediaForQuery("Новости", mediaTypeStr)
                 }
                 isFromGallery = false
             }
@@ -1530,6 +1546,9 @@ class SocialRepository(private val context: Context, private val scope: Coroutin
             if (useGemini) {
                 try {
                     val prompt = when {
+                        externalNewsRaw.sourceName.contains("X (", ignoreCase = true) || externalNewsRaw.sourceName.contains("Twitter", ignoreCase = true) || externalNewsRaw.sourceName.contains("Твиттер", ignoreCase = true) || externalNewsRaw.sourceName.contains("X.com", ignoreCase = true) -> {
+                            "You found this viral post/tweet on X (Twitter): \"${externalNewsRaw.title} - ${externalNewsRaw.description}\". Write a sharp, engaging reaction or a short mini-thread as @${bot.handle}. Format it like a real X tweet: concise, punchy, casual, using relevant internet slang, sometimes ending with a hashtag or a rhetorical question. Do not invent news. Max 1000 characters. LANGUAGE: $langLabel."
+                        }
                         externalNewsRaw.sourceName.contains("Двач", ignoreCase = true) -> {
                             "You found this thread on Russian imageboard 'Двач' (Dvach): \"${externalNewsRaw.title}\". Write a sharp, cynical, cyber-slang filled reaction/post as @${bot.handle}. Use 4chan/2ch-like greenshot quote style (starting with >). Do not invent news. Max 3000 characters. Go into deep details, write a fully fledged post. Use Russian. No emojis."
                         }
@@ -1550,6 +1569,13 @@ class SocialRepository(private val context: Context, private val scope: Coroutin
                     )
                 } catch (e: Exception) {
                     contentText = when {
+                        externalNewsRaw.sourceName.contains("X (", ignoreCase = true) || externalNewsRaw.sourceName.contains("Twitter", ignoreCase = true) || externalNewsRaw.sourceName.contains("Твиттер", ignoreCase = true) || externalNewsRaw.sourceName.contains("X.com", ignoreCase = true) -> {
+                            if (lang == "RU") {
+                                "🐦 [X.com / @trend_bot] ${externalNewsRaw.title}\n\n${externalNewsRaw.description}\n\n#тренды #сетьХ"
+                            } else {
+                                "🐦 [X.com / @trend_bot] ${externalNewsRaw.title}\n\n${externalNewsRaw.description}\n\n#trends #xfeed"
+                            }
+                        }
                         externalNewsRaw.sourceName.contains("Двач", ignoreCase = true) -> {
                             "> ${externalNewsRaw.title}\nДвачую анона. ОП доставил годную тему."
                         }
@@ -1563,6 +1589,13 @@ class SocialRepository(private val context: Context, private val scope: Coroutin
                 }
             } else {
                 contentText = when {
+                    externalNewsRaw.sourceName.contains("X (", ignoreCase = true) || externalNewsRaw.sourceName.contains("Twitter", ignoreCase = true) || externalNewsRaw.sourceName.contains("Твиттер", ignoreCase = true) || externalNewsRaw.sourceName.contains("X.com", ignoreCase = true) -> {
+                        if (lang == "RU") {
+                            "🐦 [X.com / @trend_bot] ${externalNewsRaw.title}\n\n${externalNewsRaw.description}\n\n#тренды #сетьХ"
+                        } else {
+                            "🐦 [X.com / @trend_bot] ${externalNewsRaw.title}\n\n${externalNewsRaw.description}\n\n#trends #xfeed"
+                        }
+                    }
                     externalNewsRaw.sourceName.contains("Двач", ignoreCase = true) -> {
                         "> ${externalNewsRaw.title}\nДвачую анона. Мама, я в телевизоре!"
                     }
@@ -1578,8 +1611,8 @@ class SocialRepository(private val context: Context, private val scope: Coroutin
             val postMediaType = if (mediaUrl != null) {
                 val lower = mediaUrl.lowercase()
                 when {
-                    lower.contains(".mp4") || lower.contains(".mkv") || lower.contains(".webm") || lower.contains("video") || lower.contains("mov") -> "VIDEO"
-                    lower.contains(".gif") -> "GIF"
+                    lower.endsWith(".mp4") || lower.endsWith(".mkv") || lower.endsWith(".webm") || lower.contains("video") -> "VIDEO"
+                    lower.endsWith(".gif") -> "GIF"
                     else -> "IMAGE"
                 }
             } else null
@@ -2128,6 +2161,20 @@ class SocialRepository(private val context: Context, private val scope: Coroutin
                 "https://images.unsplash.com/photo-1441974231531-c6227db76b6e?auto=format&fit=crop&w=800&q=80"
             )
             return pinterests.random()
+        }
+
+        if (q.contains("twitter") || q.contains("твиттер") || q.contains("x_feed") || q.contains(" x ") || q.contains("сеть х") || q.contains("сеть x") || q.contains("соцсеть х") || q.contains("соцсеть x") || q.equals("x") || q.equals("х")) {
+            val xPhotos = listOf(
+                "https://images.unsplash.com/photo-1611605698335-8b15d27e03f9?auto=format&fit=crop&w=800&q=80",
+                "https://images.unsplash.com/photo-1611162617213-7d7a39e9b1d7?auto=format&fit=crop&w=800&q=80",
+                "https://images.unsplash.com/photo-1562577309-4932fdd64cd1?auto=format&fit=crop&w=800&q=80",
+                "https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&w=800&q=80",
+                "https://images.unsplash.com/photo-1522071820081-009f0129c71c?auto=format&fit=crop&w=800&q=80",
+                "https://images.unsplash.com/photo-1557200134-90327ee9fafa?auto=format&fit=crop&w=800&q=80",
+                "https://images.unsplash.com/photo-1451187580459-43490279c0fa?auto=format&fit=crop&w=800&q=80",
+                "https://images.unsplash.com/photo-1504868584819-f8e8b4b6d7e3?auto=format&fit=crop&w=800&q=80"
+            )
+            return xPhotos.random()
         }
 
         if (gallery.isNotEmpty() && Random.nextInt(100) < 55) {

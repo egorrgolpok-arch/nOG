@@ -1263,9 +1263,9 @@ fun ProfileScreen(
 
         // --- Fullscreen Video / Image Zoom Dialog ---
         if (zoomImageUrl != null) {
-            val isVideoInZoom = zoomImageUrl?.endsWith(".mp4", ignoreCase = true) == true || 
-                                zoomImageUrl?.contains("video", ignoreCase = true) == true ||
-                                zoomImageUrl?.contains("gtv-videos-bucket", ignoreCase = true) == true
+            val lowerZoomUrl = zoomImageUrl?.lowercase() ?: ""
+            val isDirectVideo = lowerZoomUrl.endsWith(".mp4") || lowerZoomUrl.endsWith(".mkv") || lowerZoomUrl.endsWith(".webm") || lowerZoomUrl.contains("gtv-videos-bucket") || lowerZoomUrl.startsWith("content://") || lowerZoomUrl.startsWith("file://")
+            val isVideoInZoom = isDirectVideo || lowerZoomUrl.contains("video") || lowerZoomUrl.contains("youtube") || lowerZoomUrl.contains("youtu.be")
 
             androidx.compose.ui.window.Dialog(
                 onDismissRequest = { zoomImageUrl = null },
@@ -1284,34 +1284,63 @@ fun ProfileScreen(
                     )
 
                     if (isVideoInZoom) {
-                        androidx.compose.ui.viewinterop.AndroidView(
-                            factory = { ctx ->
-                                android.widget.VideoView(ctx).apply {
-                                    if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
-                                        setAudioFocusRequest(android.media.AudioManager.AUDIOFOCUS_NONE)
+                        if (isDirectVideo) {
+                            androidx.compose.ui.viewinterop.AndroidView(
+                                factory = { ctx ->
+                                    android.widget.VideoView(ctx).apply {
+                                        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+                                            setAudioFocusRequest(android.media.AudioManager.AUDIOFOCUS_NONE)
+                                        }
+                                        setVideoURI(android.net.Uri.parse(zoomImageUrl))
+                                        val mc = android.widget.MediaController(ctx)
+                                        mc.setAnchorView(this)
+                                        setMediaController(mc)
+                                        setOnPreparedListener { mp ->
+                                            mp.isLooping = true
+                                            mp.setVolume(1.0f, 1.0f)
+                                            start()
+                                        }
                                     }
-                                    setVideoURI(android.net.Uri.parse(zoomImageUrl))
-                                    val mc = android.widget.MediaController(ctx)
-                                    mc.setAnchorView(this)
-                                    setMediaController(mc)
-                                    setOnPreparedListener { mp ->
-                                        mp.isLooping = true
-                                        mp.setVolume(1.0f, 1.0f)
-                                        start()
+                                },
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .aspectRatio(16/9f)
+                                    .padding(horizontal = 16.dp, vertical = 24.dp)
+                                    .clickable(enabled = false) {},
+                                update = { view ->
+                                    if (!view.isPlaying) {
+                                        view.start()
                                     }
                                 }
-                            },
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .aspectRatio(16/9f)
-                                .padding(horizontal = 16.dp, vertical = 24.dp)
-                                .clickable(enabled = false) {},
-                            update = { view ->
-                                if (!view.isPlaying) {
-                                    view.start()
-                                }
-                            }
-                        )
+                            )
+                        } else {
+                            androidx.compose.ui.viewinterop.AndroidView(
+                                factory = { ctx ->
+                                    android.webkit.WebView(ctx).apply {
+                                        layoutParams = android.view.ViewGroup.LayoutParams(
+                                            android.view.ViewGroup.LayoutParams.MATCH_PARENT,
+                                            android.view.ViewGroup.LayoutParams.MATCH_PARENT
+                                        )
+                                        settings.apply {
+                                            javaScriptEnabled = true
+                                            domStorageEnabled = true
+                                            mediaPlaybackRequiresUserGesture = false
+                                            mixedContentMode = android.webkit.WebSettings.MIXED_CONTENT_ALWAYS_ALLOW
+                                            useWideViewPort = true
+                                            loadWithOverviewMode = true
+                                        }
+                                        webViewClient = android.webkit.WebViewClient()
+                                        webChromeClient = android.webkit.WebChromeClient()
+                                        loadUrl(zoomImageUrl ?: "")
+                                    }
+                                },
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .aspectRatio(16/9f)
+                                    .padding(horizontal = 16.dp, vertical = 24.dp)
+                                    .clickable(enabled = false) {}
+                            )
+                        }
                     } else {
                         AsyncImage(
                             model = zoomImageUrl,

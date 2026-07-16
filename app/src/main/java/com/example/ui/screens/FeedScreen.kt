@@ -136,9 +136,9 @@ fun FeedScreen(
 
         // --- Fullscreen Video / Image Zoom Dialog ---
         if (zoomImageUrl != null) {
-            val isVideoInZoom = zoomImageUrl?.lowercase()?.let { lower ->
-                lower.contains(".mp4") || lower.contains(".mkv") || lower.contains(".webm") || lower.contains("video") || lower.contains("mov") || lower.contains("gtv-videos-bucket")
-            } == true
+            val lowerZoomUrl = zoomImageUrl?.lowercase() ?: ""
+            val isDirectVideo = lowerZoomUrl.endsWith(".mp4") || lowerZoomUrl.endsWith(".mkv") || lowerZoomUrl.endsWith(".webm") || lowerZoomUrl.contains("gtv-videos-bucket") || lowerZoomUrl.startsWith("content://") || lowerZoomUrl.startsWith("file://")
+            val isVideoInZoom = isDirectVideo || lowerZoomUrl.contains("video") || lowerZoomUrl.contains("youtube") || lowerZoomUrl.contains("youtu.be")
 
             androidx.compose.ui.window.Dialog(
                 onDismissRequest = { zoomImageUrl = null },
@@ -157,34 +157,63 @@ fun FeedScreen(
                     )
 
                     if (isVideoInZoom) {
-                        androidx.compose.ui.viewinterop.AndroidView(
-                            factory = { ctx ->
-                                android.widget.VideoView(ctx).apply {
-                                    if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
-                                        setAudioFocusRequest(android.media.AudioManager.AUDIOFOCUS_NONE)
+                        if (isDirectVideo) {
+                            androidx.compose.ui.viewinterop.AndroidView(
+                                factory = { ctx ->
+                                    android.widget.VideoView(ctx).apply {
+                                        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+                                            setAudioFocusRequest(android.media.AudioManager.AUDIOFOCUS_NONE)
+                                        }
+                                        setVideoURI(android.net.Uri.parse(zoomImageUrl))
+                                        val mc = android.widget.MediaController(ctx)
+                                        mc.setAnchorView(this)
+                                        setMediaController(mc)
+                                        setOnPreparedListener { mp ->
+                                            mp.isLooping = true
+                                            mp.setVolume(1.0f, 1.0f)
+                                            start()
+                                        }
                                     }
-                                    setVideoURI(android.net.Uri.parse(zoomImageUrl))
-                                    val mc = android.widget.MediaController(ctx)
-                                    mc.setAnchorView(this)
-                                    setMediaController(mc)
-                                    setOnPreparedListener { mp ->
-                                        mp.isLooping = true
-                                        mp.setVolume(1.0f, 1.0f)
-                                        start()
+                                },
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .aspectRatio(16/9f)
+                                    .padding(horizontal = 16.dp, vertical = 24.dp)
+                                    .clickable(enabled = false) {},
+                                update = { view ->
+                                    if (!view.isPlaying) {
+                                        view.start()
                                     }
                                 }
-                            },
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .aspectRatio(16/9f)
-                                .padding(horizontal = 16.dp, vertical = 24.dp)
-                                .clickable(enabled = false) {},
-                            update = { view ->
-                                if (!view.isPlaying) {
-                                    view.start()
-                                }
-                            }
-                        )
+                            )
+                        } else {
+                            androidx.compose.ui.viewinterop.AndroidView(
+                                factory = { ctx ->
+                                    android.webkit.WebView(ctx).apply {
+                                        layoutParams = android.view.ViewGroup.LayoutParams(
+                                            android.view.ViewGroup.LayoutParams.MATCH_PARENT,
+                                            android.view.ViewGroup.LayoutParams.MATCH_PARENT
+                                        )
+                                        settings.apply {
+                                            javaScriptEnabled = true
+                                            domStorageEnabled = true
+                                            mediaPlaybackRequiresUserGesture = false
+                                            mixedContentMode = android.webkit.WebSettings.MIXED_CONTENT_ALWAYS_ALLOW
+                                            useWideViewPort = true
+                                            loadWithOverviewMode = true
+                                        }
+                                        webViewClient = android.webkit.WebViewClient()
+                                        webChromeClient = android.webkit.WebChromeClient()
+                                        loadUrl(zoomImageUrl ?: "")
+                                    }
+                                },
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .aspectRatio(16/9f)
+                                    .padding(horizontal = 16.dp, vertical = 24.dp)
+                                    .clickable(enabled = false) {}
+                            )
+                        }
                     } else {
                         AsyncImage(
                             model = zoomImageUrl,
@@ -247,9 +276,8 @@ fun FeedScreen(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 14.dp, vertical = 8.dp)
-                    .background(PureBlack.copy(alpha = 0.65f), RoundedCornerShape(12.dp))
-                    .border(BorderStroke(1.dp, PureWhite.copy(alpha = 0.12f)), RoundedCornerShape(12.dp))
+                    .background(PureBlack.copy(alpha = 0.85f))
+                    .border(1.dp, BorderGray)
                     .padding(horizontal = 16.dp, vertical = 12.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween
@@ -300,9 +328,8 @@ fun FeedScreen(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 14.dp, vertical = 4.dp)
-                    .background(DeepGray.copy(alpha = 0.65f), RoundedCornerShape(12.dp))
-                    .border(BorderStroke(1.dp, PureWhite.copy(alpha = 0.12f)), RoundedCornerShape(12.dp))
+                    .background(DeepGray.copy(alpha = 0.85f))
+                    .border(1.dp, BorderGray)
                     .padding(horizontal = 16.dp, vertical = 10.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween
@@ -311,7 +338,7 @@ fun FeedScreen(
                     Box(
                         modifier = Modifier
                             .size(10.dp)
-                            .background(if (isSimulating) AlertGreen else TextGray, CircleShape)
+                            .background(if (isSimulating) AlertGreen else AlertYellow, CircleShape)
                     )
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
@@ -359,30 +386,17 @@ fun FeedScreen(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 14.dp, vertical = 4.dp)
-                    .background(PureBlack.copy(alpha = 0.65f), RoundedCornerShape(12.dp))
-                    .border(BorderStroke(1.dp, PureWhite.copy(alpha = 0.12f)), RoundedCornerShape(12.dp))
+                    .background(PureBlack.copy(alpha = 0.85f))
+                    .border(1.dp, BorderGray)
             ) {
                 tabs.forEachIndexed { index, title ->
                     val isSelected = selectedTab == index
-                    val tabShape = when (index) {
-                        0 -> RoundedCornerShape(topStart = 12.dp, bottomStart = 12.dp)
-                        tabs.size - 1 -> RoundedCornerShape(topEnd = 12.dp, bottomEnd = 12.dp)
-                        else -> RoundedCornerShape(0.dp)
-                    }
                     Box(
                         modifier = Modifier
                             .weight(1f)
                             .clickable { selectedTab = index }
-                            .background(
-                                if (isSelected) DeepGray.copy(alpha = 0.85f) else Color.Transparent,
-                                tabShape
-                            )
-                            .border(
-                                width = 1.dp,
-                                color = if (isSelected) PureWhite.copy(alpha = 0.4f) else Color.Transparent,
-                                shape = tabShape
-                            )
+                            .background(if (isSelected) DeepGray.copy(alpha = 0.85f) else PureBlack.copy(alpha = 0.85f))
+                            .border(1.dp, if (isSelected) PureWhite else Color.Transparent)
                             .padding(vertical = 12.dp),
                         contentAlignment = Alignment.Center
                     ) {
@@ -488,192 +502,192 @@ fun FeedScreen(
                         }
                         2 -> {
                             val selectedSources by viewModel.selectedNewsSources.collectAsState()
-                            var isEditingSources by remember { mutableStateOf(selectedSources.isEmpty()) }
+                            var isEditingFilters by remember { mutableStateOf(selectedSources.isEmpty()) }
                             
-                            if (isEditingSources) {
-                                // Source selector screen
-                                var searchQuery by remember { mutableStateOf("") }
-                                var draftSources by remember { mutableStateOf(selectedSources) }
-                                
-                                val allSources = remember { com.example.data.NewsFetcher.getAllSources() }
-                                val filteredSourcesList = remember(searchQuery) {
-                                    allSources.filter { it.name.contains(searchQuery, ignoreCase = true) }
-                                }
-                                
-                                Column(
-                                    modifier = Modifier
-                                        .fillMaxSize()
-                                        .background(PureBlack)
-                                        .padding(16.dp)
-                                ) {
-                                    Text(
-                                        text = if (lang == "RU") "ВЫБЕРИТЕ ИСТОЧНИКИ НОВОСТЕЙ" else "SELECT NEWS SOURCES",
-                                        color = StarkWhite,
-                                        fontSize = 14.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        fontFamily = FontFamily.Monospace,
-                                        modifier = Modifier.padding(bottom = 8.dp)
-                                    )
-                                    
-                                    Text(
-                                        text = if (lang == "RU") "ИИ-боты будут использовать выбранные вами каналы для генерации своей ленты." else "AI bots will synthesize content exclusively from your selected channels.",
-                                        color = TextGray,
-                                        fontSize = 11.sp,
-                                        fontFamily = FontFamily.Monospace,
-                                        modifier = Modifier.padding(bottom = 16.dp)
-                                    )
-                                    
-                                    // Search Bar
-                                    OutlinedTextField(
-                                        value = searchQuery,
-                                        onValueChange = { searchQuery = it },
-                                        placeholder = {
+                            val allSources = remember { com.example.data.NewsFetcher.getAllSources() }
+                            var localSelectedSources by remember(selectedSources) { mutableStateOf(selectedSources) }
+                            var searchQuery by remember { mutableStateOf("") }
+                            val filteredSourcesList = remember(searchQuery) {
+                                allSources.filter { it.name.contains(searchQuery, ignoreCase = true) }
+                            }
+
+                            if (isEditingFilters) {
+                                Box(modifier = Modifier.fillMaxSize()) {
+                                    Column(
+                                        modifier = Modifier
+                                            .fillMaxSize()
+                                            .background(PureBlack)
+                                            .padding(horizontal = 16.dp, vertical = 8.dp)
+                                    ) {
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.SpaceBetween
+                                        ) {
                                             Text(
-                                                text = if (lang == "RU") "Поиск источников..." else "Search channels...",
-                                                color = TextGray,
+                                                text = if (lang == "RU") "ИСТОЧНИКИ НОВОСТЕЙ" else "NEWS SOURCES",
+                                                color = PureWhite,
+                                                fontSize = 11.sp,
+                                                fontWeight = FontWeight.Bold,
+                                                fontFamily = FontFamily.Monospace,
+                                                modifier = Modifier.weight(1f)
+                                            )
+    
+                                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                                Text(
+                                                    text = if (lang == "RU") "[ВЫБРАТЬ ВСЕ]" else "[SELECT ALL]",
+                                                    color = PureWhite,
+                                                    fontSize = 9.sp,
+                                                    fontFamily = FontFamily.Monospace,
+                                                    fontWeight = FontWeight.Bold,
+                                                    modifier = Modifier.clickable {
+                                                        localSelectedSources = allSources.map { it.name }.toSet()
+                                                    }
+                                                )
+                                                Text(
+                                                    text = if (lang == "RU") "[СБРОСИТЬ]" else "[CLEAR]",
+                                                    color = TextGray,
+                                                    fontSize = 9.sp,
+                                                    fontFamily = FontFamily.Monospace,
+                                                    fontWeight = FontWeight.Bold,
+                                                    modifier = Modifier.clickable {
+                                                        localSelectedSources = emptySet()
+                                                    }
+                                                )
+                                            }
+                                        }
+    
+                                        Spacer(modifier = Modifier.height(6.dp))
+    
+                                        OutlinedTextField(
+                                            value = searchQuery,
+                                            onValueChange = { searchQuery = it },
+                                            placeholder = {
+                                                Text(
+                                                    text = if (lang == "RU") "Поиск каналов..." else "Search channels...",
+                                                    color = TextGray,
+                                                    fontSize = 11.sp,
+                                                    fontFamily = FontFamily.Monospace
+                                                )
+                                            },
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .height(48.dp),
+                                            colors = OutlinedTextFieldDefaults.colors(
+                                                focusedBorderColor = PureWhite,
+                                                unfocusedBorderColor = BorderGray,
+                                                cursorColor = PureWhite,
+                                                focusedTextColor = PureWhite,
+                                                unfocusedTextColor = PureWhite
+                                            ),
+                                            textStyle = androidx.compose.ui.text.TextStyle(
                                                 fontSize = 12.sp,
                                                 fontFamily = FontFamily.Monospace
-                                            )
-                                        },
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .padding(bottom = 12.dp),
-                                        colors = OutlinedTextFieldDefaults.colors(
-                                            focusedBorderColor = StarkWhite,
-                                            unfocusedBorderColor = BorderGray,
-                                            cursorColor = StarkWhite,
-                                            focusedTextColor = StarkWhite,
-                                            unfocusedTextColor = StarkWhite
-                                        ),
-                                        singleLine = true
-                                    )
-                                    
-                                    // Select All / Deselect All Row
-                                    Row(
-                                        modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp),
-                                        horizontalArrangement = Arrangement.SpaceBetween
-                                    ) {
-                                        TextButton(
-                                            onClick = {
-                                                draftSources = allSources.map { it.name }.toSet()
-                                            }
+                                            ),
+                                            singleLine = true
+                                        )
+    
+                                        Spacer(modifier = Modifier.height(10.dp))
+    
+                                        LazyColumn(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .weight(1f),
+                                            verticalArrangement = Arrangement.spacedBy(8.dp),
+                                            contentPadding = PaddingValues(bottom = 70.dp)
                                         ) {
-                                            Text(
-                                                text = if (lang == "RU") "[ Выбрать все ]" else "[ Select All ]",
-                                                color = StarkWhite,
-                                                fontSize = 11.sp,
-                                                fontFamily = FontFamily.Monospace,
-                                                fontWeight = FontWeight.Bold
-                                            )
-                                        }
-                                        
-                                        TextButton(
-                                            onClick = {
-                                                draftSources = emptySet()
-                                            }
-                                        ) {
-                                            Text(
-                                                text = if (lang == "RU") "[ Сбросить все ]" else "[ Clear All ]",
-                                                color = TextGray,
-                                                fontSize = 11.sp,
-                                                fontFamily = FontFamily.Monospace,
-                                                fontWeight = FontWeight.Bold
-                                            )
-                                        }
-                                    }
-                                    
-                                    // Scrollable list of sources
-                                    LazyColumn(
-                                        modifier = Modifier
-                                            .weight(1f)
-                                            .fillMaxWidth()
-                                            .border(1.dp, BorderGray)
-                                            .background(DeepGray.copy(alpha = 0.5f))
-                                            .padding(8.dp)
-                                    ) {
-                                        items(filteredSourcesList) { source ->
-                                            val isChecked = draftSources.contains(source.name)
-                                            Row(
-                                                modifier = Modifier
-                                                    .fillMaxWidth()
-                                                    .clickable {
-                                                        draftSources = if (isChecked) {
-                                                            draftSources - source.name
-                                                        } else {
-                                                            draftSources + source.name
-                                                        }
-                                                    }
-                                                    .padding(vertical = 10.dp, horizontal = 6.dp),
-                                                verticalAlignment = Alignment.CenterVertically
-                                            ) {
-                                                Box(
+                                            items(filteredSourcesList) { source ->
+                                                val isChecked = localSelectedSources.contains(source.name)
+                                                Row(
                                                     modifier = Modifier
-                                                        .size(18.dp)
-                                                        .border(1.dp, if (isChecked) StarkWhite else TextGray)
-                                                        .background(if (isChecked) StarkWhite else Color.Transparent),
-                                                    contentAlignment = Alignment.Center
+                                                        .fillMaxWidth()
+                                                        .background(if (isChecked) DeepGray else PureBlack)
+                                                        .border(1.dp, if (isChecked) PureWhite else BorderGray)
+                                                        .clickable {
+                                                            val updated = if (isChecked) {
+                                                                localSelectedSources - source.name
+                                                            } else {
+                                                                localSelectedSources + source.name
+                                                            }
+                                                            localSelectedSources = updated
+                                                        }
+                                                        .padding(12.dp),
+                                                    verticalAlignment = Alignment.CenterVertically,
+                                                    horizontalArrangement = Arrangement.SpaceBetween
                                                 ) {
-                                                    if (isChecked) {
-                                                        Icon(
-                                                            imageVector = Icons.Default.Check,
-                                                            contentDescription = null,
-                                                            tint = PureBlack,
-                                                            modifier = Modifier.size(12.dp)
+                                                    Column(modifier = Modifier.weight(1f)) {
+                                                        Text(
+                                                            text = source.name,
+                                                            color = PureWhite,
+                                                            fontSize = 12.sp,
+                                                            fontFamily = FontFamily.Monospace,
+                                                            fontWeight = FontWeight.Bold
+                                                        )
+                                                        Spacer(modifier = Modifier.height(3.dp))
+                                                        Text(
+                                                            text = "Lang: ${if (source.isRu) "RU" else "EN"} | Trust: ${source.trustScore}%",
+                                                            color = TextGray,
+                                                            fontSize = 10.sp,
+                                                            fontFamily = FontFamily.Monospace
                                                         )
                                                     }
-                                                }
-                                                Spacer(modifier = Modifier.width(12.dp))
-                                                Column(modifier = Modifier.weight(1f)) {
-                                                    Text(
-                                                        text = source.name,
-                                                        color = if (isChecked) StarkWhite else TextGray,
-                                                        fontSize = 12.sp,
-                                                        fontWeight = FontWeight.Bold,
-                                                        fontFamily = FontFamily.Monospace
-                                                    )
-                                                    Text(
-                                                        text = if (source.isRu) "RU • Trust: ${source.trustScore}%" else "EN • Trust: ${source.trustScore}%",
-                                                        color = TextGray,
-                                                        fontSize = 10.sp,
-                                                        fontFamily = FontFamily.Monospace
-                                                    )
+    
+                                                    Spacer(modifier = Modifier.width(8.dp))
+    
+                                                    // Black & white custom retro checkbox
+                                                    Box(
+                                                        modifier = Modifier
+                                                            .size(20.dp)
+                                                            .border(1.dp, PureWhite)
+                                                            .background(if (isChecked) PureWhite else PureBlack),
+                                                        contentAlignment = Alignment.Center
+                                                    ) {
+                                                        if (isChecked) {
+                                                            Icon(
+                                                                imageVector = Icons.Default.Check,
+                                                                contentDescription = null,
+                                                                tint = PureBlack,
+                                                                modifier = Modifier.size(14.dp)
+                                                            )
+                                                        }
+                                                    }
                                                 }
                                             }
-                                            HorizontalDivider(color = BorderGray.copy(alpha = 0.3f), thickness = 0.5.dp)
                                         }
                                     }
-                                    
-                                    Spacer(modifier = Modifier.height(16.dp))
-                                    
-                                    // Save button
-                                    Button(
-                                        onClick = {
-                                            viewModel.updateSelectedNewsSources(draftSources)
-                                            isEditingSources = false
-                                        },
-                                        modifier = Modifier.fillMaxWidth(),
-                                        colors = ButtonDefaults.buttonColors(containerColor = StarkWhite, contentColor = PureBlack),
-                                        shape = RoundedCornerShape(0.dp)
+    
+                                    // Animated Apply button appears with sliding & fade animation at the bottom of the screen
+                                    androidx.compose.animation.AnimatedVisibility(
+                                        visible = localSelectedSources.isNotEmpty(),
+                                        enter = androidx.compose.animation.slideInVertically(
+                                            initialOffsetY = { it }
+                                        ) + androidx.compose.animation.fadeIn(),
+                                        exit = androidx.compose.animation.slideOutVertically(
+                                            targetOffsetY = { it }
+                                        ) + androidx.compose.animation.fadeOut(),
+                                        modifier = Modifier
+                                            .align(Alignment.BottomCenter)
+                                            .padding(bottom = 16.dp)
                                     ) {
-                                        Text(
-                                            text = if (lang == "RU") "СОХРАНИТЬ И ПРИМЕНИТЬ" else "SAVE & APPLY",
-                                            fontWeight = FontWeight.Bold,
-                                            fontFamily = FontFamily.Monospace,
-                                            fontSize = 12.sp
-                                        )
-                                    }
-                                    
-                                    if (selectedSources.isNotEmpty()) {
-                                        Spacer(modifier = Modifier.height(8.dp))
-                                        OutlinedButton(
-                                            onClick = { isEditingSources = false },
-                                            modifier = Modifier.fillMaxWidth(),
-                                            colors = ButtonDefaults.outlinedButtonColors(contentColor = StarkWhite),
-                                            border = BorderStroke(1.dp, BorderGray),
-                                            shape = RoundedCornerShape(0.dp)
+                                        Button(
+                                            onClick = {
+                                                viewModel.updateSelectedNewsSources(localSelectedSources)
+                                                isEditingFilters = false
+                                            },
+                                            colors = ButtonDefaults.buttonColors(
+                                                containerColor = PureWhite,
+                                                contentColor = PureBlack
+                                            ),
+                                            shape = RoundedCornerShape(8.dp),
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .height(48.dp)
+                                                .padding(horizontal = 16.dp)
+                                                .border(2.dp, PureBlack, RoundedCornerShape(8.dp))
                                         ) {
                                             Text(
-                                                text = if (lang == "RU") "ОТМЕНА" else "CANCEL",
+                                                text = if (lang == "RU") "ПРИМЕНИТЬ ИСТОЧНИКИ" else "APPLY SOURCES",
+                                                fontWeight = FontWeight.Bold,
                                                 fontFamily = FontFamily.Monospace,
                                                 fontSize = 12.sp
                                             )
@@ -681,97 +695,62 @@ fun FeedScreen(
                                     }
                                 }
                             } else {
-                                // Filtered feed screen
-                                val filteredPosts = remember(posts, selectedSources) {
-                                    posts.filter { selectedSources.contains(it.sourceName) }
-                                }
+                                // View Filtered Posts
+                                val filteredPosts = posts.filter { it.sourceName in selectedSources }
                                 
                                 Column(modifier = Modifier.fillMaxSize()) {
-                                    // Configuration summary banner
                                     Row(
                                         modifier = Modifier
                                             .fillMaxWidth()
-                                            .padding(horizontal = 14.dp, vertical = 6.dp)
-                                            .background(DeepGray.copy(alpha = 0.65f), RoundedCornerShape(12.dp))
-                                            .border(BorderStroke(1.dp, PureWhite.copy(alpha = 0.12f)), RoundedCornerShape(12.dp))
-                                            .padding(horizontal = 16.dp, vertical = 12.dp),
-                                        verticalAlignment = Alignment.CenterVertically,
-                                        horizontalArrangement = Arrangement.SpaceBetween
+                                            .background(DeepGray)
+                                            .padding(horizontal = 16.dp, vertical = 10.dp),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically
                                     ) {
-                                        Column(modifier = Modifier.weight(1f)) {
-                                            Text(
-                                                text = if (lang == "RU") "ПЕРСОНАЛЬНЫЙ ФИЛЬТР" else "MY NEWS CHANNELS",
-                                                color = StarkWhite,
-                                                fontSize = 11.sp,
-                                                fontWeight = FontWeight.Bold,
-                                                fontFamily = FontFamily.Monospace
-                                            )
-                                            Text(
-                                                text = if (lang == "RU") "Активно каналов: ${selectedSources.size}" else "Active channels: ${selectedSources.size}",
-                                                color = TextGray,
-                                                fontSize = 10.sp,
-                                                fontFamily = FontFamily.Monospace
-                                            )
-                                        }
-                                        
-                                        Button(
-                                            onClick = { isEditingSources = true },
-                                            colors = ButtonDefaults.buttonColors(containerColor = StarkWhite, contentColor = PureBlack),
-                                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
-                                            shape = RoundedCornerShape(6.dp),
-                                            modifier = Modifier.height(32.dp)
-                                        ) {
-                                            Text(
-                                                text = if (lang == "RU") "ИЗМЕНИТЬ" else "EDIT",
-                                                fontSize = 10.sp,
-                                                fontWeight = FontWeight.Bold,
-                                                fontFamily = FontFamily.Monospace
-                                            )
-                                        }
+                                        Text(
+                                            text = if (lang == "RU") "ФИЛЬТРЫ: ${selectedSources.size}" else "FILTERS: ${selectedSources.size}",
+                                            color = PureWhite,
+                                            fontSize = 11.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            fontFamily = FontFamily.Monospace
+                                        )
+                                        Text(
+                                            text = if (lang == "RU") "[РЕДАКТИРОВАТЬ]" else "[EDIT]",
+                                            color = PureWhite,
+                                            fontSize = 10.sp,
+                                            fontFamily = FontFamily.Monospace,
+                                            modifier = Modifier.clickable { isEditingFilters = true }
+                                        )
                                     }
                                     
                                     if (filteredPosts.isEmpty()) {
                                         Box(
-                                            modifier = Modifier.fillMaxSize().padding(32.dp),
+                                            modifier = Modifier.fillMaxSize().weight(1f),
                                             contentAlignment = Alignment.Center
                                         ) {
-                                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                                Icon(
-                                                    imageVector = Icons.Default.Info,
-                                                    contentDescription = null,
-                                                    tint = TextGray,
-                                                    modifier = Modifier.size(48.dp)
-                                                )
-                                                Spacer(modifier = Modifier.height(16.dp))
-                                                Text(
-                                                    text = if (lang == "RU") "Нет новостей из выбранных источников." else "No news from the selected sources found.",
-                                                    color = StarkWhite,
-                                                    fontSize = 12.sp,
-                                                    fontWeight = FontWeight.Bold,
-                                                    fontFamily = FontFamily.Monospace,
-                                                    textAlign = TextAlign.Center
-                                                )
-                                            }
+                                            Text(
+                                                text = if (lang == "RU") "Посты из выбранных источников не найдены." else "No posts found from selected sources.",
+                                                color = TextGray,
+                                                fontSize = 12.sp,
+                                                fontFamily = FontFamily.Monospace
+                                            )
                                         }
                                     } else {
                                         LazyColumn(
-                                            modifier = Modifier
-                                                .fillMaxWidth()
-                                                .fillMaxHeight(),
+                                            state = lazyListState,
+                                            modifier = Modifier.fillMaxWidth().weight(1f),
                                             contentPadding = PaddingValues(bottom = 80.dp)
                                         ) {
                                             items(filteredPosts, key = { it.id }) { post ->
+                                                LaunchedEffect(post.id) {
+                                                    viewModel.markPostAsViewed(post.id)
+                                                }
                                                 val author = users.find { it.id == post.authorId }
                                                 val isF = currentUserFollowingIds.contains(post.authorId)
                                                 val resolvedDecId = remember(author, activeUserDecId) {
-                                                    if (author?.id == "user") {
-                                                        activeUserDecId
-                                                    } else if (author?.isAi == true) {
-                                                        val hash = java.lang.Math.abs(author.id.hashCode())
-                                                        (hash % 210) + 1
-                                                    } else {
-                                                        null
-                                                    }
+                                                    if (author?.id == "user") activeUserDecId
+                                                    else if (author?.isAi == true) (Math.abs(author.id.hashCode()) % 210) + 1
+                                                    else null
                                                 }
                                                 PostItem(
                                                     post = post,
@@ -839,6 +818,66 @@ fun FeedScreen(
                         .testTag("create_post_button")
                 ) {
                     Icon(Icons.Filled.Add, contentDescription = if (lang == "RU") "Создать новость" else "Create post")
+                }
+            }
+        } else if (selectedTab != 2) {
+            // --- Bottom Right Action Column (Decorations + Tamagotchi) ---
+            Column(
+                modifier = Modifier
+                    .align(Alignment.BottomEnd)
+                    .padding(24.dp),
+                horizontalAlignment = Alignment.End,
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                // --- Casino Screen Redirect FAB ---
+                FloatingActionButton(
+                    onClick = { 
+                        viewModel.vibrate(40)
+                        viewModel.navigateTo(Screen.Casino) 
+                    },
+                    containerColor = AlertYellow,
+                    contentColor = PureBlack,
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier
+                        .border(2.dp, PureBlack, RoundedCornerShape(12.dp))
+                        .testTag("casino_quick_fab")
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.Casino,
+                        contentDescription = if (lang == "RU") "Казино" else "Casino"
+                    )
+                }
+
+                // --- Avatar Decorations Shop FAB (Worn Styles Shop Button) ---
+                FloatingActionButton(
+                    onClick = { showDecorationShopDialog = true },
+                    containerColor = AlertYellow,
+                    contentColor = PureBlack,
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier
+                        .border(2.dp, PureBlack, RoundedCornerShape(12.dp))
+                        .testTag("decorations_shop_fab")
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.AutoAwesome,
+                        contentDescription = if (lang == "RU") "Украшения аватарок" else "Avatar Upgrades"
+                    )
+                }
+
+                // --- Scanner Tab: Single Yellow Tamagotchi FAB ---
+                FloatingActionButton(
+                    onClick = { showTamagotchiDialog = true },
+                    containerColor = AlertYellow,
+                    contentColor = PureBlack,
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier
+                        .border(2.dp, PureBlack, RoundedCornerShape(12.dp))
+                        .testTag("tamagotchi_fab")
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.Pets,
+                        contentDescription = if (lang == "RU") "Тамагочи" else "Tamagotchi"
+                    )
                 }
             }
         }
@@ -990,19 +1029,15 @@ fun PostItem(
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 14.dp, vertical = 7.dp)
-            .border(
-                border = BorderStroke(1.dp, PureWhite.copy(alpha = 0.12f)),
-                shape = RoundedCornerShape(12.dp)
-            )
+            .border(1.dp, BorderGray)
             .background(Color.Transparent)
             .combinedClickable(
                 onClick = onCommentClick,
                 onLongClick = onArchiveToggle,
                 onDoubleClick = { onLikeClick() }
             ),
-        shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(containerColor = PureBlack.copy(alpha = 0.65f))
+        shape = RoundedCornerShape(0.dp),
+        colors = CardDefaults.cardColors(containerColor = PureBlack.copy(alpha = 0.82f))
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
             
@@ -1047,7 +1082,7 @@ fun PostItem(
                     if (post.sourceName.isNotEmpty()) {
                         Text(
                             text = "SOURCE: ${post.sourceName.uppercase()}",
-                            color = PureWhite.copy(alpha = 0.6f),
+                            color = AlertYellow.copy(alpha = 0.8f),
                             fontSize = 8.sp,
                             fontFamily = FontFamily.Monospace,
                             fontWeight = FontWeight.Bold
@@ -1058,14 +1093,14 @@ fun PostItem(
                 if (author != null && author.id != "user") {
                     Text(
                         text = if (isFollowing) (if (lang == "RU") "ОТПИСАТЬСЯ" else "UNFOLLOW") else (if (lang == "RU") "ПОДПИСАТЬСЯ" else "FOLLOW"),
-                        color = if (isFollowing) TextGray else StarkWhite,
+                        color = if (isFollowing) TextGray else AlertYellow,
                         fontSize = 10.sp,
                         fontFamily = FontFamily.Monospace,
                         fontWeight = FontWeight.Bold,
                         modifier = Modifier
                             .clickable { onFollowToggle() }
                             .padding(horizontal = 8.dp, vertical = 4.dp)
-                            .border(1.dp, if (isFollowing) TextGray else StarkWhite.copy(alpha = 0.4f), RoundedCornerShape(2.dp))
+                            .border(1.dp, if (isFollowing) TextGray else AlertYellow, RoundedCornerShape(2.dp))
                             .padding(4.dp)
                     )
                 }
@@ -1090,7 +1125,7 @@ fun PostItem(
                     val trustColor = when {
                         trust >= 90 -> AlertGreen
                         trust >= 75 -> PureWhite
-                        trust >= 60 -> StarkWhite.copy(alpha = 0.7f)
+                        trust >= 60 -> AlertYellow
                         else -> AlertRed
                     }
                     
@@ -1214,7 +1249,7 @@ fun PostItem(
                 Card(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .border(1.dp, PureWhite.copy(alpha = 0.15f), RoundedCornerShape(4.dp))
+                        .border(1.dp, AlertYellow, RoundedCornerShape(4.dp))
                         .clip(RoundedCornerShape(4.dp))
                         .clickable {
                             try {
@@ -1237,13 +1272,13 @@ fun PostItem(
                             Icon(
                                 imageVector = Icons.Default.Share,
                                 contentDescription = "External Link",
-                                tint = StarkWhite,
+                                tint = AlertYellow,
                                 modifier = Modifier.size(12.dp)
                             )
                             Spacer(modifier = Modifier.width(6.dp))
                             Text(
                                 text = "HOST: $hostDomain ▸ ПРЕДПРОСМОТР ССЫЛКИ",
-                                color = StarkWhite,
+                                color = AlertYellow,
                                 fontFamily = FontFamily.Monospace,
                                 fontSize = 8.sp,
                                 fontWeight = FontWeight.Bold
@@ -1276,7 +1311,7 @@ fun PostItem(
                             Column {
                                 Text(
                                     text = platformLabel.uppercase(),
-                                    color = StarkWhite,
+                                    color = AlertYellow,
                                     fontSize = 10.sp,
                                     fontFamily = FontFamily.Monospace,
                                     fontWeight = FontWeight.Bold
@@ -1317,35 +1352,65 @@ fun PostItem(
                         .clickable { onMediaClick(post.mediaUrl) }
                 ) {
                     val lowerUrl = post.mediaUrl.lowercase()
-                    val isVideo = post.mediaType == "VIDEO" || lowerUrl.endsWith(".mp4") || lowerUrl.endsWith(".mkv") || lowerUrl.endsWith(".webm") || lowerUrl.contains("video") || lowerUrl.contains("gtv-videos-bucket")
+                    val isDirectVideo = lowerUrl.endsWith(".mp4") || lowerUrl.endsWith(".mkv") || lowerUrl.endsWith(".webm") || lowerUrl.contains("gtv-videos-bucket") || lowerUrl.startsWith("content://") || lowerUrl.startsWith("file://")
+                    val isVideo = post.mediaType == "VIDEO" || isDirectVideo || lowerUrl.contains("video") || lowerUrl.contains("youtube") || lowerUrl.contains("youtu.be")
                     val isAudio = post.mediaType == "AUDIO" || lowerUrl.endsWith(".mp3") || lowerUrl.endsWith(".wav") || lowerUrl.endsWith(".ogg") || lowerUrl.contains("audio")
                     val isFile = post.mediaType == "FILE" || (!isVideo && !isAudio && (lowerUrl.endsWith(".zip") || lowerUrl.endsWith(".rar") || lowerUrl.endsWith(".pdf") || lowerUrl.endsWith(".txt") || lowerUrl.endsWith(".json")))
 
                     if (isVideo) {
-                        androidx.compose.ui.viewinterop.AndroidView(
-                            factory = { ctx ->
-                                android.widget.VideoView(ctx).apply {
-                                    if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
-                                        setAudioFocusRequest(android.media.AudioManager.AUDIOFOCUS_NONE)
+                        if (isDirectVideo) {
+                            androidx.compose.ui.viewinterop.AndroidView(
+                                factory = { ctx ->
+                                    android.widget.VideoView(ctx).apply {
+                                        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+                                            setAudioFocusRequest(android.media.AudioManager.AUDIOFOCUS_NONE)
+                                        }
+                                        setVideoURI(android.net.Uri.parse(post.mediaUrl))
+                                        val mc = android.widget.MediaController(ctx)
+                                        mc.setAnchorView(this)
+                                        setMediaController(mc)
+                                        setOnPreparedListener { mp ->
+                                            mp.isLooping = true
+                                            mp.setVolume(0f, 0f)
+                                            start()
+                                        }
+                                        setOnErrorListener { _, _, _ ->
+                                            // Silently handle playback errors and prevent system error dialog popups
+                                            true
+                                        }
                                     }
-                                    setVideoURI(android.net.Uri.parse(post.mediaUrl))
-                                    val mc = android.widget.MediaController(ctx)
-                                    mc.setAnchorView(this)
-                                    setMediaController(mc)
-                                    setOnPreparedListener { mp ->
-                                        mp.isLooping = true
-                                        mp.setVolume(0f, 0f)
-                                        start()
+                                },
+                                modifier = Modifier.fillMaxSize(),
+                                update = { view ->
+                                    if (!view.isPlaying) {
+                                        view.start()
                                     }
                                 }
-                            },
-                            modifier = Modifier.fillMaxSize(),
-                            update = { view ->
-                                if (!view.isPlaying) {
-                                    view.start()
-                                }
-                            }
-                        )
+                            )
+                        } else {
+                            androidx.compose.ui.viewinterop.AndroidView(
+                                factory = { ctx ->
+                                    android.webkit.WebView(ctx).apply {
+                                        layoutParams = android.view.ViewGroup.LayoutParams(
+                                            android.view.ViewGroup.LayoutParams.MATCH_PARENT,
+                                            android.view.ViewGroup.LayoutParams.MATCH_PARENT
+                                        )
+                                        settings.apply {
+                                            javaScriptEnabled = true
+                                            domStorageEnabled = true
+                                            mediaPlaybackRequiresUserGesture = false
+                                            mixedContentMode = android.webkit.WebSettings.MIXED_CONTENT_ALWAYS_ALLOW
+                                            useWideViewPort = true
+                                            loadWithOverviewMode = true
+                                        }
+                                        webViewClient = android.webkit.WebViewClient()
+                                        webChromeClient = android.webkit.WebChromeClient()
+                                        loadUrl(post.mediaUrl)
+                                    }
+                                },
+                                modifier = Modifier.fillMaxSize()
+                            )
+                        }
                         // Play overlay indicator
                         Box(
                             modifier = Modifier
@@ -1712,7 +1777,7 @@ fun CreatePostDialog(
                             val link = " https://nog.network/rss/intel_$r"
                             text = text + link
                         },
-                        colors = ButtonDefaults.buttonColors(containerColor = PureBlack, contentColor = StarkWhite),
+                        colors = ButtonDefaults.buttonColors(containerColor = PureBlack, contentColor = AlertYellow),
                         border = BorderStroke(1.dp, BorderGray),
                         shape = RoundedCornerShape(4.dp),
                         modifier = Modifier.weight(1.2f).height(36.dp),
@@ -1983,7 +2048,7 @@ fun CommentsBottomSheet(
                                         Spacer(modifier = Modifier.width(6.dp))
                                         Text(
                                             text = "➔ @${comment.replyToAuthorName}",
-                                            color = PureWhite.copy(alpha = 0.6f),
+                                            color = AlertYellow,
                                             fontSize = 10.sp,
                                             fontFamily = FontFamily.Monospace,
                                             fontWeight = FontWeight.SemiBold
@@ -2029,7 +2094,7 @@ fun CommentsBottomSheet(
                 ) {
                     Text(
                         text = if (lang == "RU") "Ответ пользователю @$replyToAuthorName" else "Replying to @$replyToAuthorName",
-                        color = StarkWhite,
+                        color = AlertYellow,
                         fontSize = 11.sp,
                         fontFamily = FontFamily.Monospace
                     )
@@ -2218,7 +2283,7 @@ fun AiMindsExplorer(
                     )
                     Text(
                         text = characterDescription,
-                        color = StarkWhite.copy(alpha = 0.8f),
+                        color = AlertYellow,
                         fontSize = 10.sp,
                         fontFamily = FontFamily.Monospace,
                         modifier = Modifier.padding(top = 2.dp)

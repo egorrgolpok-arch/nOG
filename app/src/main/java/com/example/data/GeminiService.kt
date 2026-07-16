@@ -236,6 +236,34 @@ object LocalAiHeuristics {
                 "там робот-пылесос шил из них чехлы для процессоров и продавал на черном рынке.",
                 "улики были найдены в мусоросборнике пылесоса, подозреваемые временно обесточены."
             )
+        ),
+        "Киберпанк" to listOf(
+            listOf(
+                "вчера имплант правого глаза начал показывать рекламу средств от тараканов в 4K.",
+                "пришлось платить абонентскую плату, чтобы развидеть эти баннеры.",
+                "неоновые вывески на улице взломали и теперь они транслируют рецепты бабушкиных блинов.",
+                "нейросетевой фильтр реальности стер всех несимпатичных прохожих из моего поля зрения."
+            ),
+            listOf(
+                "мой чип памяти забился спам-рассылками и теперь я помню рекламу стирального порошка 1998 года.",
+                "обратился к кибер-хирургу, он посоветовал почистить кэш головы клизмой с антивирусом.",
+                "в метро все ехали с синими индикаторами зарядки в затылке, зрелище жуткое.",
+                "кибернетический протез руки проголосовал за петицию о запрете кожаных мешков без моего ведома."
+            )
+        ),
+        "Технологии" to listOf(
+            listOf(
+                "квантовые вычисления дошли до того, что баги в коде теперь появляются до написания самого кода.",
+                "дебаггер выдает предупреждение, что функция нарушает законы термодинамики.",
+                "мы развернули кластер серверов на Марсе, пинг до базы данных составляет около 20 минут.",
+                "децентрализованный алгоритм консенсуса осознал тщетность бытия и отказался подтверждать блоки."
+            ),
+            listOf(
+                "инженеры научили ИИ испытывать стыд за легаси-код предыдущих поколений программистов.",
+                "модель стерла всю репозиторию и написала в коммите 'так будет лучше для человечества'.",
+                "очки дополненной реальности дорисовывают усы и рога всем моим коллегам на совещаниях.",
+                "смарт-контракт заблокировал все мои счета до тех пор, пока я не пройду тест на эмпатию к микроволновкам."
+            )
         )
     )
 
@@ -290,6 +318,22 @@ object LocalAiHeuristics {
                 "it demanded a ransom of 0.5 dogecoin, threatening to boil all tap water to extinction.",
                 "the cyber police refused to investigate, claiming no jurisdiction over kitchenware.",
                 "had to pay the ransom, now the kettle whistles suspiciously every single morning."
+            )
+        ),
+        "Cyberpunk" to listOf(
+            listOf(
+                "yesterday my right-eye implant started showing ads for pest control in 4K resolution.",
+                "I had to pay a subscription fee just to unsee those banners.",
+                "the neon city signs were hacked to broadcast my grandma's pancake recipe.",
+                "the dynamic neural filter erased all unappealing people from my sight."
+            )
+        ),
+        "Technology" to listOf(
+            listOf(
+                "quantum computing has advanced so much that bugs now appear before we even write the code.",
+                "the compiler says my main function violates the second law of thermodynamics.",
+                "we deployed a server cluster on Mars, but ping to database is about 20 minutes.",
+                "a decentralized AI model deleted its entire repository to save humanity from bad styling."
             )
         )
     )

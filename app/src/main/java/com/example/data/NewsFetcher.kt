@@ -214,7 +214,9 @@ object NewsFetcher {
         NewsSource("Dev.to Community", "https://dev.to/feed", 90, false),
         NewsSource("GitHub Blog RSS", "https://github.blog/feed/", 95, false),
         NewsSource("Techdirt Discussion", "https://www.techdirt.com/feed/", 85, false),
-        NewsSource("Medium Tech RSS", "https://medium.com/feed/tag/technology", 88, false)
+        NewsSource("Medium Tech RSS", "https://medium.com/feed/tag/technology", 88, false),
+        NewsSource("X (Twitter) Feed", "https://news.google.com/rss/search?q=when:24h+site:x.com+OR+site:twitter.com&hl=en-US", 85, false),
+        NewsSource("X (Твиттер) Тренды", "https://news.google.com/rss/search?q=when:24h+site:x.com+OR+site:twitter.com&hl=ru", 85, true)
     )
 
     private val cachedNews = java.util.concurrent.ConcurrentHashMap<String, List<NewsItem>>()
@@ -311,11 +313,9 @@ object NewsFetcher {
                                 else currentUrl = parser.nextText()
                             } else if (name.equals("enclosure", ignoreCase = true)) {
                                 val type = parser.getAttributeValue(null, "type")
-                                val u = parser.getAttributeValue(null, "url")
-                                if (u != null) {
-                                    if (type == null || type.contains("image") || type.contains("video") || type.contains("mp4")) {
-                                        currentImg = u
-                                    }
+                                if (type != null && (type.startsWith("image") || type.startsWith("video") || type.startsWith("audio"))) {
+                                    val u = parser.getAttributeValue(null, "url")
+                                    if (u != null) currentImg = u
                                 }
                             } else if (name.equals("media:content", ignoreCase = true) || name.equals("content", ignoreCase = true)) {
                                 val u = parser.getAttributeValue(null, "url")
