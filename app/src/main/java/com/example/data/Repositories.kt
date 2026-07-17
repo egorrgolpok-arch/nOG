@@ -1440,9 +1440,11 @@ class SocialRepository(private val context: Context, private val scope: Coroutin
                     val otherAvailableComments = bots.filter { it.id != bot.id }.shuffled()
                     val postMentionBot = if (Random.nextInt(100) < 15) otherAvailableComments.firstOrNull() else null
                     var sourceNameVal = if (lang == "RU") "Локальный ИИ" else "Local AI"
+                    var newsImgUrl: String? = null
                     val localContent = LocalNpuEngine.runLocalAiInferenceSuspend(scope) {
                         val newsItem = try { NewsFetcher.fetchLatestNews(lang).randomOrNull() } catch(e: Exception) { null }
                         if (newsItem != null) {
+                            newsImgUrl = newsItem.imageUrl
                             try {
                                 MarkovChainGenerator.train(listOf(newsItem.title, newsItem.description))
                             } catch(e: Exception) {}
@@ -1474,8 +1476,10 @@ class SocialRepository(private val context: Context, private val scope: Coroutin
                         val galleryFiles = getGalleryMediaUrls()
                         if (galleryFiles.isNotEmpty() && Random.nextBoolean()) {
                             galleryFiles.random()
+                        } else if (newsImgUrl != null) {
+                            newsImgUrl
                         } else {
-                            getDynamicInternetMediaForQuery(chosenCategory, "IMAGE")
+                            null
                         }
                     } else null
 
@@ -1538,15 +1542,35 @@ class SocialRepository(private val context: Context, private val scope: Coroutin
             }
             if (externalNewsRaw == null) return@run // abort if no real news available
 
-            // 50% chance: use phone storage (gallery), 50% chance: use website material
-            val gallery = getGalleryMediaUrls()
-            if (gallery.isNotEmpty() && Random.nextBoolean()) {
-                mediaUrl = gallery.random()
-                isFromGallery = true
-            } else {
-                if (!externalNewsRaw.imageUrl.isNullOrEmpty()) {
-                    mediaUrl = externalNewsRaw.imageUrl
+            if (attachMedia) {
+                val gallery = getGalleryMediaUrls()
+                if (mediaTypeStr == "VIDEO") {
+                    val galleryVideos = gallery.filter { it.endsWith(".mp4") || it.contains("video", ignoreCase = true) }
+                    if (galleryVideos.isNotEmpty()) {
+                        mediaUrl = galleryVideos.random()
+                        isFromGallery = true
+                    } else {
+                        val galleryPhotos = gallery.filter { !it.endsWith(".mp4") && !it.contains("video", ignoreCase = true) }
+                        if (galleryPhotos.isNotEmpty() && Random.nextBoolean()) {
+                            mediaUrl = galleryPhotos.random()
+                            isFromGallery = true
+                        } else if (!externalNewsRaw.imageUrl.isNullOrEmpty()) {
+                            mediaUrl = externalNewsRaw.imageUrl
+                            isFromGallery = false
+                        }
+                    }
+                } else {
+                    val galleryPhotos = gallery.filter { !it.endsWith(".mp4") && !it.contains("video", ignoreCase = true) }
+                    if (galleryPhotos.isNotEmpty() && Random.nextBoolean()) {
+                        mediaUrl = galleryPhotos.random()
+                        isFromGallery = true
+                    } else if (!externalNewsRaw.imageUrl.isNullOrEmpty()) {
+                        mediaUrl = externalNewsRaw.imageUrl
+                        isFromGallery = false
+                    }
                 }
+            } else {
+                mediaUrl = null
                 isFromGallery = false
             }
 
@@ -2189,30 +2213,28 @@ class SocialRepository(private val context: Context, private val scope: Coroutin
         }
 
         val galleryVideos = gallery.filter { it.endsWith(".mp4") || it.contains("video", ignoreCase = true) }
+        val galleryPhotos = gallery.filter { !it.endsWith(".mp4") && !it.contains("video", ignoreCase = true) }
+        
         if (forceType == "VIDEO") {
             if (galleryVideos.isNotEmpty()) {
                 return galleryVideos.random()
             } else {
-                return "https://storage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4"
+                // If no video in gallery but forced to video, fallback to photo if possible, else we just proceed to photo logic
             }
         }
 
         if (gallery.isNotEmpty() && Random.nextInt(100) < 55) {
             val isVideoQuery = query.contains("video", ignoreCase = true) || query.contains("видео", ignoreCase = true)
-            val filteredGallery = if (isVideoQuery) {
+            val filteredGallery = if ((isVideoQuery || forceType == "VIDEO") && galleryVideos.isNotEmpty()) {
                 galleryVideos
             } else {
-                gallery.filter { !it.endsWith(".mp4") && !it.contains("video", ignoreCase = true) }
+                galleryPhotos
             }
-            val targetList = if (filteredGallery.isNotEmpty()) filteredGallery else gallery
-            if (targetList.isNotEmpty()) {
-                return targetList.random()
+            if (filteredGallery.isNotEmpty()) {
+                return filteredGallery.random()
             }
         }
 
-        val videoOptions = if (galleryVideos.isNotEmpty()) galleryVideos else listOf(
-            "https://storage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4"
-        )
         val gifOptions = listOf(
             "https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExNHJycGJncndyeHhyeHhyeHhyeHhyeHhyeHhyeHhyeHhyeHhyeHhyeCZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/3o7TKSjNGBhIpB4X96/giphy.gif",
             "https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExNHJycGJncndyeHhyeHhyeHhyeHhyeHhyeHhyeHhyeHhyeHhyeHhyeCZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/l41lTfuxV5w5x8O/giphy.gif",
@@ -2221,19 +2243,24 @@ class SocialRepository(private val context: Context, private val scope: Coroutin
             "https://media2.giphy.com/media/v1.Y2lkPTc5MGI3NjExNHJycGJncndyeHhyeHhyeHhyeHhyeHhyeHhyeHhyeHhyeHhyeHhyeCZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/Is1O64tGvkpG0/giphy.gif"
         )
         
-        if (forceType == "VIDEO") return videoOptions.random()
+        if (forceType == "VIDEO" && galleryVideos.isNotEmpty()) return galleryVideos.random()
         if (forceType == "GIF") return gifOptions.random()
 
-        if (Random.nextInt(100) < 40) {
-            return videoOptions.random()
-        }
-        if (Random.nextInt(100) < 30) {
-            return gifOptions.random()
+        if (forceType != "IMAGE" && forceType != "GIF") {
+            if (galleryVideos.isNotEmpty() && Random.nextInt(100) < 40) {
+                return galleryVideos.random()
+            }
+            if (Random.nextInt(100) < 30) {
+                return gifOptions.random()
+            }
         }
 
         return when {
             q.contains("video") || q.contains("клип") || q.contains("фильм") || q.contains("youtube") || q.contains("ютуб") || q.contains("видео") -> {
-                videoOptions.random()
+                if (galleryVideos.isNotEmpty()) galleryVideos.random() else listOf(
+                    "https://images.unsplash.com/photo-1451187580459-43490279c0fa?auto=format&fit=crop&w=600&q=80",
+                    "https://images.unsplash.com/photo-1506318137071-a8e063b4bec0?auto=format&fit=crop&w=600&q=80"
+                ).random()
             }
             q.contains("space") || q.contains("космос") || q.contains("марс") || q.contains("rocket") || q.contains("ракета") || q.contains("звезд") -> {
                 listOf(
@@ -2316,7 +2343,7 @@ class SocialRepository(private val context: Context, private val scope: Coroutin
                     "https://picsum.photos/seed/bg2/600/400",
                     "https://picsum.photos/seed/bg3/600/400",
                     "https://picsum.photos/seed/bg4/600/400"
-                ) + videoOptions.take(4)).random()
+                )).random()
             }
         }
     }
