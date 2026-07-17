@@ -165,7 +165,12 @@ fun FeedScreen(
                                         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
                                             setAudioFocusRequest(android.media.AudioManager.AUDIOFOCUS_NONE)
                                         }
-                                        setVideoURI(android.net.Uri.parse(zoomImageUrl))
+                                        val actualVideoUrl = if (zoomImageUrl != null && zoomImageUrl!!.startsWith("file:///mock_storage")) {
+                                            "https://storage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4"
+                                        } else {
+                                            zoomImageUrl ?: ""
+                                        }
+                                        setVideoURI(android.net.Uri.parse(actualVideoUrl))
                                         val mc = android.widget.MediaController(ctx)
                                         mc.setAnchorView(this)
                                         setMediaController(mc)
@@ -1372,7 +1377,12 @@ fun PostItem(
                                         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
                                             setAudioFocusRequest(android.media.AudioManager.AUDIOFOCUS_NONE)
                                         }
-                                        setVideoURI(android.net.Uri.parse(post.mediaUrl))
+                                        val actualVideoUrl = if (post.mediaUrl.startsWith("file:///mock_storage")) {
+                                            "https://storage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4"
+                                        } else {
+                                            post.mediaUrl
+                                        }
+                                        setVideoURI(android.net.Uri.parse(actualVideoUrl))
                                         val mc = android.widget.MediaController(ctx)
                                         mc.setAnchorView(this)
                                         setMediaController(mc)

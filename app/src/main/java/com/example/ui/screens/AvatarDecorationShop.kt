@@ -1830,8 +1830,22 @@ fun AvatarDecorationShopDialog(
 
                     1 -> { // Owned items list
                         val ownedList = remember(purchasableOwnedListTrigger(purchasedIds, allDecorations)) {
-                            purchasedIds.filter { viewModel.isDecorationOwnedValid(it) }.map { id ->
-                                if (id in 201..210) {
+                            purchasedIds.map { id ->
+                                if (id == 9999) {
+                                    val customName = prefs.getString("ai_dec_name", "AI Artifact") ?: "AI Artifact"
+                                    val customRarity = prefs.getString("ai_dec_rarity", "НЕВЕБЕЙШАЯ") ?: "НЕВЕБЕЙШАЯ"
+                                    val styleType = prefs.getInt("ai_dec_style_type", 1)
+                                    AvatarDecoration(
+                                        id = 9999,
+                                        name = customName,
+                                        rarity = customRarity,
+                                        basePrice = 0,
+                                        styleType = styleType,
+                                        patternColor = "AI",
+                                        patternStyleName = "AI Generated",
+                                        patternAnimation = "Active"
+                                    )
+                                } else if (id in 201..230) {
                                     exclusiveList.find { it.id == id } ?: DecorationGenerator.generateDecoration(id, lang)
                                 } else {
                                     allDecorations.find { it.id == id } ?: DecorationGenerator.generateDecoration(id, lang)
@@ -1860,19 +1874,26 @@ fun AvatarDecorationShopDialog(
                                 modifier = Modifier.weight(1f),
                                 verticalArrangement = Arrangement.spacedBy(10.dp),
                                 horizontalArrangement = Arrangement.spacedBy(10.dp)
-                            ) {
+                             ) {
                                 items(ownedList) { item ->
                                     val isActive = activeDecId == item.id
+                                    val expiryLeft = viewModel.getDecorationExpiry(item.id) - System.currentTimeMillis()
+                                    val isValidOwned = expiryLeft > 0L || item.id == 9999
+
                                     DecorationShopCard(
                                         item = item,
-                                        isOwned = true,
-                                        isActive = isActive,
+                                        isOwned = isValidOwned,
+                                        isActive = isActive && isValidOwned,
                                         lang = lang,
                                         onClick = {
-                                            if (isActive) {
-                                                viewModel.unwearDecoration()
+                                            if (isValidOwned) {
+                                                if (isActive) {
+                                                    viewModel.unwearDecoration()
+                                                } else {
+                                                    viewModel.wearDecoration(item.id)
+                                                }
                                             } else {
-                                                viewModel.wearDecoration(item.id)
+                                                showPurchaseDialogForDec = item
                                             }
                                         }
                                     )
@@ -2284,12 +2305,7 @@ fun DecorationShopCard(
     lang: String,
     onClick: () -> Unit
 ) {
-    val rarityColor = when (item.rarity) {
-        "РЕДКАЯ" -> Color(0xFF2196F3)
-        "АХУЕННАЯ" -> Color(0xFF9C27B0)
-        "НЕВЕБЕЙШАЯ" -> Color(0xFFFFD700)
-        else -> TextGray
-    }
+    val rarityColor = getRarityColor(item.rarity)
 
     Box(
         modifier = Modifier
@@ -2613,7 +2629,7 @@ object CaseGenerator {
     fun generateCases(lang: String): List<CaseType> {
         val basePrices = listOf(
             // --- CHEAP CATEGORY (<= 35,000) ---
-            100, 200, 300, 400, 500, 650, 800, 1000, 1200, 1500,
+            500, 530, 560, 590, 620, 650, 800, 1000, 1200, 1500,
             1800, 2200, 2600, 3100, 3700, 4400, 5200, 6100, 7100, 8300,
             9600, 11000, 13000, 15500, 18500, 22000, 26000, 30000, 33000, 35000,
 
@@ -2713,10 +2729,10 @@ object CaseGenerator {
 
 fun getRarityColor(rarity: String): Color {
     return when (rarity) {
-        "ОБЫЧНАЯ" -> Color(0xFF4B69FF)
-        "РЕДКАЯ" -> Color(0xFF8847FF)
-        "АХУЕННАЯ" -> Color(0xFFD32CE6)
-        "НЕВЕБЕЙШАЯ" -> Color(0xFFEB4B4B)
+        "ОБЫЧНАЯ", "COMMON" -> Color(0xFF4B69FF)
+        "РЕДКАЯ", "RARE" -> Color(0xFF8847FF)
+        "АХУЕННАЯ", "AWESOME" -> Color(0xFFD32CE6)
+        "НЕВЕБЕЙШАЯ", "INSANE" -> Color(0xFFEB4B4B)
         else -> Color(0xFFE4AE39) // Exclusive
     }
 }
@@ -2725,20 +2741,20 @@ fun getEstimatedSellValue(rarity: String, id: Int): Int {
     val seed = id.toLong() * 997
     val rand = Random(seed)
     return when (rarity) {
-        "ОБЫЧНАЯ" -> 100 + rand.nextInt(101) // 100-200
-        "РЕДКАЯ" -> 300 + rand.nextInt(201)  // 300-500
-        "АХУЕННАЯ" -> 800 + rand.nextInt(701) // 800-1500
-        "НЕВЕБЕЙШАЯ" -> 3000 + rand.nextInt(3001) // 3000-6000
+        "ОБЫЧНАЯ", "COMMON" -> 100 + rand.nextInt(101) // 100-200
+        "РЕДКАЯ", "RARE" -> 300 + rand.nextInt(201)  // 300-500
+        "АХУЕННАЯ", "AWESOME" -> 800 + rand.nextInt(701) // 800-1500
+        "НЕВЕБЕЙШАЯ", "INSANE" -> 3000 + rand.nextInt(3001) // 3000-6000
         else -> 20000 + rand.nextInt(30001) // 20000-50000 for exclusive
     }
 }
 
 fun getDurationHours(rarity: String): Int {
     return when (rarity) {
-        "ОБЫЧНАЯ" -> 1
-        "РЕДКАЯ" -> 6
-        "АХУЕННАЯ" -> 24
-        "НЕВЕБЕЙШАЯ" -> 72
+        "ОБЫЧНАЯ", "COMMON" -> 1
+        "РЕДКАЯ", "RARE" -> 6
+        "АХУЕННАЯ", "AWESOME" -> 24
+        "НЕВЕБЕЙШАЯ", "INSANE" -> 72
         else -> 168 // 7 days
     }
 }
@@ -2849,9 +2865,22 @@ fun CasesTab(viewModel: SocialViewModel, lang: String) {
                 .replace("{noun}", nounEn.lowercase())
                 .replace("{suffix}", suffixEn)
             
-            // Completely random price from 100 to 5 trillion (5,000,000,000,000)
-            val priceRange = 5_000_000_000_000L - 100L
-            val newPrice = 100L + (rand.nextDouble() * priceRange).toLong()
+            // Equal chance (33.3% each) for Cheap (500 to 100k), Medium (100k to 10M), and Expensive (10M to 50B)
+            val tierRoll = rand.nextInt(3)
+            val newPrice = when (tierRoll) {
+                0 -> {
+                    // Cheap tier: 500 to 100,000
+                    500L + (rand.nextDouble() * (100_000L - 500L)).toLong()
+                }
+                1 -> {
+                    // Medium tier: 100,000 to 10,000,000
+                    100_000L + (rand.nextDouble() * (10_000_000L - 100_000L)).toLong()
+                }
+                else -> {
+                    // Expensive tier: 10,000,000 to 50,000,000,000
+                    10_000_000L + (rand.nextDouble() * (50_000_000_000L - 10_000_000L)).toLong()
+                }
+            }
             
             // Random minimum rarity
             val rarities = listOf("ОБЫЧНАЯ", "РЕДКАЯ", "АХУЕННАЯ", "НЕВЕБЕЙШАЯ", "ЭКСКЛЮЗИВНАЯ")
@@ -3603,14 +3632,25 @@ fun CaseOpenerDialog(
     }
 
     // Helper to request a decoration
-    fun getDecorationForRarity(rarity: String): AvatarDecoration {
-        if (rarity == "ЭКСКЛЮЗИВНАЯ") {
+    fun getDecorationForRarity(rarityRu: String): AvatarDecoration {
+        if (rarityRu == "ЭКСКЛЮЗИВНАЯ") {
             return DecorationGenerator.getExclusiveDecorations(lang).random()
+        }
+        val targetRarity = if (lang == "RU") {
+            rarityRu
+        } else {
+            when (rarityRu) {
+                "ОБЫЧНАЯ" -> "COMMON"
+                "РЕДКАЯ" -> "RARE"
+                "АХУЕННАЯ" -> "AWESOME"
+                "НЕВЕБЕЙШАЯ" -> "INSANE"
+                else -> rarityRu
+            }
         }
         for (attempt in 1..200) {
             val rid = 1000 + Random().nextInt(15000)
             val item = DecorationGenerator.generateDecoration(rid, lang)
-            if (item.rarity == rarity) return item
+            if (item.rarity == targetRarity) return item
         }
         return DecorationGenerator.generateDecoration(1001, lang)
     }

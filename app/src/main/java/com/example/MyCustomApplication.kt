@@ -6,8 +6,14 @@ import android.os.Build
 import androidx.lifecycle.ProcessLifecycleOwner
 import androidx.lifecycle.DefaultLifecycleObserver
 import androidx.lifecycle.LifecycleOwner
+import androidx.work.Configuration
 
-class MyCustomApplication : Application() {
+class MyCustomApplication : Application(), Configuration.Provider {
+    override val workManagerConfiguration: Configuration
+        get() = Configuration.Builder()
+            .setMinimumLoggingLevel(android.util.Log.INFO)
+            .build()
+
     override fun onCreate() {
         super.onCreate()
         

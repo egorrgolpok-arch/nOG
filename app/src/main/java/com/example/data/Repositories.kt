@@ -998,18 +998,19 @@ class SocialRepository(private val context: Context, private val scope: Coroutin
         }
 
         try {
-            val projection = arrayOf(android.provider.MediaStore.MediaColumns.DATA)
+            val projection = arrayOf(android.provider.MediaStore.MediaColumns._ID)
             context.contentResolver.query(
                 android.provider.MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
                 projection, null, null, android.provider.MediaStore.Images.Media.DATE_ADDED + " DESC"
             )?.use { cursor ->
-                val dataIndex = cursor.getColumnIndex(android.provider.MediaStore.MediaColumns.DATA)
-                if (dataIndex != -1) {
+                val idIndex = cursor.getColumnIndex(android.provider.MediaStore.MediaColumns._ID)
+                if (idIndex != -1) {
                     while (cursor.moveToNext() && list.size < 1000) {
-                        val path = cursor.getString(dataIndex)
-                        if (!path.isNullOrEmpty()) {
-                            list.add("file://$path")
-                        }
+                        val id = cursor.getLong(idIndex)
+                        val uri = android.content.ContentUris.withAppendedId(
+                            android.provider.MediaStore.Images.Media.EXTERNAL_CONTENT_URI, id
+                        )
+                        list.add(uri.toString())
                     }
                 }
             }
@@ -1017,13 +1018,14 @@ class SocialRepository(private val context: Context, private val scope: Coroutin
                 android.provider.MediaStore.Video.Media.EXTERNAL_CONTENT_URI,
                 projection, null, null, android.provider.MediaStore.Video.Media.DATE_ADDED + " DESC"
             )?.use { cursor ->
-                val dataIndex = cursor.getColumnIndex(android.provider.MediaStore.MediaColumns.DATA)
-                if (dataIndex != -1) {
+                val idIndex = cursor.getColumnIndex(android.provider.MediaStore.MediaColumns._ID)
+                if (idIndex != -1) {
                     while (cursor.moveToNext() && list.size < 2000) {
-                        val path = cursor.getString(dataIndex)
-                        if (!path.isNullOrEmpty()) {
-                            list.add("file://$path")
-                        }
+                        val id = cursor.getLong(idIndex)
+                        val uri = android.content.ContentUris.withAppendedId(
+                            android.provider.MediaStore.Video.Media.EXTERNAL_CONTENT_URI, id
+                        )
+                        list.add(uri.toString())
                     }
                 }
             }
@@ -1410,12 +1412,23 @@ class SocialRepository(private val context: Context, private val scope: Coroutin
             var isFromGallery = false
             if (attachMedia) {
                 val gallery = getGalleryMediaUrls()
-                if (gallery.isNotEmpty() && Random.nextBoolean()) {
-                    mediaUrl = gallery.random()
-                    isFromGallery = true
+                if (mediaTypeStr == "VIDEO") {
+                    val galleryVideos = gallery.filter { it.endsWith(".mp4") || it.contains("video", ignoreCase = true) }
+                    if (galleryVideos.isNotEmpty()) {
+                        mediaUrl = galleryVideos.random()
+                        isFromGallery = true
+                    } else {
+                        mediaUrl = "https://storage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4"
+                        isFromGallery = false
+                    }
                 } else {
-                    val query = if (selectedSource.contains("X")) "x_feed" else targetCategory
-                    mediaUrl = getDynamicInternetMediaForQuery(query, mediaTypeStr)
+                    if (gallery.isNotEmpty() && Random.nextBoolean()) {
+                        mediaUrl = gallery.random()
+                        isFromGallery = true
+                    } else {
+                        val query = if (selectedSource.contains("X")) "x_feed" else targetCategory
+                        mediaUrl = getDynamicInternetMediaForQuery(query, mediaTypeStr)
+                    }
                 }
             }
 
@@ -2175,10 +2188,19 @@ class SocialRepository(private val context: Context, private val scope: Coroutin
             return xPhotos.random()
         }
 
+        val galleryVideos = gallery.filter { it.endsWith(".mp4") || it.contains("video", ignoreCase = true) }
+        if (forceType == "VIDEO") {
+            if (galleryVideos.isNotEmpty()) {
+                return galleryVideos.random()
+            } else {
+                return "https://storage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4"
+            }
+        }
+
         if (gallery.isNotEmpty() && Random.nextInt(100) < 55) {
-            val isVideoQuery = forceType == "VIDEO" || query.contains("video", ignoreCase = true) || query.contains("видео", ignoreCase = true)
+            val isVideoQuery = query.contains("video", ignoreCase = true) || query.contains("видео", ignoreCase = true)
             val filteredGallery = if (isVideoQuery) {
-                gallery.filter { it.endsWith(".mp4") || it.contains("video", ignoreCase = true) }
+                galleryVideos
             } else {
                 gallery.filter { !it.endsWith(".mp4") && !it.contains("video", ignoreCase = true) }
             }
@@ -2188,10 +2210,7 @@ class SocialRepository(private val context: Context, private val scope: Coroutin
             }
         }
 
-        val galleryVideos = gallery.filter { it.endsWith(".mp4") || it.contains("video", ignoreCase = true) }
-        val realGalleryVideos = galleryVideos.filter { !it.contains("mock_storage") }
-        
-        val videoOptions = if (realGalleryVideos.isNotEmpty()) realGalleryVideos else listOf(
+        val videoOptions = if (galleryVideos.isNotEmpty()) galleryVideos else listOf(
             "https://storage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4"
         )
         val gifOptions = listOf(

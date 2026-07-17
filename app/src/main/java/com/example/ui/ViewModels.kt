@@ -458,7 +458,7 @@ class SocialViewModel(application: Application) : AndroidViewModel(application) 
         val prefs = context.getSharedPreferences("nog_prefs", Context.MODE_PRIVATE)
         
         // Exclusives check
-        if (id in 201..220) {
+        if (id in 201..230) {
             val user = currentUser.value
             if (user?.isVerified != true) return false
         }
