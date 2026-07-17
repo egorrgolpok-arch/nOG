@@ -292,13 +292,14 @@ fun CasinoScreen(
                 }
             } else {
                 // Render Game
+                val coinsInt = userCoins.coerceAtMost(Int.MAX_VALUE.toLong()).toInt()
                 when (activeGame) {
-                    "blackjack" -> BlackjackGame(viewModel, userCoins, isRu)
-                    "poker" -> PokerGame(viewModel, userCoins, isRu)
-                    "durak" -> DurakGame(viewModel, userCoins, isRu)
-                    "racing" -> HorseRacingGame(viewModel, userCoins, isRu)
-                    "roulette" -> RouletteGame(viewModel, userCoins, isRu)
-                    "slots" -> SlotsGame(viewModel, userCoins, isRu)
+                    "blackjack" -> BlackjackGame(viewModel, coinsInt, isRu)
+                    "poker" -> PokerGame(viewModel, coinsInt, isRu)
+                    "durak" -> DurakGame(viewModel, coinsInt, isRu)
+                    "racing" -> HorseRacingGame(viewModel, coinsInt, isRu)
+                    "roulette" -> RouletteGame(viewModel, coinsInt, isRu)
+                    "slots" -> SlotsGame(viewModel, coinsInt, isRu)
                 }
             }
         }

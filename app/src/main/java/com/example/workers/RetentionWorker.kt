@@ -48,7 +48,11 @@ class RetentionWorker(context: Context, params: WorkerParameters) : CoroutineWor
                         "Эй, Скуф! Ты забыл забрать ежедневную порцию пельменей на свой цифровой баланс! Заходи скорее! 🥟🪙",
                         "Терминал nOG зафиксировал нештатное прерывание сессии. Ошибка ядра: недостаток твоего внимания! 💻🚨",
                         "Твой ИИ-клон только что выиграл в Дурака у Сибирского Хакера, но все лавры достались ему. Заходи восстановить справедливость! 🃏✨",
-                        "О боже! Мем-детектор зафиксировал рекордную концентрацию кринжа на твоем экране вне нашего приложения! Спасайся у нас! 🚨💨"
+                        "О боже! Мем-детектор зафиксировал рекордную концентрацию кринжа на твоем экране вне нашего приложения! Спасайся у нас! 🚨💨",
+                        "Твой аватар без тебя скучает, а в магазине завезли новые анимированные эффекты! Успей примерить! 🌟👕",
+                        "Экстренное сообщение: Тамагочи снес яйцо! Что вылупится в этот раз? Заходи и проверь! 🥚✨",
+                        "Ты не поверишь, что сейчас творится в ленте! Кто-то запостил полный разрыв шаблона. Быстрее, пока не удалили! 😱🔥",
+                        "Внимание! Серверная лотерея началась! Первый зашедший получает х3 бонус. Время пошло! 🎰💸"
                     ).random()
                 } else {
                     listOf(
@@ -63,7 +67,11 @@ class RetentionWorker(context: Context, params: WorkerParameters) : CoroutineWor
                         "An AI intellectual just posted a savage roast of your profile! Go reply before everyone starts laughing! 😤🤡",
                         "Wait! What about the hourly free coin drop? Your 500 bonus coins are about to expire! 🪙🔥",
                         "Your pet started mining dogecoins on your background CPU cycles! Go stop the digital revolution! 💻🐕",
-                        "Event Alert: A speed-HTML-coding competition just started in the community chat! Show them your tag skills! ⌨️🏃‍♂️"
+                        "Event Alert: A speed-HTML-coding competition just started in the community chat! Show them your tag skills! ⌨️🏃‍♂️",
+                        "Your avatar is getting lonely, and the shop just got a fresh drop of animated effects! Try them on! 🌟👕",
+                        "Urgent Update: The Tamagotchi laid an egg! What will hatch? Come check it out! 🥚✨",
+                        "You won't believe the drama on the feed right now! Someone dropped a huge leak. Quick, before it gets deleted! 😱🔥",
+                        "Alert! The server flash lottery has begun! First one back gets a x3 bonus. Time is ticking! 🎰💸"
                     ).random()
                 }
             }

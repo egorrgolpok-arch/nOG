@@ -21,6 +21,7 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
@@ -56,6 +57,15 @@ data class TamagotchiState(
     val sickTimeSpentToday: Float = 0f,
     val lastFedTime: Long = 0L,
     val lastWashedTime: Long = 0L,
+    val growthStage: String = "EGG", // EGG, BABY, ADULT, FAMILY
+    val eggColorId: Int = 0,
+    val eggPatternId: Int = 0,
+    val breedParent1: String? = null,
+    val breedParent2: String? = null,
+    val breedParent1Avatar: String? = null,
+    val breedParent2Avatar: String? = null,
+    val breedEggColorId: Int = 0,
+    val breedEggPatternId: Int = 0,
     val isDead: Boolean = false,
     val deathReason: String? = null, // "disease", "neglect", "old_age"
     val deathDiseaseName: String? = null,
@@ -91,6 +101,15 @@ object TamagotchiManager {
             sickTimeSpentToday = prefs.getFloat("sick_spent_today", 0f),
             lastFedTime = prefs.getLong("last_fed", 0L),
             lastWashedTime = prefs.getLong("last_washed", 0L),
+            growthStage = prefs.getString("growth_stage", "EGG") ?: "EGG",
+            eggColorId = prefs.getInt("egg_color", 0),
+            eggPatternId = prefs.getInt("egg_pattern", 0),
+            breedParent1 = prefs.getString("breed_p1", null),
+            breedParent2 = prefs.getString("breed_p2", null),
+            breedParent1Avatar = prefs.getString("breed_p1_avatar", null),
+            breedParent2Avatar = prefs.getString("breed_p2_avatar", null),
+            breedEggColorId = prefs.getInt("breed_egg_color", 0),
+            breedEggPatternId = prefs.getInt("breed_egg_pattern", 0),
             isDead = prefs.getBoolean("is_dead", false),
             deathReason = prefs.getString("death_reason", null),
             deathDiseaseName = prefs.getString("death_disease_name", null),
@@ -121,6 +140,15 @@ object TamagotchiManager {
             putFloat("sick_spent_today", state.sickTimeSpentToday)
             putLong("last_fed", state.lastFedTime)
             putLong("last_washed", state.lastWashedTime)
+            putString("growth_stage", state.growthStage)
+            putInt("egg_color", state.eggColorId)
+            putInt("egg_pattern", state.eggPatternId)
+            putString("breed_p1", state.breedParent1)
+            putString("breed_p2", state.breedParent2)
+            putString("breed_p1_avatar", state.breedParent1Avatar)
+            putString("breed_p2_avatar", state.breedParent2Avatar)
+            putInt("breed_egg_color", state.breedEggColorId)
+            putInt("breed_egg_pattern", state.breedEggPatternId)
             putBoolean("is_dead", state.isDead)
             putString("death_reason", state.deathReason)
             putString("death_disease_name", state.deathDiseaseName)
@@ -219,6 +247,51 @@ fun TamagotchiDialog(
 
     var state by remember { mutableStateOf(TamagotchiManager.loadState(context)) }
     var notificationMessage by remember { mutableStateOf<String?>(null) }
+    var isGeneratingPet by remember { mutableStateOf(false) }
+    var showBreedingDialog by remember { mutableStateOf(false) }
+    
+    LaunchedEffect(isGeneratingPet) {
+        if (isGeneratingPet) {
+            delay(2000L) // fake generation delay
+            
+            val candidateBots = users.filter { it.id != (currentUser?.id ?: "") }
+            if (candidateBots.isNotEmpty()) {
+                val pickedBot = candidateBots.random()
+                val newStage = listOf("EGG", "BABY", "ADULT").random()
+                val newPet = TamagotchiState(
+                    hasPet = true,
+                    petBotId = pickedBot.id,
+                    petName = pickedBot.username,
+                    petHandle = pickedBot.handle,
+                    petAvatar = pickedBot.avatarUrl,
+                    birthTime = System.currentTimeMillis(),
+                    lastTickTime = System.currentTimeMillis(),
+                    growthStage = newStage,
+                    eggColorId = Random.nextInt(12),
+                    eggPatternId = Random.nextInt(5)
+                )
+                state = newPet
+                TamagotchiManager.saveState(context, newPet)
+                notificationMessage = if (isRu) {
+                    when (newStage) {
+                        "EGG" -> "Успех! Яйцо получено!"
+                        "BABY" -> "Неожиданно! Вылупился сразу Малыш!"
+                        else -> "Ого! К вам пришел уже Взрослый Питомец!"
+                    }
+                } else {
+                    when (newStage) {
+                        "EGG" -> "Success! Egg generated!"
+                        "BABY" -> "Surprise! A Baby just dropped in!"
+                        else -> "Wow! An Adult pet joined you!"
+                    }
+                }
+            } else {
+                notificationMessage = if (isRu) "Список ботов для связи пуст!" else "No node candidates detected!"
+            }
+            
+            isGeneratingPet = false
+        }
+    }
     var sittingTimeMs by remember { mutableStateOf(0L) } // track sitting time
     var washTaps by remember { mutableStateOf(0) } // tap counter for washing
 
@@ -483,34 +556,24 @@ fun TamagotchiDialog(
                                         )
                                     }
                                 }
+                            } else if (isGeneratingPet) {
+                                Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(top = 16.dp)) {
+                                    CircularProgressIndicator(color = PureWhite)
+                                    Spacer(modifier = Modifier.height(16.dp))
+                                    Text(
+                                        text = if (isRu) "nOG AI генерирует вашего питомца..." else "nOG AI generating your pet...",
+                                        color = PureWhite,
+                                        fontFamily = FontFamily.Monospace,
+                                        fontSize = 12.sp,
+                                        textAlign = TextAlign.Center
+                                    )
+                                }
                             } else {
                                 // Adopt Pet Button
                                 Button(
                                     onClick = {
                                         viewModel.vibrate(80)
-                                        // Pick a random bot from available network list
-                                        val candidateBots = users.filter { it.id != (currentUser?.id ?: "") }
-                                        if (candidateBots.isNotEmpty()) {
-                                            val pickedBot = candidateBots.random()
-                                            val newPet = TamagotchiState(
-                                                hasPet = true,
-                                                petBotId = pickedBot.id,
-                                                petName = pickedBot.username,
-                                                petHandle = pickedBot.handle,
-                                                petAvatar = pickedBot.avatarUrl,
-                                                birthTime = System.currentTimeMillis(),
-                                                lastTickTime = System.currentTimeMillis()
-                                            )
-                                            state = newPet
-                                            TamagotchiManager.saveState(context, newPet)
-                                            notificationMessage = if (isRu) {
-                                                "Поздравляем! Вы приютили @${pickedBot.handle} в качестве Вашего питомца!"
-                                            } else {
-                                                "Success! Adopted @${pickedBot.handle} into your local containment unit!"
-                                            }
-                                        } else {
-                                            notificationMessage = if (isRu) "Список ботов для связи пуст!" else "No node candidates detected!"
-                                        }
+                                        isGeneratingPet = true
                                     },
                                     colors = ButtonDefaults.buttonColors(
                                         containerColor = PureWhite,
@@ -534,177 +597,542 @@ fun TamagotchiDialog(
                     } else { // active or dead
                         if (state.isDead) {
                             // DIED VIEWPORT
-                            Column(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .border(2.dp, PureWhite)
-                                    .background(PureBlack)
-                                    .padding(16.dp),
-                                horizontalAlignment = Alignment.CenterHorizontally
-                            ) {
-                                // Show Avatar when dead
-                                AsyncImage(
-                                    model = state.petAvatar,
-                                    contentDescription = "Pet Avatar",
+                            if (state.growthStage == "FAMILY") {
+                                Column(
                                     modifier = Modifier
-                                        .size(80.dp)
-                                        .clip(CircleShape)
-                                        .border(2.dp, PureWhite, CircleShape),
-                                    contentScale = ContentScale.Crop,
-                                    error = rememberVectorPainter(Icons.Filled.Pets),
-                                    placeholder = rememberVectorPainter(Icons.Filled.Pets)
-                                )
-                                Spacer(modifier = Modifier.height(12.dp))
-                                Text(
-                                    text = """
-                                         🪦 🪦 🪦
-                                        ( x _ x )
-                                        /   |   \
-                                    """.trimIndent(),
-                                    color = PureWhite,
-                                    fontSize = 16.sp,
-                                    fontFamily = FontFamily.Monospace,
-                                    textAlign = TextAlign.Center,
-                                    modifier = Modifier.padding(bottom = 12.dp)
-                                )
-
-                                Text(
-                                    text = if (isRu) {
-                                        "ПИТОМЕЦ @${state.petHandle} УМЕР 🖤"
-                                    } else {
-                                        "PET @${state.petHandle} DECEASED 🖤"
-                                    },
-                                    color = PureWhite,
-                                    fontSize = 15.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    fontFamily = FontFamily.Monospace,
-                                    textAlign = TextAlign.Center
-                                )
-
-                                Spacer(modifier = Modifier.height(12.dp))
-
-                                val deathDetails = when (state.deathReason) {
-                                    "disease" -> {
-                                        val disease = state.deathDiseaseName ?: (if (isRu) "неизвестная болезнь" else "unknown disease")
-                                        if (isRu) {
-                                            "Печальный отчет карантинного отсека: Питомец ${state.petName} пал жертвой страшного недуга.\nПричина смерти: [${disease.uppercase()}]."
-                                        } else {
-                                            "Medical Report: Pet ${state.petName} succumbed to a fatal condition.\nCause of death: [${disease.uppercase()}]."
-                                        }
-                                    }
-                                    "old_age" -> {
-                                        if (isRu) {
-                                            "Питомец мирно угас от глубокой старости, исчерпав свой кремниевый лимит циклов."
-                                        } else {
-                                            "Pet peacefully reached end of natural lifecycle limits."
-                                        }
-                                    }
-                                    else -> {
-                                        if (isRu) {
-                                            "Питомец погиб от голода, жуткой антисанитарии и глобального депрессивного расстройства."
-                                        } else {
-                                            "Pet suffered total systems shutdown due to severe starvation and hygiene neglect."
-                                        }
-                                    }
-                                }
-
-                                Text(
-                                    text = deathDetails,
-                                    color = PureWhite,
-                                    fontSize = 11.sp,
-                                    fontFamily = FontFamily.Monospace,
-                                    textAlign = TextAlign.Center,
-                                    modifier = Modifier
-                                        .border(1.dp, BorderGray)
-                                        .padding(8.dp)
-                                )
-
-                                Spacer(modifier = Modifier.height(16.dp))
-
-                                // Action button to bury and reset
-                                Button(
-                                    onClick = {
-                                        viewModel.vibrate(100)
-                                        // Cooldown duration setting: 10 hours to 1 day
-                                        val cooldownMs = if (isUserVerified) {
-                                            0L
-                                        } else {
-                                            val hours = Random.nextLong(10, 25)
-                                            hours * 3600L * 1000L
-                                        }
-                                        val cooldownUntilTimestamp = System.currentTimeMillis() + cooldownMs
-                                        
-                                        TamagotchiManager.resetState(context, cooldownUntilTimestamp)
-                                        state = TamagotchiState(hasPet = false, cooldownUntil = cooldownUntilTimestamp)
-                                        notificationMessage = if (isRu) {
-                                            if (isUserVerified) "Память питомца стерта. КД отсутствует т.к. вы верифицированы!"
-                                            else "Питомец похоронен. Модуль перезапуска на КД!"
-                                        } else {
-                                            if (isUserVerified) "Memory formatted. Verified bypass of incubator cooldown limits activated!"
-                                            else "Tombstone erected. Cooldown applied successfully."
-                                        }
-                                    },
-                                    colors = ButtonDefaults.buttonColors(containerColor = PureWhite, contentColor = PureBlack),
-                                    shape = RoundedCornerShape(4.dp),
-                                    modifier = Modifier.fillMaxWidth()
+                                        .fillMaxWidth()
+                                        .border(2.dp, Color(0xFFE040FB))
+                                        .background(PureBlack)
+                                        .padding(16.dp),
+                                    horizontalAlignment = Alignment.CenterHorizontally
                                 ) {
                                     Text(
-                                        text = if (isRu) "ОЧИСТИТЬ ПАМЯТЬ / СБРОСИТЬ КД 🧹" else "FORMAT MEMORY CARD 🧹",
-                                        fontFamily = FontFamily.Monospace,
+                                        text = if (isRu) "🪦 ТРАГЕДИЯ В СЕМЬЕ 🪦" else "🪦 TRAGEDY IN THE FAMILY 🪦",
+                                        color = AlertRed,
                                         fontWeight = FontWeight.Bold,
-                                        fontSize = 11.sp
+                                        fontFamily = FontFamily.Monospace,
+                                        fontSize = 14.sp
                                     )
+                                    Spacer(modifier = Modifier.height(12.dp))
+                                    
+                                    // Show original parent deceased avatar
+                                    AsyncImage(
+                                        model = state.petAvatar,
+                                        contentDescription = "Deceased Pet",
+                                        modifier = Modifier
+                                            .size(60.dp)
+                                            .clip(CircleShape)
+                                            .border(2.dp, AlertRed, CircleShape),
+                                        contentScale = ContentScale.Crop,
+                                        error = rememberVectorPainter(Icons.Filled.Pets)
+                                    )
+                                    Spacer(modifier = Modifier.height(8.dp))
+                                    Text(
+                                        text = if (isRu) "Родитель ${state.petName} покинул этот мир... 🖤" else "Parent ${state.petName} has passed away... 🖤",
+                                        color = PureWhite,
+                                        fontSize = 12.sp,
+                                        fontFamily = FontFamily.Monospace,
+                                        textAlign = TextAlign.Center
+                                    )
+                                    
+                                    Spacer(modifier = Modifier.height(16.dp))
+                                    
+                                    Text(
+                                        text = if (isRu) "Но в гнезде осталось яйцо от скрещивания с @${state.breedParent2}!" else "But the egg from breeding with @${state.breedParent2} remains!",
+                                        color = PureWhite,
+                                        fontSize = 12.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        fontFamily = FontFamily.Monospace,
+                                        textAlign = TextAlign.Center
+                                    )
+                                    
+                                    Spacer(modifier = Modifier.height(12.dp))
+                                    
+                                    // Render the remaining egg
+                                    val eggColors = listOf(Color.Red, Color.Green, Color.Blue, Color.Cyan, Color.Magenta, Color.Yellow, Color.White, Color(0xFFFF9100), Color(0xFF3F51B5), Color(0xFFE040FB), Color(0xFF00E676), Color.Gray)
+                                    val baseColor = eggColors[state.breedEggColorId % eggColors.size]
+                                    val patternId = state.breedEggPatternId % 5
+                                    Canvas(
+                                        modifier = Modifier
+                                            .size(60.dp)
+                                            .clip(RoundedCornerShape(8.dp))
+                                            .border(2.dp, baseColor, RoundedCornerShape(8.dp))
+                                    ) {
+                                        val w = size.width
+                                        val h = size.height
+                                        drawRect(color = baseColor.copy(alpha = 0.3f))
+                                        drawOval(color = baseColor, topLeft = androidx.compose.ui.geometry.Offset(w*0.2f, h*0.1f), size = androidx.compose.ui.geometry.Size(w*0.6f, h*0.8f))
+                                        
+                                        // Draw Pattern
+                                        if (patternId == 1) { // Spots
+                                            drawCircle(Color.White.copy(0.6f), radius = 4.dp.toPx(), center = androidx.compose.ui.geometry.Offset(w*0.4f, h*0.3f))
+                                            drawCircle(Color.White.copy(0.6f), radius = 5.dp.toPx(), center = androidx.compose.ui.geometry.Offset(w*0.6f, h*0.6f))
+                                            drawCircle(Color.White.copy(0.6f), radius = 3.dp.toPx(), center = androidx.compose.ui.geometry.Offset(w*0.3f, h*0.7f))
+                                        } else if (patternId == 2) { // Stripes
+                                            drawLine(Color.White.copy(0.6f), start = androidx.compose.ui.geometry.Offset(w*0.25f, h*0.3f), end = androidx.compose.ui.geometry.Offset(w*0.75f, h*0.3f), strokeWidth = 3.dp.toPx())
+                                            drawLine(Color.White.copy(0.6f), start = androidx.compose.ui.geometry.Offset(w*0.2f, h*0.5f), end = androidx.compose.ui.geometry.Offset(w*0.8f, h*0.5f), strokeWidth = 3.dp.toPx())
+                                            drawLine(Color.White.copy(0.6f), start = androidx.compose.ui.geometry.Offset(w*0.25f, h*0.7f), end = androidx.compose.ui.geometry.Offset(w*0.75f, h*0.7f), strokeWidth = 3.dp.toPx())
+                                        } else if (patternId == 3) { // Star
+                                            drawCircle(Color.Yellow.copy(0.8f), radius = 6.dp.toPx(), center = androidx.compose.ui.geometry.Offset(w/2, h/2))
+                                        } else if (patternId == 4) { // Crack
+                                            val crackPath = androidx.compose.ui.graphics.Path().apply {
+                                                moveTo(w*0.5f, h*0.1f)
+                                                lineTo(w*0.6f, h*0.3f)
+                                                lineTo(w*0.45f, h*0.5f)
+                                                lineTo(w*0.55f, h*0.7f)
+                                            }
+                                            drawPath(crackPath, color = Color.Black.copy(alpha = 0.5f), style = androidx.compose.ui.graphics.drawscope.Stroke(width = 2.dp.toPx()))
+                                        }
+                                    }
+                                    
+                                    Spacer(modifier = Modifier.height(20.dp))
+                                    
+                                    // Choice 1: Grow the offspring egg
+                                    Button(
+                                        onClick = {
+                                            viewModel.vibrate(100)
+                                            val childPet = TamagotchiState(
+                                                hasPet = true,
+                                                petBotId = state.petBotId,
+                                                petName = if (isRu) "Потомок ${state.petName}" else "Offspring of ${state.petName}",
+                                                petHandle = "offspring_${Random.nextInt(1000, 9999)}",
+                                                petAvatar = state.breedParent2Avatar ?: state.petAvatar,
+                                                birthTime = System.currentTimeMillis(),
+                                                lastTickTime = System.currentTimeMillis(),
+                                                growthStage = "EGG",
+                                                eggColorId = state.breedEggColorId,
+                                                eggPatternId = state.breedEggPatternId
+                                            )
+                                            state = childPet
+                                            TamagotchiManager.saveState(context, childPet)
+                                            notificationMessage = if (isRu) "Вы решили выращивать яйцо от скрещивания! 🥚✨" else "You chose to hatch the breeding egg! 🥚✨"
+                                        },
+                                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE040FB), contentColor = PureWhite),
+                                        shape = RoundedCornerShape(4.dp),
+                                        modifier = Modifier.fillMaxWidth()
+                                    ) {
+                                        Text(
+                                            text = if (isRu) "🐣 ВЫРАСТИТЬ ЯЙЦО ПОТОМСТВА" else "🐣 HATCH OFFSPRING EGG",
+                                            fontFamily = FontFamily.Monospace,
+                                            fontWeight = FontWeight.Bold,
+                                            fontSize = 11.sp
+                                        )
+                                    }
+                                    
+                                    Spacer(modifier = Modifier.height(10.dp))
+                                    
+                                    // Choice 2: Discard the egg and reset
+                                    Button(
+                                        onClick = {
+                                            viewModel.vibrate(100)
+                                            val cooldownMs = if (isUserVerified) {
+                                                0L
+                                            } else {
+                                                val hours = Random.nextLong(10, 25)
+                                                hours * 3600L * 1000L
+                                            }
+                                            val cooldownUntilTimestamp = System.currentTimeMillis() + cooldownMs
+                                            
+                                            TamagotchiManager.resetState(context, cooldownUntilTimestamp)
+                                            state = TamagotchiState(hasPet = false, cooldownUntil = cooldownUntilTimestamp)
+                                            notificationMessage = if (isRu) "Яйцо выброшено. Модуль перезапуска на КД!" else "Egg discarded. Reset complete."
+                                        },
+                                        colors = ButtonDefaults.buttonColors(containerColor = PureWhite, contentColor = PureBlack),
+                                        shape = RoundedCornerShape(4.dp),
+                                        modifier = Modifier.fillMaxWidth()
+                                    ) {
+                                        Text(
+                                            text = if (isRu) "🗑️ ВЫКИНУТЬ ЯЙЦО И СБРОСИТЬ" else "🗑️ DISCARD EGG & RESET",
+                                            fontFamily = FontFamily.Monospace,
+                                            fontWeight = FontWeight.Bold,
+                                            fontSize = 11.sp
+                                        )
+                                    }
+                                }
+                            } else {
+                                Column(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .border(2.dp, PureWhite)
+                                        .background(PureBlack)
+                                        .padding(16.dp),
+                                    horizontalAlignment = Alignment.CenterHorizontally
+                                ) {
+                                    // Show Avatar when dead
+                                    AsyncImage(
+                                        model = state.petAvatar,
+                                        contentDescription = "Pet Avatar",
+                                        modifier = Modifier
+                                            .size(80.dp)
+                                            .clip(CircleShape)
+                                            .border(2.dp, PureWhite, CircleShape),
+                                        contentScale = ContentScale.Crop,
+                                        error = rememberVectorPainter(Icons.Filled.Pets),
+                                        placeholder = rememberVectorPainter(Icons.Filled.Pets)
+                                    )
+                                    Spacer(modifier = Modifier.height(12.dp))
+                                    Text(
+                                        text = """
+                                             🪦 🪦 🪦
+                                            ( x _ x )
+                                            /   |   \
+                                        """.trimIndent(),
+                                        color = PureWhite,
+                                        fontSize = 16.sp,
+                                        fontFamily = FontFamily.Monospace,
+                                        textAlign = TextAlign.Center,
+                                        modifier = Modifier.padding(bottom = 12.dp)
+                                    )
+
+                                    Text(
+                                        text = if (isRu) {
+                                            "ПИТОМЕЦ @${state.petHandle} УМЕР 🖤"
+                                        } else {
+                                            "PET @${state.petHandle} DECEASED 🖤"
+                                        },
+                                        color = PureWhite,
+                                        fontSize = 15.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        fontFamily = FontFamily.Monospace,
+                                        textAlign = TextAlign.Center
+                                    )
+
+                                    Spacer(modifier = Modifier.height(12.dp))
+
+                                    val deathDetails = when (state.deathReason) {
+                                        "disease" -> {
+                                            val disease = state.deathDiseaseName ?: (if (isRu) "неизвестная болезнь" else "unknown disease")
+                                            if (isRu) {
+                                                "Печальный отчет карантинного отсека: Питомец ${state.petName} пал жертвой страшного недуга.\nПричина смерти: [${disease.uppercase()}]."
+                                            } else {
+                                                "Medical Report: Pet ${state.petName} succumbed to a fatal condition.\nCause of death: [${disease.uppercase()}]."
+                                            }
+                                        }
+                                        "old_age" -> {
+                                            if (isRu) {
+                                                "Питомец мирно угас от глубокой старости, исчерпав свой кремниевый лимит циклов."
+                                            } else {
+                                                "Pet peacefully reached end of natural lifecycle limits."
+                                            }
+                                        }
+                                        else -> {
+                                            if (isRu) {
+                                                "Питомец погиб от голода, жуткой антисанитарии и глобального депрессивного расстройства."
+                                            } else {
+                                                "Pet suffered total systems shutdown due to severe starvation and hygiene neglect."
+                                            }
+                                        }
+                                    }
+
+                                    Text(
+                                        text = deathDetails,
+                                        color = PureWhite,
+                                        fontSize = 11.sp,
+                                        fontFamily = FontFamily.Monospace,
+                                        textAlign = TextAlign.Center,
+                                        modifier = Modifier
+                                            .border(1.dp, BorderGray)
+                                            .padding(8.dp)
+                                    )
+
+                                    Spacer(modifier = Modifier.height(16.dp))
+
+                                    // Action button to bury and reset
+                                    Button(
+                                        onClick = {
+                                            viewModel.vibrate(100)
+                                            // Cooldown duration setting: 10 hours to 1 day
+                                            val cooldownMs = if (isUserVerified) {
+                                                0L
+                                            } else {
+                                                val hours = Random.nextLong(10, 25)
+                                                hours * 3600L * 1000L
+                                            }
+                                            val cooldownUntilTimestamp = System.currentTimeMillis() + cooldownMs
+                                            
+                                            TamagotchiManager.resetState(context, cooldownUntilTimestamp)
+                                            state = TamagotchiState(hasPet = false, cooldownUntil = cooldownUntilTimestamp)
+                                            notificationMessage = if (isRu) {
+                                                if (isUserVerified) "Память питомца стерта. КД отсутствует т.к. вы верифицированы!"
+                                                else "Питомец похоронен. Модуль перезапуска на КД!"
+                                            } else {
+                                                if (isUserVerified) "Memory formatted. Verified bypass of incubator cooldown limits activated!"
+                                                else "Tombstone erected. Cooldown applied successfully."
+                                            }
+                                        },
+                                        colors = ButtonDefaults.buttonColors(containerColor = PureWhite, contentColor = PureBlack),
+                                        shape = RoundedCornerShape(4.dp),
+                                        modifier = Modifier.fillMaxWidth()
+                                    ) {
+                                        Text(
+                                            text = if (isRu) "ВЫКИНУТЬ ПИТОМЦА 🗑️" else "DISCARD PET 🗑️",
+                                            fontFamily = FontFamily.Monospace,
+                                            fontWeight = FontWeight.Bold,
+                                            fontSize = 11.sp
+                                        )
+                                    }
                                 }
                             }
                         } else {
                             // ACTIVE PET VIEWPORT
                             Spacer(modifier = Modifier.height(16.dp))
 
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(bottom = 12.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                AsyncImage(
-                                    model = state.petAvatar,
-                                    contentDescription = "Pet Avatar",
+                            if (state.growthStage == "FAMILY") {
+                                Column(
                                     modifier = Modifier
-                                        .size(60.dp)
-                                        .clip(RoundedCornerShape(8.dp))
-                                        .border(2.dp, PureWhite, RoundedCornerShape(8.dp))
-                                        .clickable {
-                                            viewModel.vibrate(30)
-                                            state = state.copy(mood = (state.mood + 5f).coerceAtMost(100f))
-                                            notificationMessage = if (isRu) "Вы погладили питомца! Ему это нравится 💕" else "You pet the Tamagotchi! It purrs 💕"
-                                            TamagotchiManager.saveState(context, state)
-                                        },
-                                    contentScale = ContentScale.Crop,
-                                    error = rememberVectorPainter(Icons.Filled.Pets),
-                                    placeholder = rememberVectorPainter(Icons.Filled.Pets)
-                                )
-                                Spacer(modifier = Modifier.width(12.dp))
-                                Column {
+                                        .fillMaxWidth()
+                                        .border(2.dp, Color(0xFFE040FB), RoundedCornerShape(12.dp))
+                                        .background(PureBlack)
+                                        .padding(12.dp),
+                                    horizontalAlignment = Alignment.CenterHorizontally
+                                ) {
                                     Text(
-                                        text = state.petName,
-                                        color = PureWhite,
-                                        fontSize = 18.sp,
+                                        text = if (isRu) "👨‍👩‍👧 СЕМЕЙНОЕ ГНЕЗДО 👨‍👩‍👧" else "👨‍👩‍👧 FAMILY NEST 👨‍👩‍👧",
+                                        color = Color(0xFFE040FB),
                                         fontWeight = FontWeight.Bold,
-                                        fontFamily = FontFamily.Monospace
+                                        fontFamily = FontFamily.Monospace,
+                                        fontSize = 13.sp,
+                                        modifier = Modifier.padding(bottom = 12.dp)
                                     )
+                                    
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.SpaceEvenly,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        // Parent 1 (original pet)
+                                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                            AsyncImage(
+                                                model = state.petAvatar,
+                                                contentDescription = "Parent 1 Avatar",
+                                                modifier = Modifier
+                                                    .size(45.dp)
+                                                    .clip(RoundedCornerShape(8.dp))
+                                                    .border(2.dp, PureWhite, RoundedCornerShape(8.dp))
+                                                    .clickable {
+                                                        viewModel.vibrate(30)
+                                                        state = state.copy(mood = (state.mood + 5f).coerceAtMost(100f))
+                                                        notificationMessage = if (isRu) "Вы погладили Родителя 1!" else "You petted Parent 1!"
+                                                        TamagotchiManager.saveState(context, state)
+                                                    },
+                                                contentScale = ContentScale.Crop,
+                                                error = rememberVectorPainter(Icons.Filled.Pets)
+                                            )
+                                            Spacer(modifier = Modifier.height(4.dp))
+                                            Text(
+                                                text = state.petName,
+                                                color = PureWhite,
+                                                fontSize = 11.sp,
+                                                fontWeight = FontWeight.Bold,
+                                                fontFamily = FontFamily.Monospace,
+                                                textAlign = TextAlign.Center,
+                                                maxLines = 1,
+                                                overflow = TextOverflow.Ellipsis,
+                                                modifier = Modifier.widthIn(max = 80.dp)
+                                            )
+                                            Text(
+                                                text = if (isRu) "Родитель 1" else "Parent 1",
+                                                color = TextGray,
+                                                fontSize = 9.sp,
+                                                fontFamily = FontFamily.Monospace
+                                            )
+                                        }
+
+                                        // Glowing Heart
+                                        Icon(
+                                            imageVector = Icons.Filled.Favorite,
+                                            contentDescription = "Love",
+                                            tint = Color(0xFFE040FB),
+                                            modifier = Modifier.size(20.dp)
+                                        )
+
+                                        // Parent 2 (partner pet)
+                                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                            AsyncImage(
+                                                model = state.breedParent2Avatar ?: "",
+                                                contentDescription = "Parent 2 Avatar",
+                                                modifier = Modifier
+                                                    .size(45.dp)
+                                                    .clip(RoundedCornerShape(8.dp))
+                                                    .border(2.dp, PureWhite, RoundedCornerShape(8.dp))
+                                                    .clickable {
+                                                        viewModel.vibrate(30)
+                                                        state = state.copy(mood = (state.mood + 5f).coerceAtMost(100f))
+                                                        notificationMessage = if (isRu) "Вы погладили Родителя 2!" else "You petted Parent 2!"
+                                                        TamagotchiManager.saveState(context, state)
+                                                    },
+                                                contentScale = ContentScale.Crop,
+                                                error = rememberVectorPainter(Icons.Filled.Pets)
+                                            )
+                                            Spacer(modifier = Modifier.height(4.dp))
+                                            Text(
+                                                text = state.breedParent2 ?: "Partner",
+                                                color = PureWhite,
+                                                fontSize = 11.sp,
+                                                fontWeight = FontWeight.Bold,
+                                                fontFamily = FontFamily.Monospace,
+                                                textAlign = TextAlign.Center,
+                                                maxLines = 1,
+                                                overflow = TextOverflow.Ellipsis,
+                                                modifier = Modifier.widthIn(max = 80.dp)
+                                            )
+                                            Text(
+                                                text = if (isRu) "Родитель 2" else "Parent 2",
+                                                color = TextGray,
+                                                fontSize = 9.sp,
+                                                fontFamily = FontFamily.Monospace
+                                            )
+                                        }
+                                    }
+
+                                    Spacer(modifier = Modifier.height(12.dp))
                                     Text(
-                                        text = "@${state.petHandle}",
+                                        text = if (isRu) "🥚 БУДУЩЕЕ ПОТОМСТВО 🥚" else "🥚 FUTURE OFFSPRING 🥚",
                                         color = TextGray,
-                                        fontSize = 12.sp,
-                                        fontFamily = FontFamily.Monospace
+                                        fontSize = 10.sp,
+                                        fontFamily = FontFamily.Monospace,
+                                        modifier = Modifier.padding(bottom = 6.dp)
                                     )
-                                    val daysAge = state.ageHours / 24f
-                                    Text(
-                                        text = if (isRu) "Возраст: ${String.format("%.1f", daysAge)} дн." else "Age: ${String.format("%.1f", daysAge)} days",
-                                        color = PureWhite,
-                                        fontSize = 12.sp,
-                                        fontFamily = FontFamily.Monospace
-                                    )
+
+                                    // Render offspring egg
+                                    val eggColors = listOf(Color.Red, Color.Green, Color.Blue, Color.Cyan, Color.Magenta, Color.Yellow, Color.White, Color(0xFFFF9100), Color(0xFF3F51B5), Color(0xFFE040FB), Color(0xFF00E676), Color.Gray)
+                                    val baseColor = eggColors[state.breedEggColorId % eggColors.size]
+                                    val patternId = state.breedEggPatternId % 5
+                                    Canvas(
+                                        modifier = Modifier
+                                            .size(50.dp)
+                                            .clip(RoundedCornerShape(8.dp))
+                                            .border(2.dp, baseColor, RoundedCornerShape(8.dp))
+                                            .clickable {
+                                                viewModel.vibrate(30)
+                                                state = state.copy(mood = (state.mood + 2f).coerceAtMost(100f))
+                                                notificationMessage = if (isRu) "Вы погладили будущее яйцо... Оно вибрирует жизнью 🥚✨" else "You pet the future egg... It vibrates with life 🥚✨"
+                                                TamagotchiManager.saveState(context, state)
+                                            }
+                                    ) {
+                                        val w = size.width
+                                        val h = size.height
+                                        drawRect(color = baseColor.copy(alpha = 0.3f))
+                                        drawOval(color = baseColor, topLeft = androidx.compose.ui.geometry.Offset(w*0.2f, h*0.1f), size = androidx.compose.ui.geometry.Size(w*0.6f, h*0.8f))
+                                        
+                                        // Draw Pattern
+                                        if (patternId == 1) { // Spots
+                                            drawCircle(Color.White.copy(0.6f), radius = 3.dp.toPx(), center = androidx.compose.ui.geometry.Offset(w*0.4f, h*0.3f))
+                                            drawCircle(Color.White.copy(0.6f), radius = 4.dp.toPx(), center = androidx.compose.ui.geometry.Offset(w*0.6f, h*0.6f))
+                                            drawCircle(Color.White.copy(0.6f), radius = 2.dp.toPx(), center = androidx.compose.ui.geometry.Offset(w*0.3f, h*0.7f))
+                                        } else if (patternId == 2) { // Stripes
+                                            drawLine(Color.White.copy(0.6f), start = androidx.compose.ui.geometry.Offset(w*0.25f, h*0.3f), end = androidx.compose.ui.geometry.Offset(w*0.75f, h*0.3f), strokeWidth = 2.dp.toPx())
+                                            drawLine(Color.White.copy(0.6f), start = androidx.compose.ui.geometry.Offset(w*0.2f, h*0.5f), end = androidx.compose.ui.geometry.Offset(w*0.8f, h*0.5f), strokeWidth = 2.dp.toPx())
+                                            drawLine(Color.White.copy(0.6f), start = androidx.compose.ui.geometry.Offset(w*0.25f, h*0.7f), end = androidx.compose.ui.geometry.Offset(w*0.75f, h*0.7f), strokeWidth = 2.dp.toPx())
+                                        } else if (patternId == 3) { // Star
+                                            drawCircle(Color.Yellow.copy(0.8f), radius = 4.dp.toPx(), center = androidx.compose.ui.geometry.Offset(w/2, h/2))
+                                        } else if (patternId == 4) { // Crack
+                                            val crackPath = androidx.compose.ui.graphics.Path().apply {
+                                                moveTo(w*0.5f, h*0.1f)
+                                                lineTo(w*0.6f, h*0.3f)
+                                                lineTo(w*0.45f, h*0.5f)
+                                                lineTo(w*0.55f, h*0.7f)
+                                            }
+                                            drawPath(crackPath, color = Color.Black.copy(alpha = 0.5f), style = androidx.compose.ui.graphics.drawscope.Stroke(width = 1.5.dp.toPx()))
+                                        }
+                                    }
+                                }
+                                Spacer(modifier = Modifier.height(12.dp))
+                            } else {
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(bottom = 12.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    if (state.growthStage == "EGG") {
+                                        val eggColors = listOf(Color.Red, Color.Green, Color.Blue, Color.Cyan, Color.Magenta, Color.Yellow, Color.White, Color(0xFFFF9100), Color(0xFF3F51B5), Color(0xFFE040FB), Color(0xFF00E676), Color.Gray)
+                                        val baseColor = eggColors[state.eggColorId % eggColors.size]
+                                        val patternId = state.eggPatternId % 5
+                                        Canvas(
+                                            modifier = Modifier
+                                                .size(60.dp)
+                                                .clip(RoundedCornerShape(8.dp))
+                                                .border(2.dp, baseColor, RoundedCornerShape(8.dp))
+                                                .clickable {
+                                                    viewModel.vibrate(30)
+                                                    state = state.copy(mood = (state.mood + 2f).coerceAtMost(100f))
+                                                    notificationMessage = if (isRu) "Вы погладили яйцо... Оно теплое 🥚" else "You pet the egg... It's warm 🥚"
+                                                    TamagotchiManager.saveState(context, state)
+                                                }
+                                        ) {
+                                            val w = size.width
+                                            val h = size.height
+                                            drawRect(color = baseColor.copy(alpha = 0.3f))
+                                            drawOval(color = baseColor, topLeft = androidx.compose.ui.geometry.Offset(w*0.2f, h*0.1f), size = androidx.compose.ui.geometry.Size(w*0.6f, h*0.8f))
+                                            
+                                            // Draw Pattern
+                                            if (patternId == 1) { // Spots
+                                                drawCircle(Color.White.copy(0.6f), radius = 4.dp.toPx(), center = androidx.compose.ui.geometry.Offset(w*0.4f, h*0.3f))
+                                                drawCircle(Color.White.copy(0.6f), radius = 5.dp.toPx(), center = androidx.compose.ui.geometry.Offset(w*0.6f, h*0.6f))
+                                                drawCircle(Color.White.copy(0.6f), radius = 3.dp.toPx(), center = androidx.compose.ui.geometry.Offset(w*0.3f, h*0.7f))
+                                            } else if (patternId == 2) { // Stripes
+                                                drawLine(Color.White.copy(0.6f), start = androidx.compose.ui.geometry.Offset(w*0.25f, h*0.3f), end = androidx.compose.ui.geometry.Offset(w*0.75f, h*0.3f), strokeWidth = 3.dp.toPx())
+                                                drawLine(Color.White.copy(0.6f), start = androidx.compose.ui.geometry.Offset(w*0.2f, h*0.5f), end = androidx.compose.ui.geometry.Offset(w*0.8f, h*0.5f), strokeWidth = 3.dp.toPx())
+                                                drawLine(Color.White.copy(0.6f), start = androidx.compose.ui.geometry.Offset(w*0.25f, h*0.7f), end = androidx.compose.ui.geometry.Offset(w*0.75f, h*0.7f), strokeWidth = 3.dp.toPx())
+                                            } else if (patternId == 3) { // Star
+                                                drawCircle(Color.Yellow.copy(0.8f), radius = 6.dp.toPx(), center = androidx.compose.ui.geometry.Offset(w/2, h/2))
+                                            } else if (patternId == 4) { // Crack
+                                                val crackPath = androidx.compose.ui.graphics.Path().apply {
+                                                    moveTo(w*0.5f, h*0.1f)
+                                                    lineTo(w*0.6f, h*0.3f)
+                                                    lineTo(w*0.45f, h*0.5f)
+                                                    lineTo(w*0.55f, h*0.7f)
+                                                }
+                                                drawPath(crackPath, color = Color.Black.copy(alpha = 0.5f), style = androidx.compose.ui.graphics.drawscope.Stroke(width = 2.dp.toPx()))
+                                            }
+                                        }
+                                    } else {
+                                        val sizeDp = if (state.growthStage == "BABY") 40.dp else 60.dp
+                                        val modifierShape = Modifier
+                                            .size(sizeDp)
+                                            .clip(RoundedCornerShape(8.dp))
+                                            .border(2.dp, PureWhite, RoundedCornerShape(8.dp))
+                                            .clickable {
+                                                viewModel.vibrate(30)
+                                                state = state.copy(mood = (state.mood + 5f).coerceAtMost(100f))
+                                                notificationMessage = if (isRu) "Вы погладили питомца! Ему это нравится 💕" else "You pet the Tamagotchi! It purrs 💕"
+                                                TamagotchiManager.saveState(context, state)
+                                            }
+                                        Box(modifier = Modifier.size(60.dp), contentAlignment = Alignment.Center) {
+                                            AsyncImage(
+                                                model = state.petAvatar,
+                                                contentDescription = "Pet Avatar",
+                                                modifier = modifierShape,
+                                                contentScale = ContentScale.Crop,
+                                                error = rememberVectorPainter(Icons.Filled.Pets),
+                                                placeholder = rememberVectorPainter(Icons.Filled.Pets)
+                                            )
+                                        }
+                                    }
+                                    Spacer(modifier = Modifier.width(12.dp))
+                                    Column {
+                                        Text(
+                                            text = state.petName,
+                                            color = PureWhite,
+                                            fontSize = 18.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            fontFamily = FontFamily.Monospace
+                                        )
+                                        Text(
+                                            text = "@${state.petHandle}",
+                                            color = TextGray,
+                                            fontSize = 12.sp,
+                                            fontFamily = FontFamily.Monospace
+                                        )
+                                        val daysAge = state.ageHours / 24f
+                                        Text(
+                                            text = if (isRu) "Возраст: ${String.format("%.1f", daysAge)} дн." else "Age: ${String.format("%.1f", daysAge)} days",
+                                            color = PureWhite,
+                                            fontSize = 12.sp,
+                                            fontFamily = FontFamily.Monospace
+                                        )
+                                    }
                                 }
                             }
                             
@@ -1058,6 +1486,121 @@ fun TamagotchiDialog(
                                     fontSize = 11.sp
                                 )
                             }
+                            if (state.growthStage == "ADULT") {
+                                Spacer(modifier = Modifier.height(10.dp))
+                                Button(
+                                    onClick = {
+                                        viewModel.vibrate(80)
+                                        showBreedingDialog = true
+                                    },
+                                    colors = ButtonDefaults.buttonColors(
+                                        containerColor = Color(0xFFE040FB),
+                                        contentColor = PureWhite
+                                    ),
+                                    shape = RoundedCornerShape(4.dp),
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    Text(
+                                        text = if (isRu) "СПАРИВАНИЕ 💕" else "BREED 💕",
+                                        fontFamily = FontFamily.Monospace,
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 11.sp
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    if (showBreedingDialog) {
+        Dialog(onDismissRequest = { showBreedingDialog = false }) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(PureBlack)
+                    .border(2.dp, PureWhite)
+                    .padding(16.dp)
+            ) {
+                var isGeneratingBreed by remember { mutableStateOf(false) }
+                var selectedPartner by remember { mutableStateOf<UserEntity?>(null) }
+                
+                LaunchedEffect(isGeneratingBreed) {
+                    if (isGeneratingBreed) {
+                        delay(2000L) // Wait for animation
+                        val candidateBots = users.filter { it.id != (currentUser?.id ?: "") && it.id != state.petBotId }
+                        val partner = selectedPartner ?: (if (candidateBots.isNotEmpty()) candidateBots.random() else null)
+                        if (partner != null) {
+                            val newPet = state.copy(
+                                growthStage = "FAMILY",
+                                breedParent1 = state.petName,
+                                breedParent1Avatar = state.petAvatar,
+                                breedParent2 = partner.username,
+                                breedParent2Avatar = partner.avatarUrl,
+                                breedEggColorId = Random.nextInt(12),
+                                breedEggPatternId = Random.nextInt(5)
+                            )
+                            state = newPet
+                            TamagotchiManager.saveState(context, newPet)
+                            notificationMessage = if (isRu) "Поздравляем! Образована новая семья и получено потомство! 👨‍👩‍👧" else "Congratulations! A new family is formed and offspring is generated! 👨‍👩‍👧"
+                        }
+                        showBreedingDialog = false
+                    }
+                }
+                
+                if (isGeneratingBreed) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
+                        CircularProgressIndicator(color = Color(0xFFE040FB))
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Text(
+                            text = if (isRu) "nOG AI генерирует потомство..." else "nOG AI generating offspring...",
+                            color = PureWhite,
+                            fontFamily = FontFamily.Monospace,
+                            textAlign = TextAlign.Center
+                        )
+                    }
+                } else {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
+                        Text(
+                            text = if (isRu) "ВЫБЕРИТЕ ПАРТНЕРА ДЛЯ СПАРИВАНИЯ" else "SELECT BREEDING PARTNER",
+                            color = PureWhite,
+                            fontFamily = FontFamily.Monospace,
+                            fontWeight = FontWeight.Bold,
+                            textAlign = TextAlign.Center
+                        )
+                        Spacer(modifier = Modifier.height(16.dp))
+                        val partnerBots = users.filter { it.id != (currentUser?.id ?: "") && it.id != state.petBotId }.take(3)
+                        partnerBots.forEach { partner ->
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = 4.dp)
+                                    .background(CardGray)
+                                    .clickable { 
+                                        selectedPartner = partner
+                                        isGeneratingBreed = true 
+                                    }
+                                    .padding(8.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                AsyncImage(
+                                    model = partner.avatarUrl,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(40.dp).clip(CircleShape).border(1.dp, PureWhite, CircleShape),
+                                    contentScale = ContentScale.Crop
+                                )
+                                Spacer(modifier = Modifier.width(12.dp))
+                                Column {
+                                    Text(text = partner.username, color = PureWhite, fontSize = 14.sp)
+                                    Text(text = partner.handle, color = TextGray, fontSize = 12.sp)
+                                }
+                            }
+                        }
+                        Spacer(modifier = Modifier.height(12.dp))
+                        TextButton(onClick = { showBreedingDialog = false }) {
+                            Text(if (isRu) "ОТМЕНА" else "CANCEL", color = TextGray)
                         }
                     }
                 }
@@ -1124,6 +1667,14 @@ fun updateTamaStats(state: TamagotchiState, elapsedMs: Long, isAppActive: Boolea
         0f
     }
 
+    var newGrowthStage = state.growthStage
+    if (newGrowthStage == "EGG" && newAgeHours > 0.1f) {
+        newGrowthStage = "BABY"
+    }
+    if (newGrowthStage == "BABY" && newAgeHours > 2.0f) {
+        newGrowthStage = "ADULT"
+    }
+
     val newHealth = (state.health - (elapsedHours * healthLossRate) + (elapsedHours * healRate)).coerceIn(0f, 100f)
 
     // Check death triggers
@@ -1154,6 +1705,7 @@ fun updateTamaStats(state: TamagotchiState, elapsedMs: Long, isAppActive: Boolea
         isDead = isDead,
         deathReason = deathReason,
         deathDiseaseName = if (isDead && deathReason == "disease") deathDiseaseName else state.deathDiseaseName,
+        growthStage = newGrowthStage,
         lastTickTime = System.currentTimeMillis()
     )
 }

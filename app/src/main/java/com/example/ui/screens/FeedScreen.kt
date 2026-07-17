@@ -112,7 +112,8 @@ fun FeedScreen(
                     var newState = com.example.ui.screens.updateTamaStats(state, deltaMs, isAppActive = true)
                     // Additional specific scroll boosting
                     newState = newState.copy(
-                        mood = (newState.mood + 0.5f).coerceAtMost(100f) // extra joy during scroll
+                        mood = (newState.mood + 0.5f).coerceAtMost(100f), // extra joy during scroll
+                        feedScrollPoints = (newState.feedScrollPoints + 5f).coerceAtMost(100f) // Generate energy to feed!
                     )
                     if (newState.isSick) {
                         val clinicalHours = 0.05f 
@@ -653,50 +654,40 @@ fun FeedScreen(
                                                     }
                                                 }
                                             }
-                                        }
-                                    }
-    
-                                    // Animated Apply button appears with sliding & fade animation at the bottom of the screen
-                                    androidx.compose.animation.AnimatedVisibility(
-                                        visible = localSelectedSources.isNotEmpty(),
-                                        enter = androidx.compose.animation.slideInVertically(
-                                            initialOffsetY = { it }
-                                        ) + androidx.compose.animation.fadeIn(),
-                                        exit = androidx.compose.animation.slideOutVertically(
-                                            targetOffsetY = { it }
-                                        ) + androidx.compose.animation.fadeOut(),
-                                        modifier = Modifier
-                                            .align(Alignment.BottomCenter)
-                                            .padding(bottom = 16.dp)
-                                    ) {
-                                        Button(
-                                            onClick = {
-                                                viewModel.updateSelectedNewsSources(localSelectedSources)
-                                                isEditingFilters = false
-                                            },
-                                            colors = ButtonDefaults.buttonColors(
-                                                containerColor = PureWhite,
-                                                contentColor = PureBlack
-                                            ),
-                                            shape = RoundedCornerShape(8.dp),
-                                            modifier = Modifier
-                                                .fillMaxWidth()
-                                                .height(48.dp)
-                                                .padding(horizontal = 16.dp)
-                                                .border(2.dp, PureBlack, RoundedCornerShape(8.dp))
-                                        ) {
-                                            Text(
-                                                text = if (lang == "RU") "ПРИМЕНИТЬ ИСТОЧНИКИ" else "APPLY SOURCES",
-                                                fontWeight = FontWeight.Bold,
-                                                fontFamily = FontFamily.Monospace,
-                                                fontSize = 12.sp
-                                            )
+                                            item {
+                                                if (localSelectedSources.isNotEmpty()) {
+                                                    Spacer(modifier = Modifier.height(16.dp))
+                                                    Button(
+                                                        onClick = {
+                                                            viewModel.updateSelectedNewsSources(localSelectedSources)
+                                                            isEditingFilters = false
+                                                        },
+                                                        colors = ButtonDefaults.buttonColors(
+                                                            containerColor = PureWhite,
+                                                            contentColor = PureBlack
+                                                        ),
+                                                        shape = RoundedCornerShape(8.dp),
+                                                        modifier = Modifier
+                                                            .fillMaxWidth()
+                                                            .height(48.dp)
+                                                            .border(2.dp, PureBlack, RoundedCornerShape(8.dp))
+                                                    ) {
+                                                        Text(
+                                                            text = if (lang == "RU") "ПРИМЕНИТЬ ИСТОЧНИКИ" else "APPLY SOURCES",
+                                                            fontWeight = FontWeight.Bold,
+                                                            fontFamily = FontFamily.Monospace,
+                                                            fontSize = 12.sp
+                                                        )
+                                                    }
+                                                }
+                                            }
                                         }
                                     }
                                 }
                             } else {
                                 // View Filtered Posts
                                 val filteredPosts = posts.filter { it.sourceName in selectedSources }
+                                val isFetchingNews by viewModel.isFetchingNews.collectAsState()
                                 
                                 Column(modifier = Modifier.fillMaxSize()) {
                                     Row(
@@ -723,7 +714,23 @@ fun FeedScreen(
                                         )
                                     }
                                     
-                                    if (filteredPosts.isEmpty()) {
+                                    if (isFetchingNews) {
+                                        Box(
+                                            modifier = Modifier.fillMaxSize().weight(1f),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                                CircularProgressIndicator(color = PureWhite, strokeWidth = 2.dp)
+                                                Spacer(modifier = Modifier.height(16.dp))
+                                                Text(
+                                                    text = if (lang == "RU") "Загрузка новостей..." else "Fetching latest news...",
+                                                    color = TextGray,
+                                                    fontSize = 12.sp,
+                                                    fontFamily = FontFamily.Monospace
+                                                )
+                                            }
+                                        }
+                                    } else if (filteredPosts.isEmpty()) {
                                         Box(
                                             modifier = Modifier.fillMaxSize().weight(1f),
                                             contentAlignment = Alignment.Center

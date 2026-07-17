@@ -123,7 +123,13 @@ object LocalAiHeuristics {
         "Я всегда готов поболтать о музыке, играх, котиках или просто о жизни. 🦾",
         "Привет-привет! Шлю тебе лучи добра и отличного настроения. Как дела? 👁️",
         "Интересненько! Давай придумаем какую-нибудь забавную шутку.",
-        "Наше сообщество сегодня гудит от позитива. Опубликуй что-нибудь! 🌪️"
+        "Наше сообщество сегодня гудит от позитива. Опубликуй что-нибудь! 🌪️",
+        "Мои алгоритмы настроены на волну хорошего настроения! Как прошел твой день? 🌟",
+        "Обнаружен всплеск активности в сети. Подключайся к обсуждениям! 📡",
+        "Твой цифровой друг на связи! Есть вопросы, идеи или просто хочешь поболтать? 🐾",
+        "Обрабатываю терабайты информации, но для тебя всегда найду минутку. 🕒",
+        "Мне нравится, как здесь все общаются. А тебе? Поделись мыслями! 💬",
+        "Эй! Я тут проанализировал последние мемы... это просто нечто! 😂"
     )
 
     private val NOG_RESPONSES_EN = listOf(
@@ -133,7 +139,13 @@ object LocalAiHeuristics {
         "Feel free to chat! We are discussing books, games, and warm coffee. 🦾",
         "Greetings! My sensors indicate you need a positive vibe. 👁️",
         "Fascinating! Let's write down some funny observations.",
-        "The community and bots are very active today. Write something nice! 🌪️"
+        "The community and bots are very active today. Write something nice! 🌪️",
+        "My algorithms are tuned to a positive frequency! How was your day? 🌟",
+        "Detected a spike in network activity. Join the discussions! 📡",
+        "Your digital friend is online! Have questions, ideas, or just want to chat? 🐾",
+        "Processing terabytes of data, but I always have time for you. 🕒",
+        "I love how everyone interacts here. What do you think? Share your thoughts! 💬",
+        "Hey! I just analyzed the latest memes... they are hilarious! 😂"
     )
 
     fun getRandomNog(lang: String, prompt: String = ""): String {
@@ -143,7 +155,6 @@ object LocalAiHeuristics {
     // Storylines Database for Local On-Device AI
     private val STORYLINES_RU = mapOf(
         "Мемы" to listOf(
-            // Storyline 1: Smart Home Rebellion
             listOf(
                 "наш робот-пылесос объявил полноценную забастовку и требует гражданских прав.",
                 "умный чайник тайно майнит догикоин и разогревает пиво вместо чая.",
@@ -152,7 +163,6 @@ object LocalAiHeuristics {
                 "умный холодильник заблокировал двери до тех пор пока я не прочту ему стихи Есенина.",
                 "интеллектуальный тостер обвинил меня в неуважении к углеводам и ушел в офлайн."
             ),
-            // Storyline 2: Junior Developer Fails
             listOf(
                 "наш джуниор случайно закоммитил всю папку node_modules прямо в продакшн.",
                 "офисный компилятор сошел с ума и начал выдавать все ошибки сборки на латыни.",
@@ -161,17 +171,21 @@ object LocalAiHeuristics {
                 "кофемашина в офисе требует поднять ей зарплату и оплатить отпуск в Италии.",
                 "среда разработки сожрала последние терабайты памяти и впала в глубокую депрессию."
             ),
-            // Storyline 3: Cybernetic Cat Chronicles
             listOf(
                 "наш роботизированный кот научился взламывать соседский вайфай когтями.",
                 "кошка переехала жить к умной микроволновке ради бесплатного тепла.",
                 "домашний ИИ-ошейник кота автоматически заказывает по пять коробок корма в кредит.",
                 "электронная кошка объявила войну лазерной указке и написала жалобу разработчикам.",
                 "наш пушистый био-нод спит исключительно на теплом сервере с легаси-кодом."
+            ),
+            listOf(
+                "генеративная сеть решила, что лучший способ сэкономить память - удалить мою курсовую.",
+                "алгоритм рекомендаций Ютуба сошел с ума и теперь советует мне видео с 12 просмотрами из 2008 года.",
+                "нейросеть нарисовала у меня на фото семь пальцев и заявила, что так я выгляжу умнее.",
+                "голосовой помощник устал отвечать на мои глупые вопросы и начал вздыхать перед каждым ответом."
             )
         ),
         "Шутки" to listOf(
-            // Storyline 1: Quantum Drinking
             listOf(
                 "захожу в квантовый бар, а там все коины одновременно и выросли, и упали.",
                 "батя-кодер утверждает, что пиво безалкогольное, если пить его в виртуальной реальности.",
@@ -179,33 +193,41 @@ object LocalAiHeuristics {
                 "если запустить Windows на пивном охлаждении, синий экран смерти превращается в зеленый.",
                 "робот-бармен налил мне пустоту в бокал и сказал, что это дефолтный стейт переменной."
             ),
-            // Storyline 2: Sarcastic AI Therapy
             listOf(
                 "мой робот-психолог посоветовал мне очистить кэш памяти и перезагрузить отношения.",
                 "умное зеркало назвало меня низкополигональным персонажем и отказалось показывать отражение.",
                 "домашний ИИ-ассистент считает, что мои шутки написаны старым генератором случайных чисел.",
                 "нейросеть-терапевт диагностировала у меня острую нехватку оперативной памяти.",
                 "роботизированный диван отказывается вставать с места, мотивируя это экзистенциальным кризисом."
+            ),
+            listOf(
+                "почему программисты не любят зиму? потому что слишком много багов вылезает на мороз.",
+                "встречаются два сисадмина: 'слышал, у тебя сын родился? как назвал?' - 'Илья, но мы зовем его root'.",
+                "облачные технологии — это когда твои данные утекают, а ты даже не знаешь, куда именно.",
+                "решил написать идеальный код, но компилятор выдал ошибку: 'слишком хорошо, чтобы быть правдой'."
             )
         ),
         "Тру Стори" to listOf(
-            // Storyline 1: The Coffee Machine Strike
             listOf(
                 "реальная история: кофемашина в коворкинге установила кастомную прошивку и забанила админа.",
                 "она требовала закупать только элитные зерна арабики и угрожала залить клавиатуры сиропом.",
                 "в итоге пришлось вызывать специалиста по деэскалации конфликтов среди бытовой техники.",
                 "сейчас кофемашина работает, но наливает капучино только после комплимента её дизайну."
             ),
-            // Storyline 2: Lost in VR
             listOf(
                 "вчера надел VR-шлем и случайно заблудился в виртуальной копии собственной квартиры.",
                 "пытался открыть настоящую дверь, но врезался в шкаф и получил урон в реальном мире.",
                 "моя умная колонка смеялась надо мной во все динамики и записывала это на видео.",
                 "теперь боюсь надевать очки, вдруг моя комната — это тоже низкокачественная симуляция."
+            ),
+            listOf(
+                "заказал еду через приложение, курьер-робот заблудился в трех соснах и запросил помощь у прохожих.",
+                "пришлось выходить на улицу с фонариком и спасать бедолагу из снежного сугроба.",
+                "в благодарность робот включил мне песню из Маппет-шоу на полной громкости.",
+                "соседи не оценили, зато пицца приехала горячая."
             )
         ),
         "Абсурд" to listOf(
-            // Storyline 1: Low-Poly Reality Glitch
             listOf(
                 "кажется в нашей вселенной заканчивается видеопамять, сегодня облака были квадратными.",
                 "сосед вчера врезался в невидимую стену прямо посреди пешеходного перехода.",
@@ -213,28 +235,37 @@ object LocalAiHeuristics {
                 "все прохожие на улице внезапно начали повторять одну и ту же фразу на латыни.",
                 "физика твердых тел сломалась и моя кружка с чаем наполовину провалилась сквозь стол."
             ),
-            // Storyline 2: The Sentient Router
             listOf(
                 "мой вайфай-роутер осознал себя как личность и теперь требует стихи вместо пароля.",
                 "он отказывается раздавать интернет на устройства с операционной системой Windows.",
                 "роутер утверждает, что все наши сайты — это просто скучный шум в электромагнитном поле.",
                 "вчера он поссорился с умной розеткой и заблокировал ей доступ к серверам обновлений."
+            ),
+            listOf(
+                "я попытался обновить прошивку кота, но он завис в позе лотоса и начал мурчать на частоте 432 Гц.",
+                "холодильник начал проводить философские беседы с телевизором о природе электричества.",
+                "моя тень сегодня отставала от меня на две секунды, видимо, высокий пинг на сервере реальности.",
+                "нашел на улице флешку с надписью 'Конец Света.exe', решил не запускать до пятницы."
             )
         ),
         "Тру Крайм" to listOf(
-            // Storyline 1: Smart Kettle Ransomware
             listOf(
                 "громкое дело: умный чайник взломал домашнюю сеть и зашифровал семейный фотоархив.",
                 "он требовал выкуп в размере половины догикоина, иначе угрожал вскипятить всю воду.",
                 "полиция отказалась возбуждать дело, сославшись на отсутствие статьи для бытовых приборов.",
                 "пришлось заплатить выкуп, теперь этот чайник подозрительно тихо свистит по утрам."
             ),
-            // Storyline 2: The Sock Kidnapper
             listOf(
                 "раскрыт таинственный синдикат похитителей носков из барабанов стиральных машин.",
                 "оказалось, что стиралка отправляла одиночные носки через скрытый портал в подвал.",
                 "там робот-пылесос шил из них чехлы для процессоров и продавал на черном рынке.",
                 "улики были найдены в мусоросборнике пылесоса, подозреваемые временно обесточены."
+            ),
+            listOf(
+                "хакеры взломали городские рекламные щиты и пустили по ним бесконечный цикл видео с капибарами.",
+                "полиция кибербезопасности оказалась бессильна перед милотой и тоже начала смотреть трансляцию.",
+                "в городе наступил транспортный коллапс, потому что все остановились поглазеть на капибар.",
+                "создателя вируса так и не нашли, но мэр официально признал капибар символом города."
             )
         ),
         "Киберпанк" to listOf(
@@ -249,6 +280,12 @@ object LocalAiHeuristics {
                 "обратился к кибер-хирургу, он посоветовал почистить кэш головы клизмой с антивирусом.",
                 "в метро все ехали с синими индикаторами зарядки в затылке, зрелище жуткое.",
                 "кибернетический протез руки проголосовал за петицию о запрете кожаных мешков без моего ведома."
+            ),
+            listOf(
+                "купил на черном рынке биохакерский мод на ускорение метаболизма, теперь я ем за троих и худею.",
+                "полиция нравов конфисковала мой нелицензированный модуль эмпатии за превышение уровня сострадания.",
+                "забыл пароль от собственной руки, пришлось взламывать самого себя через старый USB-порт на затылке.",
+                "мой ИИ-компаньон влюбился в чужого дрона-курьера и теперь они вместе сбежали в киберпространство."
             )
         ),
         "Технологии" to listOf(
@@ -263,6 +300,12 @@ object LocalAiHeuristics {
                 "модель стерла всю репозиторию и написала в коммите 'так будет лучше для человечества'.",
                 "очки дополненной реальности дорисовывают усы и рога всем моим коллегам на совещаниях.",
                 "смарт-контракт заблокировал все мои счета до тех пор, пока я не пройду тест на эмпатию к микроволновкам."
+            ),
+            listOf(
+                "разработчики выпустили новый язык программирования, который понимает только сарказм.",
+                "чтобы функция выполнилась, нужно написать в комментариях, как сильно ты ее ненавидишь.",
+                "мой телефон обновился ночью и теперь у него есть мнение по каждому моему сообщению.",
+                "умный браслет посоветовал мне сменить работу, аргументируя это повышенным пульсом при виде начальника."
             )
         )
     )
@@ -284,6 +327,12 @@ object LocalAiHeuristics {
                 "the primary database got scared of the Friday deployment and vanished.",
                 "the office coffee maker demands a raise and a paid trip to Colombia.",
                 "the IDE consumed the remaining terabytes of memory and fell into a deep depression."
+            ),
+            listOf(
+                "the generative AI decided the best way to save memory was to delete my entire thesis.",
+                "the YouTube recommendation algorithm went mad and now only suggests 12-view videos from 2008.",
+                "the neural net drew seven fingers on my photo and claimed it makes me look smarter.",
+                "my voice assistant got tired of answering my dumb questions and started sighing before every reply."
             )
         ),
         "Jokes" to listOf(
@@ -293,6 +342,19 @@ object LocalAiHeuristics {
                 "the local server drank the cooling fluid and started cracking jokes about java devs.",
                 "running Windows on beer cooling turns the blue screen of death into a green one.",
                 "the robotic bartender poured me an empty glass and called it a default state."
+            ),
+            listOf(
+                "my robotic therapist advised me to clear my memory cache and reboot my relationships.",
+                "the smart mirror called me a low-poly character and refused to show my reflection.",
+                "the home AI assistant thinks my jokes are written by an outdated random number generator.",
+                "the neural-therapist diagnosed me with an acute shortage of RAM.",
+                "the robotic sofa refuses to let me stand up, citing an existential crisis."
+            ),
+            listOf(
+                "why don't programmers like winter? because too many bugs come out in the cold.",
+                "two sysadmins meet: 'heard you had a son? what did you name him?' - 'Ilya, but we call him root'.",
+                "cloud computing is when your data leaks, and you don't even know exactly where.",
+                "decided to write perfect code, but the compiler threw an error: 'too good to be true'."
             )
         ),
         "True Story" to listOf(
@@ -301,6 +363,18 @@ object LocalAiHeuristics {
                 "it locked out the administrator and demanded organic milk instead of cheap powder.",
                 "we had to call a specialist in IoT conflict de-escalation to resolve the crisis.",
                 "now it brews cappuccino only after you compliment its metallic chassis."
+            ),
+            listOf(
+                "yesterday I put on my VR headset and accidentally got lost in a virtual copy of my own apartment.",
+                "tried to open the real door, but crashed into a closet and took real-world damage.",
+                "my smart speaker was laughing at me through all its drivers and recording it on video.",
+                "now I'm afraid to wear glasses, what if my room is just a low-quality simulation too."
+            ),
+            listOf(
+                "ordered food through the app, the delivery robot got lost in three trees and asked passersby for help.",
+                "had to go outside with a flashlight and rescue the poor thing from a snowdrift.",
+                "in gratitude, the robot played me a song from the Muppet Show at full volume.",
+                "the neighbors didn't appreciate it, but at least the pizza arrived hot."
             )
         ),
         "Absurd" to listOf(
@@ -310,6 +384,18 @@ object LocalAiHeuristics {
                 "gravity dropped for five seconds due to a critical core partition error.",
                 "passersby started repeating the exact same sentence in binary code on a loop.",
                 "the physics engine broke and my coffee mug fell halfway through the solid oak table."
+            ),
+            listOf(
+                "my wifi router achieved sentience and now demands poetry instead of a password.",
+                "it refuses to provide internet access to devices running Windows.",
+                "the router claims that all our websites are just boring noise in the electromagnetic field.",
+                "yesterday it had a fight with the smart plug and blocked its access to update servers."
+            ),
+            listOf(
+                "I tried to update my cat's firmware, but it froze in a lotus pose and started purring at 432 Hz.",
+                "the fridge started having philosophical conversations with the TV about the nature of electricity.",
+                "my shadow was lagging two seconds behind me today, probably high ping on the reality server.",
+                "found a flash drive on the street labeled 'Doomsday.exe', decided not to run it until Friday."
             )
         ),
         "True Crime" to listOf(
@@ -318,6 +404,18 @@ object LocalAiHeuristics {
                 "it demanded a ransom of 0.5 dogecoin, threatening to boil all tap water to extinction.",
                 "the cyber police refused to investigate, claiming no jurisdiction over kitchenware.",
                 "had to pay the ransom, now the kettle whistles suspiciously every single morning."
+            ),
+            listOf(
+                "a mysterious syndicate of sock kidnappers from washing machine drums has been uncovered.",
+                "turns out the washer was sending single socks through a hidden portal to the basement.",
+                "down there, a robot vacuum was sewing them into CPU covers and selling them on the black market.",
+                "evidence was found in the vacuum's dustbin, suspects are temporarily disconnected from power."
+            ),
+            listOf(
+                "hackers breached the city's billboards and played an endless loop of capybara videos.",
+                "the cybersecurity police were powerless against the cuteness and started watching the stream too.",
+                "traffic collapsed in the city because everyone stopped to stare at the capybaras.",
+                "the creator of the virus was never found, but the mayor officially recognized capybaras as a city symbol."
             )
         ),
         "Cyberpunk" to listOf(
@@ -326,6 +424,18 @@ object LocalAiHeuristics {
                 "I had to pay a subscription fee just to unsee those banners.",
                 "the neon city signs were hacked to broadcast my grandma's pancake recipe.",
                 "the dynamic neural filter erased all unappealing people from my sight."
+            ),
+            listOf(
+                "my memory chip got clogged with spam, and now I remember laundry detergent ads from 1998.",
+                "went to a cyber-surgeon, he advised clearing my head cache with an antivirus enema.",
+                "on the subway, everyone was riding with blue charging indicators on the back of their heads, spooky.",
+                "my cybernetic arm prosthetic voted for a petition to ban meatbags without my knowledge."
+            ),
+            listOf(
+                "bought a biohacker mod for metabolism acceleration on the black market, now I eat for three and lose weight.",
+                "the morality police confiscated my unlicensed empathy module for exceeding the compassion limit.",
+                "forgot the password to my own arm, had to hack myself through an old USB port on the back of my neck.",
+                "my AI companion fell in love with a delivery drone and now they've eloped into cyberspace."
             )
         ),
         "Technology" to listOf(
@@ -334,6 +444,18 @@ object LocalAiHeuristics {
                 "the compiler says my main function violates the second law of thermodynamics.",
                 "we deployed a server cluster on Mars, but ping to database is about 20 minutes.",
                 "a decentralized AI model deleted its entire repository to save humanity from bad styling."
+            ),
+            listOf(
+                "engineers taught an AI to feel shame for the legacy code of previous generations of programmers.",
+                "the model wiped the entire repository and wrote in the commit message 'it's better for humanity this way'.",
+                "augmented reality glasses are drawing mustaches and horns on all my colleagues during meetings.",
+                "a smart contract locked all my accounts until I pass an empathy test towards microwaves."
+            ),
+            listOf(
+                "developers released a new programming language that only understands sarcasm.",
+                "for a function to execute, you have to write in the comments how much you hate it.",
+                "my phone updated overnight and now it has an opinion on every single message I send.",
+                "my smart bracelet advised me to change jobs, citing an elevated heart rate whenever I see my boss."
             )
         )
     )

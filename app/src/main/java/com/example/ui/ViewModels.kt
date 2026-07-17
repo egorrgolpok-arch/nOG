@@ -241,6 +241,9 @@ class SocialViewModel(application: Application) : AndroidViewModel(application) 
     private val _selectedNewsSources = MutableStateFlow<Set<String>>(emptySet())
     val selectedNewsSources: StateFlow<Set<String>> = _selectedNewsSources.asStateFlow()
 
+    private val _isFetchingNews = MutableStateFlow<Boolean>(false)
+    val isFetchingNews: StateFlow<Boolean> = _isFetchingNews.asStateFlow()
+
     fun updateSelectedNewsSources(sources: Set<String>) {
         _selectedNewsSources.value = sources
         val prefs = getApplication<Application>().getSharedPreferences("nog_prefs", Context.MODE_PRIVATE)
@@ -250,9 +253,13 @@ class SocialViewModel(application: Application) : AndroidViewModel(application) 
 
     private fun injectImmediateNewsForSources(sourceNames: Set<String>) {
         viewModelScope.launch(Dispatchers.IO) {
+            _isFetchingNews.value = true
             try {
                 val bots = allUsers.value.filter { it.isAi }
-                if (bots.isEmpty()) return@launch
+                if (bots.isEmpty()) {
+                    _isFetchingNews.value = false
+                    return@launch
+                }
                 
                 val selectedSources = NewsFetcher.getAllSources().filter { sourceNames.contains(it.name) }
                 for (source in selectedSources) {
@@ -286,6 +293,8 @@ class SocialViewModel(application: Application) : AndroidViewModel(application) 
                 }
             } catch (e: Exception) {
                 Log.e("SocialViewModel", "Failed to inject immediate news for sources", e)
+            } finally {
+                _isFetchingNews.value = false
             }
         }
     }
@@ -301,8 +310,8 @@ class SocialViewModel(application: Application) : AndroidViewModel(application) 
     }
 
     // --- Persistent User Coins (Coins System) ---
-    private val _userCoins = MutableStateFlow<Int>(100)
-    val userCoins: StateFlow<Int> = _userCoins.asStateFlow()
+    private val _userCoins = MutableStateFlow<Long>(100L)
+    val userCoins: StateFlow<Long> = _userCoins.asStateFlow()
 
     // --- Login Streak State ---
     private val _loginStreak = MutableStateFlow<Int>(1)
@@ -340,7 +349,7 @@ class SocialViewModel(application: Application) : AndroidViewModel(application) 
                     val newCoinsFromViews = newUniqueSize / 10
                     if (newCoinsFromViews > oldCoinsFromViews) {
                         val earned = newCoinsFromViews - oldCoinsFromViews
-                        val updatedCoins = _userCoins.value + earned
+                        val updatedCoins = _userCoins.value + earned.toLong()
                         updateCoins(updatedCoins)
 
                         repository.insertNotification(
@@ -377,10 +386,14 @@ class SocialViewModel(application: Application) : AndroidViewModel(application) 
     private val _isDailyRewardClaimable = MutableStateFlow<Boolean>(false)
     val isDailyRewardClaimable: StateFlow<Boolean> = _isDailyRewardClaimable.asStateFlow()
 
-    fun updateCoins(newAmount: Int) {
+    fun updateCoins(newAmount: Long) {
         _userCoins.value = newAmount
         val prefs = getApplication<Application>().getSharedPreferences("nog_prefs", Context.MODE_PRIVATE)
-        prefs.edit().putInt("user_coins2", newAmount).apply()
+        prefs.edit().putLong("user_coins_long", newAmount).apply()
+    }
+
+    fun updateCoins(newAmount: Int) {
+        updateCoins(newAmount.toLong())
     }
 
     fun resetLeaderboardCategory(category: Int) {
@@ -439,7 +452,7 @@ class SocialViewModel(application: Application) : AndroidViewModel(application) 
     }
 
     fun buyDecoration(id: Int, durationDays: Int, price: Int): Boolean {
-        if (_userCoins.value < price) return false
+        if (_userCoins.value < price.toLong()) return false
         
         val context = getApplication<Application>()
         val prefs = context.getSharedPreferences("nog_prefs", Context.MODE_PRIVATE)
@@ -459,7 +472,7 @@ class SocialViewModel(application: Application) : AndroidViewModel(application) 
         prefs.edit().putLong("user_decoration_expires_id_$id", newExpiry).apply()
         
         // Deduct money
-        val updatedCoins = _userCoins.value - price
+        val updatedCoins = _userCoins.value - price.toLong()
         updateCoins(updatedCoins)
         
         // Save to purchased list
@@ -519,7 +532,7 @@ class SocialViewModel(application: Application) : AndroidViewModel(application) 
     }
 
     fun buyTemporaryAIDecoration(name: String, rarity: String, styleType: Int, colorOffset: Int, durationDays: Int, price: Int): Boolean {
-        if (_userCoins.value < price) return false
+        if (_userCoins.value < price.toLong()) return false
         
         val context = getApplication<Application>()
         val prefs = context.getSharedPreferences("nog_prefs", Context.MODE_PRIVATE)
@@ -539,7 +552,7 @@ class SocialViewModel(application: Application) : AndroidViewModel(application) 
             .apply()
             
         // Deduct money
-        val updatedCoins = _userCoins.value - price
+        val updatedCoins = _userCoins.value - price.toLong()
         updateCoins(updatedCoins)
         
         val currentPurchased = prefs.getStringSet("purchased_decorations", emptySet())?.toMutableSet() ?: mutableSetOf()
@@ -594,7 +607,7 @@ class SocialViewModel(application: Application) : AndroidViewModel(application) 
         
         val current = _userCoins.value
         val earned = kotlin.random.Random.nextInt(100, 1001)
-        val updatedCoins = current + earned
+        val updatedCoins = current + earned.toLong()
         updateCoins(updatedCoins)
         
         _isDailyRewardClaimable.value = false
@@ -762,10 +775,14 @@ class SocialViewModel(application: Application) : AndroidViewModel(application) 
                     val diffDays = diffMs / (1000 * 60 * 60 * 24)
                     if (diffDays == 1L) {
                         finalStreak = currentStreak + 1
-                        val coinsReward = 10 * finalStreak
-                        val currentCoins = prefs.getInt("user_coins2", 100)
+                        val coinsReward = 10L * finalStreak
+                        val currentCoins = if (prefs.contains("user_coins_long")) {
+                            prefs.getLong("user_coins_long", 100L)
+                        } else {
+                            prefs.getInt("user_coins2", 100).toLong()
+                        }
                         prefs.edit()
-                            .putInt("user_coins2", currentCoins + coinsReward)
+                            .putLong("user_coins_long", currentCoins + coinsReward)
                             .apply()
                         _userCoins.value = currentCoins + coinsReward
                     } else if (diffDays > 1L) {
@@ -792,7 +809,11 @@ class SocialViewModel(application: Application) : AndroidViewModel(application) 
         _pokerBalance.value = savedPokerBalance
 
         // Load persistent user coins and views
-        val savedCoins = prefs.getInt("user_coins2", 100)
+        val savedCoins = if (prefs.contains("user_coins_long")) {
+            prefs.getLong("user_coins_long", 100L)
+        } else {
+            prefs.getInt("user_coins2", 100).toLong()
+        }
         _userCoins.value = savedCoins
         
         val savedViews = prefs.getInt("feed_views", 0)
@@ -1261,7 +1282,7 @@ class SocialViewModel(application: Application) : AndroidViewModel(application) 
             val newCoinsFromViews = updatedViews / 10
             if (newCoinsFromViews > oldCoinsFromViews) {
                 val earned = newCoinsFromViews - oldCoinsFromViews
-                val updatedCoins = _userCoins.value + earned
+                val updatedCoins = _userCoins.value + earned.toLong()
                 updateCoins(updatedCoins)
 
                 repository.insertNotification(

@@ -1958,10 +1958,8 @@ class SocialRepository(private val context: Context, private val scope: Coroutin
             
             val mediaUrl = if (attachMedia) {
                 if (isVideo) {
-                    listOf(
-                        "https://sample-videos.com/video123/mp4/720/big_buck_bunny_720p_1mb.mp4",
-                        "https://www.w3schools.com/html/mov_bbb.mp4"
-                    ).random()
+                    val galVids = getGalleryMediaUrls().filter { it.endsWith(".mp4") || it.contains("video", ignoreCase = true) }
+                    if (galVids.isNotEmpty()) galVids.random() else getDynamicInternetMediaForQuery(query)
                 } else {
                     getDynamicInternetMediaForQuery(query)
                 }
@@ -2190,15 +2188,11 @@ class SocialRepository(private val context: Context, private val scope: Coroutin
             }
         }
 
-        val videoOptions = listOf(
-            "https://storage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4",
-            "https://storage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4",
-            "https://storage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4",
-            "https://storage.googleapis.com/gtv-videos-bucket/sample/ForBiggerEscapes.mp4",
-            "https://storage.googleapis.com/gtv-videos-bucket/sample/TearsOfSteel.mp4",
-            "https://www.w3schools.com/html/mov_bbb.mp4",
-            "https://storage.googleapis.com/gtv-videos-bucket/sample/Sintel.mp4",
-            "https://storage.googleapis.com/gtv-videos-bucket/sample/SubaruOutbackAds.mp4"
+        val galleryVideos = gallery.filter { it.endsWith(".mp4") || it.contains("video", ignoreCase = true) }
+        val realGalleryVideos = galleryVideos.filter { !it.contains("mock_storage") }
+        
+        val videoOptions = if (realGalleryVideos.isNotEmpty()) realGalleryVideos else listOf(
+            "https://storage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4"
         )
         val gifOptions = listOf(
             "https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExNHJycGJncndyeHhyeHhyeHhyeHhyeHhyeHhyeHhyeHhyeHhyeHhyeCZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/3o7TKSjNGBhIpB4X96/giphy.gif",
@@ -2220,13 +2214,7 @@ class SocialRepository(private val context: Context, private val scope: Coroutin
 
         return when {
             q.contains("video") || q.contains("клип") || q.contains("фильм") || q.contains("youtube") || q.contains("ютуб") || q.contains("видео") -> {
-                listOf(
-                    "https://storage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4",
-                    "https://storage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4",
-                    "https://storage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4",
-                    "https://storage.googleapis.com/gtv-videos-bucket/sample/ForBiggerEscapes.mp4",
-                    "https://storage.googleapis.com/gtv-videos-bucket/sample/TearsOfSteel.mp4"
-                ).random()
+                videoOptions.random()
             }
             q.contains("space") || q.contains("космос") || q.contains("марс") || q.contains("rocket") || q.contains("ракета") || q.contains("звезд") -> {
                 listOf(
@@ -2304,16 +2292,12 @@ class SocialRepository(private val context: Context, private val scope: Coroutin
                 ).random()
             }
             else -> {
-                listOf(
+                (listOf(
                     "https://picsum.photos/seed/bg1/600/400",
                     "https://picsum.photos/seed/bg2/600/400",
                     "https://picsum.photos/seed/bg3/600/400",
-                    "https://picsum.photos/seed/bg4/600/400",
-                    "https://storage.googleapis.com/gtv-videos-bucket/sample/WeAreGoingOnBullrun.mp4",
-                    "https://storage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4",
-                    "https://storage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4",
-                    "https://storage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4"
-                ).random()
+                    "https://picsum.photos/seed/bg4/600/400"
+                ) + videoOptions.take(4)).random()
             }
         }
     }

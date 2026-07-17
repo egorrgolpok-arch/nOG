@@ -55,7 +55,10 @@ data class AvatarDecoration(
     val name: String,
     val rarity: String, // "ОБЫЧНАЯ", "РЕДКАЯ", "АХУЕННАЯ", "НЕВЕБЕЙШАЯ", "ЭКСКЛЮЗИВНАЯ"
     val basePrice: Int,
-    val styleType: Int // matches rendering logic
+    val styleType: Int, // matches rendering logic
+    val patternColor: String = "Neon Blue",
+    val patternStyleName: String = "Procedural Aura",
+    val patternAnimation: String = "Rotating Breathe"
 )
 
 // --- DETERMINISTIC PROCEDURAL GENERATOR ---
@@ -65,19 +68,25 @@ object DecorationGenerator {
         "Полупроводниковый", "Паленый", "Оверклокнутый", "Майнерский", "Грязный", "Жидкий", 
         "Нейросетевой", "Пиксельный", "Копченый", "Дутый", "Квантовый", "Ржавый", "Кринжовый", 
         "Базированный", "Офлайновый", "Ультрафиолетовый", "Синтетический", "Глючный", "Пьяный", 
-        "Токсичный", "Аналоговый", "Картонный", "Админский", "Мемный", "Шальной"
+        "Токсичный", "Аналоговый", "Картонный", "Админский", "Мемный", "Шальной",
+        "Галактический", "Бракованный", "Завирусившийся", "Голографический", "Платиновый", "Радиоактивный",
+        "Кибернетический", "Пиратский", "Фотонный", "Эпический", "Дедовский", "Элитный", "Пацанский"
     )
 
     private val nounsRu = listOf(
         "Процессор", "Резистор", "Конденсатор", "Аватар", "Майнер", "Админ", "Тред", "Кабель", 
         "Кулер", "Рекорд", "Модератор", "Чипсет", "Абузер", "Носок", "Верификатор", "Корпус", 
         "Транзистор", "Баг", "Код", "Мануал", "Текстурпак", "Провод", "Ноут", "Шланг", "Скриншот", 
-        "Блокчейн", "Сервер", "Анонимус", "Антивирус", "Интеграл"
+        "Блокчейн", "Сервер", "Анонимус", "Антивирус", "Интеграл",
+        "Роутер", "Вирус", "Троян", "Алгоритм", "Фреймворк", "Компилятор", "Пинг", "Контроллер",
+        "Аккаунт", "Пароль", "Логин", "Хэш", "Скрипт", "Плагин", "Интерфейс", "Нейрон"
     )
 
     private val suffixesRu = listOf(
         "в масле", "от Габена", "без регистрации", "3.0", "Pro Max", "из DNS", "на коленке", 
-        "в депрессии", "под пивом", "киберпанк", "с подсветкой", "из 2007"
+        "в депрессии", "под пивом", "киберпанк", "с подсветкой", "из 2007",
+        "с Алика", "для зумеров", "на максималках", "за 300 баксов", "от Илона Маска", 
+        "v2.0", "Edition", "с торрента", "без вирусов", "в 4K", "из даркнета"
     )
 
     private val adjectivesEn = listOf(
@@ -85,28 +94,74 @@ object DecorationGenerator {
         "Sourced", "Pirated", "Overclocked", "Mining", "Dirty", "Liquid", 
         "Neural", "Pixelated", "Smoked", "Bloated", "Quantum", "Rusty", "Cringey", 
         "Based", "Offline", "Ultraviolet", "Synthetic", "Glitchy", "Drunk", 
-        "Toxic", "Analog", "Cardboard", "Admin", "Meme", "Wild"
+        "Toxic", "Analog", "Cardboard", "Admin", "Meme", "Wild",
+        "Galactic", "Defective", "Viral", "Holographic", "Platinum", "Radioactive",
+        "Cybernetic", "Bootleg", "Photonic", "Epic", "Boomer", "Elite", "Chad"
     )
 
     private val nounsEn = listOf(
         "CPU", "Resistor", "Capacitor", "Avatar", "Miner", "Sysadmin", "Thread", "Wire", 
         "Cooler", "Record", "Mod", "Chipset", "Abuser", "Sock", "Validator", "Case", 
         "Transistor", "Bug", "Code", "Manual", "TexturePack", "Cable", "Laptop", "Pipe", "Screenshot", 
-        "Blockchain", "Host", "Anon", "Antivirus", "Gate"
+        "Blockchain", "Host", "Anon", "Antivirus", "Gate",
+        "Router", "Virus", "Trojan", "Algorithm", "Framework", "Compiler", "Ping", "Controller",
+        "Account", "Password", "Login", "Hash", "Script", "Plugin", "Interface", "Neuron"
     )
 
     private val suffixesEn = listOf(
         "in mineral oil", "by Gabe", "unregistered", "3.0", "Pro Max", "OEM edition", "cooked on knees", 
-        "depressed", "under beer", "cyberpunk", "RGB styled", "since 2007"
+        "depressed", "under beer", "cyberpunk", "RGB styled", "since 2007",
+        "from AliExpress", "for zoomers", "on max settings", "for 300 bucks", "by Elon Musk", 
+        "v2.0", "Edition", "from torrent", "virus-free", "in 4K", "from darknet"
     )
 
     fun generateDecoration(id: Int, lang: String): AvatarDecoration {
-        val rand = Random(id.toLong() * 1117)
+        val rand = Random(id.toLong() * 1453)
         
-        // 15% chance to be named after user or predefined bot handle
+        // 1. STYLE TYPE (procedural variety)
+        val styleType = (id % 50) + 1
+        
+        // 2. PATTERNS
+        // A. Style Name / View Type
+        val styleNamesRu = listOf(
+            "Процедурный Нимб", "Двойной Контур", "Королевская Корона", "Цифровой Монокуляр", "Глитч-Волна",
+            "ДНК-Вихрь", "Матричная Сетка", "Сингулярность", "Сверхновая Вспышка", "Орбитальный Трекер",
+            "Импульсный Щит", "Пиксельный Glow", "Админский Ореол", "Солнечный Ветер", "Квантовый Узел",
+            "Биометрический Визор", "Силовой Купол", "Радиоактивный След", "Фотонный Луч", "Ядро Системы"
+        )
+        val styleNamesEn = listOf(
+            "Procedural Halo", "Double Dashed Contour", "Royal Crown", "Digital Monocular", "Glitch Wave",
+            "DNA Helix", "Matrix Code Grid", "Singularity Event", "Supernova Flash", "Orbital Tracker",
+            "Pulse Shield", "Pixelated LED Glow", "Sysadmin Halo", "Cosmic Solar Wind", "Quantum Spin Node",
+            "Biometric Face Visor", "Protective Force Dome", "Radioactive Trail", "Photonic Beam", "Cybernetic Core"
+        )
+        val styleIndex = rand.nextInt(styleNamesEn.size)
+        val patternStyleName = if (lang == "RU") styleNamesRu[styleIndex] else styleNamesEn[styleIndex]
+        
+        // B. Color Pattern
+        val colorNamesRu = listOf("Красный Неон", "Электрик Синий", "Изумрудный Зеленый", "Жгучий Оранжевый", "Кислотный Желтый", "Ультра Фиолетовый", "Платиновый Белый", "Золотая Искра", "Мятная Прохлада", "Космический Багрянец")
+        val colorNamesEn = listOf("Neon Red", "Electric Blue", "Emerald Green", "Fiery Orange", "Acid Yellow", "Ultra Purple", "Platinum White", "Golden Sparkle", "Mint Cooler", "Cosmic Crimson")
+        val colorIndex = rand.nextInt(colorNamesEn.size)
+        val patternColor = if (lang == "RU") colorNamesRu[colorIndex] else colorNamesEn[colorIndex]
+        
+        // C. Animation Pattern
+        val animNamesRu = listOf("Быстрое Вращение", "Медленная Орбита", "Пульсация Дыхания", "Вспышки Свечения", "Реверсивный Спин", "Глитч-Мерцание")
+        val animNamesEn = listOf("Fast Rotation", "Slow Orbit", "Breathing Pulsation", "Glowing Flashes", "Reverse Twisting", "Glitch Flickering")
+        val animIndex = rand.nextInt(animNamesEn.size)
+        val patternAnimation = if (lang == "RU") animNamesRu[animIndex] else animNamesEn[animIndex]
+        
+        // D. Rarity Pattern & Base Price
+        val rarityRoll = rand.nextInt(100)
+        val (rarityText, basePrice) = when {
+            rarityRoll < 55 -> Pair(if (lang == "RU") "ОБЫЧНАЯ" else "COMMON", 15000 + (id % 12) * 800)
+            rarityRoll < 80 -> Pair(if (lang == "RU") "РЕДКАЯ" else "RARE", 35000 + (id % 12) * 1500)
+            rarityRoll < 92 -> Pair(if (lang == "RU") "АХУЕННАЯ" else "AWESOME", 75000 + (id % 12) * 3000)
+            else -> Pair(if (lang == "RU") "НЕВЕБЕЙШАЯ" else "INSANE", 150000 + (id % 12) * 8000)
+        }
+
+        // 3. NAME GENERATION utilizing adjectives, nouns, suffixes
         val isNamedAfterContact = rand.nextInt(100) < 15
-        
-        val rawName = if (isNamedAfterContact) {
+        val rawBaseName = if (isNamedAfterContact) {
             val contactHandle = when (id % 12) {
                 0 -> "@user_node"
                 1 -> "@bio_node"
@@ -122,42 +177,31 @@ object DecorationGenerator {
                 else -> "@retro_node"
             }
             if (lang == "RU") {
-                val prefixes = listOf("Ирокез", "Корона", "Сияние", "Маска", "Нимб", "Шлем", "Очки", "Кулер")
+                val prefixes = listOf("Ирокез", "Корона", "Сияние", "Маска", "Нимб", "Шлем", "Очки", "Кулер", "Голограмма", "Паттерн", "Эквалайзер")
                 "${prefixes[rand.nextInt(prefixes.size)]} $contactHandle"
             } else {
-                val prefixes = listOf("Mohawk of", "Crown of", "Symmetry of", "Visor of", "Halo of", "Helmet of", "Glow of", "Fan of")
+                val prefixes = listOf("Mohawk of", "Crown of", "Symmetry of", "Visor of", "Halo of", "Helmet of", "Glow of", "Fan of", "Hologram of", "Pattern of", "Equalizer of")
                 "${prefixes[rand.nextInt(prefixes.size)]} $contactHandle"
             }
         } else {
             val adj = if (lang == "RU") adjectivesRu[rand.nextInt(adjectivesRu.size)] else adjectivesEn[rand.nextInt(adjectivesEn.size)]
             val noun = if (lang == "RU") nounsRu[rand.nextInt(nounsRu.size)] else nounsEn[rand.nextInt(nounsEn.size)]
             val suff = if (lang == "RU") suffixesRu[rand.nextInt(suffixesRu.size)] else suffixesEn[rand.nextInt(suffixesEn.size)]
-            
-            if (rand.nextBoolean()) {
-                "$adj $noun $suff"
-            } else {
-                "$adj $noun"
-            }
+            if (rand.nextBoolean()) "$adj $noun $suff" else "$adj $noun"
         }
+        
+        val rawName = "$rawBaseName ($patternColor)"
 
-        // Rarities deterministically
-        val rarity = when (id % 10) {
-            in 0..5 -> "ОБЫЧНАЯ" // 60% Common
-            in 6..7 -> "РЕДКАЯ"  // 20% Rare
-            8 -> "АХУЕННАЯ"      // 10% Awesome
-            else -> "НЕВЕБЕЙШАЯ" // 10% Insane
-        }
-
-        val basePrice = when (rarity) {
-            "ОБЫЧНАЯ" -> 15000
-            "РЕДКАЯ" -> 35000
-            "АХУЕННАЯ" -> 75000
-            else -> 150000
-        }
-
-        val styleType = (id % 10) + 1
-
-        return AvatarDecoration(id, rawName, rarity, basePrice, styleType)
+        return AvatarDecoration(
+            id = id,
+            name = rawName,
+            rarity = rarityText,
+            basePrice = basePrice,
+            styleType = styleType,
+            patternColor = patternColor,
+            patternStyleName = patternStyleName,
+            patternAnimation = patternAnimation
+        )
     }
 
     // 20 Luxury Exclusives
@@ -382,13 +426,28 @@ fun AvatarWithDecoration(
                 scalePulse = 1f
                 breatheAlpha = 0.9f
             } else {
+                val animType = decorationId?.rem(4) ?: 0
                 val infiniteTransition = rememberInfiniteTransition(label = "avatar_dec")
                 
+                val rotDuration = when(animType) {
+                    0 -> if (isSmall) 6000 else 4000
+                    1 -> if (isSmall) 3000 else 2000 // Fast
+                    2 -> if (isSmall) 8000 else 6000 // Slow
+                    else -> if (isSmall) 4000 else 2500
+                }
+                
+                val rotEasing = when(animType) {
+                    0 -> LinearEasing
+                    1 -> LinearOutSlowInEasing
+                    2 -> FastOutSlowInEasing
+                    else -> LinearEasing
+                }
+
                 val rotationState = infiniteTransition.animateFloat(
                     initialValue = 0f,
-                    targetValue = 360f,
+                    targetValue = if (animType == 3) -360f else 360f,
                     animationSpec = infiniteRepeatable(
-                        animation = tween(if (isSmall) 6000 else 4000, easing = LinearEasing)
+                        animation = tween(rotDuration, easing = rotEasing)
                     ),
                     label = "rot"
                 )
@@ -397,11 +456,12 @@ fun AvatarWithDecoration(
                 val scaleState = if (isSmall) {
                     null
                 } else {
+                    val scaleMax = if (animType == 1) 1.08f else 1.04f
                     infiniteTransition.animateFloat(
                         initialValue = 0.96f,
-                        targetValue = 1.04f,
+                        targetValue = scaleMax,
                         animationSpec = infiniteRepeatable(
-                            animation = tween(1200, easing = FastOutSlowInEasing),
+                            animation = tween(1200 + (animType * 200), easing = FastOutSlowInEasing),
                             repeatMode = RepeatMode.Reverse
                         ),
                         label = "scale"
@@ -412,11 +472,12 @@ fun AvatarWithDecoration(
                 val alphaState = if (isSmall) {
                     null
                 } else {
+                    val alphaMin = if (animType == 2) 0.3f else 0.6f
                     infiniteTransition.animateFloat(
-                        initialValue = 0.6f,
+                        initialValue = alphaMin,
                         targetValue = 1.0f,
                         animationSpec = infiniteRepeatable(
-                            animation = tween(1000, easing = LinearEasing),
+                            animation = tween(1000 + (animType * 300), easing = LinearEasing),
                             repeatMode = RepeatMode.Reverse
                         ),
                         label = "alpha"
@@ -452,7 +513,7 @@ fun AvatarWithDecoration(
                     DecorationGenerator.generateDecoration(decorationId, "EN")
                 }
                 
-                val styleType = decorationItem?.styleType ?: ((decorationId % 10) + 1)
+                val styleType = if (decorationId == 9999) aiDecProps.third.first else (decorationItem?.styleType ?: ((decorationId % 30) + 1))
                 
                 val premiumProceduralColors = listOf(
                     Color(0xFFFF1493), // Hot Pink
@@ -469,7 +530,7 @@ fun AvatarWithDecoration(
                     Color(0xFFFF9100)  // Gold Amber
                 )
  
-                val colorOffset = if (decorationId == 9999) aiDecProps.third.second else decorationId
+                val colorOffset = if (decorationId == 9999) aiDecProps.third.second else (decorationId % 10)
                 val primaryColor = premiumProceduralColors[colorOffset % premiumProceduralColors.size]
                 val secondaryColor = premiumProceduralColors[(colorOffset + 3) % premiumProceduralColors.size]
                 val tertiaryColor = premiumProceduralColors[(colorOffset + 7) % premiumProceduralColors.size]
@@ -1040,6 +1101,150 @@ fun AvatarWithDecoration(
                             radius = decorRadius,
                             style = Stroke(width = 4.dp.toPx())
                         )
+                    }
+                    31 -> { // Cybernetic Angelic Aura
+                        val dashEffect = PathEffect.dashPathEffect(floatArrayOf(10f, 10f), angleRotation)
+                        drawCircle(color = primaryColor, radius = decorRadius, style = Stroke(width = 2.dp.toPx(), pathEffect = dashEffect))
+                        drawCircle(color = secondaryColor.copy(alpha = 0.5f), radius = decorRadius + 5.dp.toPx(), style = Stroke(width = 1.dp.toPx()))
+                    }
+                    32 -> { // Dark Reaper Aura
+                        drawCircle(color = Color.Black.copy(alpha = 0.5f), radius = decorRadius)
+                        drawCircle(color = primaryColor.copy(alpha = breatheAlpha), radius = decorRadius, style = Stroke(width = 3.dp.toPx()))
+                        val spikes = 8
+                        for (i in 0 until spikes) {
+                            val rad = Math.toRadians((i * (360.0 / spikes)) + angleRotation)
+                            val x1 = centerOffset.x + decorRadius * kotlin.math.cos(rad).toFloat()
+                            val y1 = centerOffset.y + decorRadius * kotlin.math.sin(rad).toFloat()
+                            val x2 = centerOffset.x + (decorRadius + 10.dp.toPx()) * kotlin.math.cos(rad).toFloat()
+                            val y2 = centerOffset.y + (decorRadius + 10.dp.toPx()) * kotlin.math.sin(rad).toFloat()
+                            drawLine(color = primaryColor, start = Offset(x1, y1), end = Offset(x2, y2), strokeWidth = 1.dp.toPx())
+                        }
+                    }
+                    33 -> { // Crown of Star Lord
+                        drawArc(color = primaryColor, startAngle = 180f, sweepAngle = 180f, useCenter = false, topLeft = Offset(centerOffset.x - decorRadius, centerOffset.y - decorRadius - 10.dp.toPx()), size = Size(decorRadius * 2, decorRadius * 2), style = Stroke(width = 3.dp.toPx()))
+                        drawCircle(color = secondaryColor, radius = 4.dp.toPx(), center = Offset(centerOffset.x, centerOffset.y - decorRadius - 10.dp.toPx()))
+                    }
+                    34 -> { // Magma God Fire Crystal
+                        val rectSize = decorRadius * 1.5f
+                        drawRect(color = Color(0xFFFF4500).copy(alpha = 0.6f * breatheAlpha), topLeft = Offset(centerOffset.x - rectSize/2, centerOffset.y - rectSize/2), size = Size(rectSize, rectSize), style = Stroke(width = 2.dp.toPx()))
+                        drawRect(color = Color(0xFFFFEA00).copy(alpha = 0.4f * breatheAlpha), topLeft = Offset(centerOffset.x - rectSize/2.5f, centerOffset.y - rectSize/2.5f), size = Size(rectSize * 0.8f, rectSize * 0.8f), style = Stroke(width = 2.dp.toPx()))
+                    }
+                    35 -> { // Neon Black Hole
+                        drawCircle(color = Color.Black.copy(alpha = 0.8f), radius = decorRadius - 5.dp.toPx())
+                        drawCircle(brush = Brush.sweepGradient(listOf(primaryColor, Color.Transparent, secondaryColor, Color.Transparent)), radius = decorRadius, style = Stroke(width = 4.dp.toPx()))
+                    }
+                    36 -> { // Interstellar Wanderer
+                        drawCircle(color = primaryColor.copy(alpha = 0.4f), radius = decorRadius + (5f * breatheAlpha).dp.toPx(), style = Stroke(width = 1.dp.toPx()))
+                        drawCircle(color = secondaryColor.copy(alpha = 0.6f), radius = decorRadius, style = Stroke(width = 2.dp.toPx()))
+                        drawCircle(color = tertiaryColor.copy(alpha = 0.8f), radius = decorRadius - 5.dp.toPx(), style = Stroke(width = 1.dp.toPx()))
+                    }
+                    37 -> { // Sacred Valkyrie Helmet
+                        val path = Path().apply {
+                            moveTo(centerOffset.x - decorRadius, centerOffset.y)
+                            lineTo(centerOffset.x, centerOffset.y - decorRadius - 15.dp.toPx())
+                            lineTo(centerOffset.x + decorRadius, centerOffset.y)
+                        }
+                        drawPath(path, color = primaryColor, style = Stroke(width = 2.dp.toPx()))
+                        drawCircle(color = secondaryColor, radius = 3.dp.toPx(), center = Offset(centerOffset.x, centerOffset.y - decorRadius - 15.dp.toPx()))
+                    }
+                    38 -> { // Holographic AI Mind
+                        val gridLines = 5
+                        for (i in 0..gridLines) {
+                            val offset = (decorRadius * 2) * (i.toFloat() / gridLines) - decorRadius
+                            drawLine(color = primaryColor.copy(alpha = 0.5f), start = Offset(centerOffset.x - decorRadius, centerOffset.y + offset), end = Offset(centerOffset.x + decorRadius, centerOffset.y + offset), strokeWidth = 1.dp.toPx())
+                            drawLine(color = secondaryColor.copy(alpha = 0.5f), start = Offset(centerOffset.x + offset, centerOffset.y - decorRadius), end = Offset(centerOffset.x + offset, centerOffset.y + decorRadius), strokeWidth = 1.dp.toPx())
+                        }
+                    }
+                    39 -> { // Digital Halo
+                        drawCircle(color = primaryColor, radius = decorRadius, style = Stroke(width = 3.dp.toPx(), pathEffect = PathEffect.dashPathEffect(floatArrayOf(5f, 15f), angleRotation)))
+                        drawCircle(color = secondaryColor, radius = decorRadius + 4.dp.toPx(), style = Stroke(width = 1.dp.toPx(), pathEffect = PathEffect.dashPathEffect(floatArrayOf(15f, 5f), -angleRotation)))
+                    }
+                    40 -> { // Eclipse Ring
+                        drawCircle(color = Color.Black.copy(alpha = 0.6f), radius = decorRadius)
+                        drawArc(color = primaryColor, startAngle = angleRotation, sweepAngle = 270f, useCenter = false, topLeft = Offset(centerOffset.x - decorRadius, centerOffset.y - decorRadius), size = Size(decorRadius*2, decorRadius*2), style = Stroke(width = 4.dp.toPx()))
+                    }
+                    41 -> { // Hexagonal Tech
+                        val path = Path()
+                        for (i in 0 until 6) {
+                            val rad = Math.toRadians((i * 60.0) + angleRotation)
+                            val x = centerOffset.x + decorRadius * kotlin.math.cos(rad).toFloat()
+                            val y = centerOffset.y + decorRadius * kotlin.math.sin(rad).toFloat()
+                            if (i == 0) path.moveTo(x, y) else path.lineTo(x, y)
+                        }
+                        path.close()
+                        drawPath(path, color = primaryColor, style = Stroke(width = 2.dp.toPx()))
+                    }
+                    42 -> { // Dual Orbiting Moons
+                        drawCircle(color = primaryColor.copy(alpha = 0.3f), radius = decorRadius, style = Stroke(width = 1.dp.toPx()))
+                        val rad1 = Math.toRadians(angleRotation.toDouble())
+                        drawCircle(color = secondaryColor, radius = 5.dp.toPx(), center = Offset(centerOffset.x + decorRadius * kotlin.math.cos(rad1).toFloat(), centerOffset.y + decorRadius * kotlin.math.sin(rad1).toFloat()))
+                        val rad2 = Math.toRadians(angleRotation.toDouble() + 180.0)
+                        drawCircle(color = tertiaryColor, radius = 3.dp.toPx(), center = Offset(centerOffset.x + decorRadius * kotlin.math.cos(rad2).toFloat(), centerOffset.y + decorRadius * kotlin.math.sin(rad2).toFloat()))
+                    }
+                    43 -> { // Pulsing Energy Shield
+                        for (i in 1..3) {
+                            drawCircle(color = primaryColor.copy(alpha = 0.2f * i * breatheAlpha), radius = decorRadius - (i * 2).dp.toPx(), style = Stroke(width = 1.5.dp.toPx()))
+                        }
+                    }
+                    44 -> { // Glitching Triangle
+                        val path = Path()
+                        val glitchOffset = (Math.random() * 10 - 5).toFloat()
+                        for (i in 0 until 3) {
+                            val rad = Math.toRadians((i * 120.0) + angleRotation)
+                            val x = centerOffset.x + decorRadius * kotlin.math.cos(rad).toFloat() + glitchOffset
+                            val y = centerOffset.y + decorRadius * kotlin.math.sin(rad).toFloat() - glitchOffset
+                            if (i == 0) path.moveTo(x, y) else path.lineTo(x, y)
+                        }
+                        path.close()
+                        drawPath(path, color = primaryColor, style = Stroke(width = 2.dp.toPx()))
+                    }
+                    45 -> { // Rotating Crosshairs
+                        drawLine(color = primaryColor, start = Offset(centerOffset.x - decorRadius, centerOffset.y), end = Offset(centerOffset.x - decorRadius / 2, centerOffset.y), strokeWidth = 2.dp.toPx())
+                        drawLine(color = primaryColor, start = Offset(centerOffset.x + decorRadius / 2, centerOffset.y), end = Offset(centerOffset.x + decorRadius, centerOffset.y), strokeWidth = 2.dp.toPx())
+                        drawLine(color = primaryColor, start = Offset(centerOffset.x, centerOffset.y - decorRadius), end = Offset(centerOffset.x, centerOffset.y - decorRadius / 2), strokeWidth = 2.dp.toPx())
+                        drawLine(color = primaryColor, start = Offset(centerOffset.x, centerOffset.y + decorRadius / 2), end = Offset(centerOffset.x, centerOffset.y + decorRadius), strokeWidth = 2.dp.toPx())
+                        drawCircle(color = secondaryColor.copy(alpha = breatheAlpha), radius = decorRadius / 2, style = Stroke(width = 1.dp.toPx()))
+                    }
+                    46 -> { // Wavy Liquid Aura
+                        val path = Path()
+                        for (i in 0..360 step 10) {
+                            val rad = Math.toRadians(i.toDouble())
+                            val wave = (kotlin.math.sin(rad * 4 + Math.toRadians(angleRotation.toDouble())) * 5.dp.toPx()).toFloat()
+                            val x = centerOffset.x + (decorRadius + wave) * kotlin.math.cos(rad).toFloat()
+                            val y = centerOffset.y + (decorRadius + wave) * kotlin.math.sin(rad).toFloat()
+                            if (i == 0) path.moveTo(x, y) else path.lineTo(x, y)
+                        }
+                        path.close()
+                        drawPath(path, color = primaryColor.copy(alpha = 0.8f), style = Stroke(width = 2.dp.toPx()))
+                    }
+                    47 -> { // Tech Square Frame
+                        drawRect(color = primaryColor, topLeft = Offset(centerOffset.x - decorRadius, centerOffset.y - decorRadius), size = Size(decorRadius * 2, decorRadius * 2), style = Stroke(width = 2.dp.toPx(), pathEffect = PathEffect.dashPathEffect(floatArrayOf(20f, 10f), angleRotation)))
+                        drawRect(color = secondaryColor.copy(alpha = 0.5f), topLeft = Offset(centerOffset.x - decorRadius + 4.dp.toPx(), centerOffset.y - decorRadius + 4.dp.toPx()), size = Size((decorRadius - 4.dp.toPx()) * 2, (decorRadius - 4.dp.toPx()) * 2), style = Stroke(width = 1.dp.toPx()))
+                    }
+                    48 -> { // Sparkle Star
+                        val path = Path()
+                        for (i in 0 until 8) {
+                            val rad = Math.toRadians((i * 45.0) + angleRotation)
+                            val r = if (i % 2 == 0) decorRadius else decorRadius / 2
+                            val x = centerOffset.x + r * kotlin.math.cos(rad).toFloat()
+                            val y = centerOffset.y + r * kotlin.math.sin(rad).toFloat()
+                            if (i == 0) path.moveTo(x, y) else path.lineTo(x, y)
+                        }
+                        path.close()
+                        drawPath(path, color = primaryColor, style = Stroke(width = 2.dp.toPx()))
+                    }
+                    49 -> { // Yin Yang Spin
+                        drawArc(color = primaryColor, startAngle = angleRotation, sweepAngle = 180f, useCenter = true, topLeft = Offset(centerOffset.x - decorRadius, centerOffset.y - decorRadius), size = Size(decorRadius*2, decorRadius*2))
+                        drawArc(color = secondaryColor, startAngle = angleRotation + 180f, sweepAngle = 180f, useCenter = true, topLeft = Offset(centerOffset.x - decorRadius, centerOffset.y - decorRadius), size = Size(decorRadius*2, decorRadius*2))
+                    }
+                    50 -> { // Glowing DNA Helix
+                        for (i in 0 until 10) {
+                            val yOffset = (i - 5) * (decorRadius / 5)
+                            val xOffset = (kotlin.math.sin(i * 0.5 + Math.toRadians(angleRotation.toDouble())) * (decorRadius / 2)).toFloat()
+                            drawCircle(color = primaryColor, radius = 2.dp.toPx(), center = Offset(centerOffset.x + xOffset, centerOffset.y + yOffset))
+                            drawCircle(color = secondaryColor, radius = 2.dp.toPx(), center = Offset(centerOffset.x - xOffset, centerOffset.y + yOffset))
+                            drawLine(color = tertiaryColor.copy(alpha = 0.3f), start = Offset(centerOffset.x + xOffset, centerOffset.y + yOffset), end = Offset(centerOffset.x - xOffset, centerOffset.y + yOffset), strokeWidth = 1.dp.toPx())
+                        }
                     }
                     else -> { // Default glowing aura ring
                         drawCircle(
@@ -2033,7 +2238,7 @@ fun AvatarDecorationShopDialog(
 fun DurationOptionRow(
     durationText: String,
     priceCoins: Int,
-    userCoins: Int,
+    userCoins: Long,
     onClick: () -> Unit
 ) {
     val canAfford = userCoins >= priceCoins
@@ -2130,6 +2335,17 @@ fun DecorationShopCard(
                 fontFamily = FontFamily.Monospace,
                 textAlign = TextAlign.Center,
                 modifier = Modifier.padding(top = 2.dp)
+            )
+
+            Text(
+                text = "${item.patternStyleName} • ${item.patternAnimation}",
+                color = TextGray,
+                fontSize = 8.sp,
+                fontFamily = FontFamily.Monospace,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.padding(top = 2.dp),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
             )
 
             Spacer(modifier = Modifier.height(10.dp))
@@ -2294,7 +2510,7 @@ data class CaseType(
     val id: Int,
     val nameRu: String,
     val nameEn: String,
-    val price: Int,
+    val price: Long,
     val descriptionRu: String,
     val descriptionEn: String,
     val minRarity: String,
@@ -2303,7 +2519,7 @@ data class CaseType(
 )
 
 object CaseGenerator {
-    private val adjCaseRu = listOf(
+    val adjCaseRu = listOf(
         "Древний", "Админский", "Базированный", "Шитпостинговый", "Забаненный", "Кринжовый",
         "Пиксельный", "Токсичный", "Желейный", "Полупроводниковый", "Пьяный", "Анонимный",
         "Майнерский", "Урановый", "Сумасшедший", "Коммунистический", "Капиталистический", "Силиконовый",
@@ -2315,7 +2531,7 @@ object CaseGenerator {
         "Помойный", "Шедевральный", "Олдскульный", "Нейросетевой", "Матричный", "Легендарный", "Астральный", "Призрачный",
         "Волшебный", "Думерский", "Сигма-самецкий", "Гопнический", "Днепровский", "Блатный", "Ретроградный"
     )
-    private val nounCaseRu = listOf(
+    val nounCaseRu = listOf(
         "Кулер", "Резистор", "Аватар", "Конденсатор", "Тред", "Сервер", "Кабель", "Абузер",
         "Блокчейн", "Модератор", "Чипсет", "Интеграл", "Носок", "Верификатор", "Корпус",
         "Баг", "Код", "Скриншот", "Провод", "Ноут", "Шланг", "Анлим", "Гигачад", "Шитпост",
@@ -2325,7 +2541,7 @@ object CaseGenerator {
         "Микрочип", "Терминал", "Сервак", "Пул", "Токен", "Вайб", "Оффтоп", "Карась", "Подпивас", "Косарь",
         "Олигарх", "Дворник"
     )
-    private val suffixCaseRu = listOf(
+    val suffixCaseRu = listOf(
         "в масле", "от Габена", "в депрессии", "из DNS", "под пивом", "с подсветкой", "из 2007",
         "без регистрации", "3.0", "Pro Max", "на коленке", "киберпанк", "для нищих", "для олигархов",
         "из подвала", "от Дурова", "в кредит", "с алика", "на читах", "за 16 копеек", "с завода", "из Чижика",
@@ -2334,7 +2550,7 @@ object CaseGenerator {
         "от Меллстроя", "с Авито", "с вечной гарантией", "в рассрочку на 100 лет", "для настоящих скуфов"
     )
 
-    private val adjCaseEn = listOf(
+    val adjCaseEn = listOf(
         "Ancient", "Admin's", "Based", "Shitposting", "Banned", "Cringey",
         "Pixelated", "Toxic", "Jelly", "Semiconductor", "Drunk", "Anonymous",
         "Mining", "Uranium", "Crazy", "Communist", "Capitalist", "Silicon",
@@ -2346,7 +2562,7 @@ object CaseGenerator {
         "Garbage", "Masterpiece", "Oldschool", "Neural", "Matrix", "Legendary", "Astral", "Phantom",
         "Magical", "Doomer", "Sigma", "Gopnik", "Dnipro", "Thug", "Retrograde"
     )
-    private val nounCaseEn = listOf(
+    val nounCaseEn = listOf(
         "Cooler", "Resistor", "Avatar", "Capacitor", "Thread", "Server", "Cable", "Abuser",
         "Blockchain", "Moderator", "Chipset", "Integral", "Sock", "Validator", "Case",
         "Bug", "Code", "Screenshot", "Wire", "Laptop", "Hose", "Unlim", "Gigachad", "Shitpost",
@@ -2356,7 +2572,7 @@ object CaseGenerator {
         "Microchip", "Terminal", "Host", "Pool", "Token", "Vibe", "Offtopic", "Crucian", "Underbeer", "Grand",
         "Oligarch", "Janitor"
     )
-    private val suffixCaseEn = listOf(
+    val suffixCaseEn = listOf(
         "in oil", "by Gabe", "in depression", "from DNS", "under beer", "with RGB", "since 2007",
         "without signup", "3.0", "Pro Max", "on knee", "cyberpunk", "for beggars", "for oligarchs",
         "from basement", "by Durov", "on credit", "from Aliexpress", "on cheats", "for 16 cents", "from factory", "from Chizhik",
@@ -2365,7 +2581,7 @@ object CaseGenerator {
         "by Mellstroy", "from Craigslist", "with lifetime warranty", "on 100-year plan", "for true skufs"
     )
 
-    private val descTemplatesRu = listOf(
+    val descTemplatesRu = listOf(
         "Кейс, собранный из остатков {noun} и заправленный {suffix}. Шанс уйти в минус максимальный!",
         "Эксклюзивная подборка, содержащая {adj} {noun}. Выпавшее украшение может озолотить или обанкротить вас.",
         "Этот сундук запечатал лично {noun} в 2007 году. Ретро-вайб с диким риском потерпеть финансовое фиаско.",
@@ -2379,7 +2595,7 @@ object CaseGenerator {
         "Капсула времени, внутри которой спит {adj} {noun}. Твой шанс сорвать куш с безумным {suffix}.",
         "Космический контейнер, запущенный на орбиту. Приземлился прямо к нам, неся в себе {adj} {noun} {suffix}."
     )
-    private val descTemplatesEn = listOf(
+    val descTemplatesEn = listOf(
         "A case made of {noun} leftovers and filled with {suffix}. Extreme risk of going broke!",
         "An exclusive curation containing {adj} {noun}. The dropped frame might make you rich or leave you bankrupted.",
         "This crate was sealed by {noun} back in 2007. Retro vibes with an immense risk of total financial failure.",
@@ -2396,38 +2612,42 @@ object CaseGenerator {
 
     fun generateCases(lang: String): List<CaseType> {
         val basePrices = listOf(
-            200, 500, 1000, 2500, 5000, 8000, 12000,
-            16000, 21000, 28000, 36000, 48000, 
-            64000, 80000, 95000, 115000, 140000,
-            175000, 220000, 280000, 360000, 460000,
-            600000, 800000, 1000000, 1500000, 2500000,
-            4000000, 6000000, 9000000, 12000000, 18000000,
-            25000000, 35000000, 50000000, 75000000, 100000000,
-            150000000, 220000000, 300000000, 450000000, 600000000,
-            800000000, 1000000000, 2000000000
+            // --- CHEAP CATEGORY (<= 35,000) ---
+            100, 200, 300, 400, 500, 650, 800, 1000, 1200, 1500,
+            1800, 2200, 2600, 3100, 3700, 4400, 5200, 6100, 7100, 8300,
+            9600, 11000, 13000, 15500, 18500, 22000, 26000, 30000, 33000, 35000,
+
+            // --- MEDIUM CATEGORY (35,001 to 1,000,000) ---
+            42000, 50000, 60000, 72000, 86000, 100000, 120000, 145000, 175000, 210000,
+            250000, 300000, 360000, 430000, 510000, 600000, 700000, 810000, 930000, 1000000,
+
+            // --- HIGH CATEGORY (1,000,001 to 200,000,000) ---
+            1500000, 2500000, 4000000, 7000000, 12000000, 20000000, 35000000, 60000000, 100000000, 200000000,
+
+            // --- ULTRA HIGH CATEGORY (200,000,001 to 1,000,000,000) ---
+            400000000, 700000000, 1000000000,
+
+            // --- TOP 2 MOST EXPENSIVE CASES (1,500,000,000 & 2,000,000,000) ---
+            1500000000, 2000000000
         )
-        val minRarities = listOf(
-            "ОБЫЧНАЯ", "ОБЫЧНАЯ", "ОБЫЧНАЯ", "ОБЫЧНАЯ", "ОБЫЧНАЯ", "ОБЫЧНАЯ", "ОБЫЧНАЯ",
-            "ОБЫЧНАЯ", "ОБЫЧНАЯ", "ОБЫЧНАЯ", "РЕДКАЯ", "РЕДКАЯ", 
-            "РЕДКАЯ", "АХУЕННАЯ", "АХУЕННАЯ", "АХУЕННАЯ", "АХУЕННАЯ",
-            "НЕВЕБЕЙШАЯ", "НЕВЕБЕЙШАЯ", "НЕВЕБЕЙШАЯ", "НЕВЕБЕЙШАЯ", "НЕВЕБЕЙШАЯ",
-            "НЕВЕБЕЙШАЯ", "НЕВЕБЕЙШАЯ", "НЕВЕБЕЙШАЯ", "НЕВЕБЕЙШАЯ", "НЕВЕБЕЙШАЯ",
-            "НЕВЕБЕЙШАЯ", "НЕВЕБЕЙШАЯ", "НЕВЕБЕЙШАЯ", "НЕВЕБЕЙШАЯ", "НЕВЕБЕЙШАЯ",
-            "ЭКСКЛЮЗИВНАЯ", "ЭКСКЛЮЗИВНАЯ", "ЭКСКЛЮЗИВНАЯ", "ЭКСКЛЮЗИВНАЯ", "ЭКСКЛЮЗИВНАЯ",
-            "ЭКСКЛЮЗИВНАЯ", "ЭКСКЛЮЗИВНАЯ", "ЭКСКЛЮЗИВНАЯ", "ЭКСКЛЮЗИВНАЯ", "ЭКСКЛЮЗИВНАЯ",
-            "ЭКСКЛЮЗИВНАЯ", "ЭКСКЛЮЗИВНАЯ", "ЭКСКЛЮЗИВНАЯ"
-        )
-        val premiumChances = listOf(
-            0.001f, 0.002f, 0.005f, 0.01f, 0.015f, 0.02f, 0.025f,
-            0.03f, 0.04f, 0.05f, 0.06f, 0.07f, 
-            0.08f, 0.10f, 0.12f, 0.15f, 0.18f,
-            0.20f, 0.22f, 0.24f, 0.26f, 0.28f,
-            0.30f, 0.32f, 0.35f, 0.38f, 0.40f,
-            0.42f, 0.45f, 0.48f, 0.50f, 0.55f,
-            0.60f, 0.65f, 0.70f, 0.75f, 0.80f,
-            0.82f, 0.85f, 0.88f, 0.90f, 0.92f,
-            0.95f, 0.98f, 0.99f
-        )
+        val minRarities = basePrices.mapIndexed { idx, price ->
+            when {
+                price <= 35000 -> "ОБЫЧНАЯ"
+                idx < 40 -> "РЕДКАЯ"
+                idx < 50 -> "АХУЕННАЯ"
+                idx < 63 -> "НЕВЕБЕЙШАЯ"
+                else -> "ЭКСКЛЮЗИВНАЯ"
+            }
+        }
+        val premiumChances = basePrices.mapIndexed { idx, price ->
+            when {
+                price <= 35000 -> 0.01f + (idx * 0.005f)
+                idx < 40 -> 0.15f + ((idx - 30) * 0.015f)
+                idx < 50 -> 0.30f + ((idx - 40) * 0.02f)
+                idx < 63 -> 0.50f + ((idx - 50) * 0.03f)
+                else -> 1.0f // 100% for the top 2
+            }
+        }
         
         val gradients = listOf(
             listOf(Color(0xFF0F2027), Color(0xFF203A43), Color(0xFF2C5364)), // dark steel
@@ -2449,7 +2669,7 @@ object CaseGenerator {
 
         val emojis = listOf("📦", "🎰", "🔥", "☢️", "💎", "🔫", "💀", "👑", "🍕", "🛸", "🐹", "🐎", "🦉", "🤡", "🦧")
 
-        return List(45) { i ->
+        return List(basePrices.size) { i ->
             val rand = Random((i + 5).toLong() * 8813)
             val adjRu = adjCaseRu[rand.nextInt(adjCaseRu.size)]
             val nounRu = nounCaseRu[rand.nextInt(nounCaseRu.size)]
@@ -2480,7 +2700,7 @@ object CaseGenerator {
                 id = i + 1,
                 nameRu = nameRu,
                 nameEn = nameEn,
-                price = basePrices[i],
+                price = basePrices[i].toLong(),
                 descriptionRu = descRu,
                 descriptionEn = descEn,
                 minRarity = minRarities[i],
@@ -2531,6 +2751,187 @@ fun CasesTab(viewModel: SocialViewModel, lang: String) {
     // Procedural cases list
     val cases = remember(lang) { CaseGenerator.generateCases(lang) }
 
+    val context = LocalContext.current
+    val prefs = remember(context) { context.getSharedPreferences("nog_prefs", Context.MODE_PRIVATE) }
+    
+    // AI case state
+    var aiCaseActive by remember { mutableStateOf(prefs.getBoolean("ai_case_active", false)) }
+    var aiCaseNameRu by remember { mutableStateOf(prefs.getString("ai_case_name_ru", "") ?: "") }
+    var aiCaseNameEn by remember { mutableStateOf(prefs.getString("ai_case_name_en", "") ?: "") }
+    var aiCaseDescRu by remember { mutableStateOf(prefs.getString("ai_case_desc_ru", "") ?: "") }
+    var aiCaseDescEn by remember { mutableStateOf(prefs.getString("ai_case_desc_en", "") ?: "") }
+    var aiCasePrice by remember { mutableStateOf(prefs.getLong("ai_case_price", 1000L)) }
+    var aiCaseMinRarity by remember { mutableStateOf(prefs.getString("ai_case_min_rarity", "ОБЫЧНАЯ") ?: "ОБЫЧНАЯ") }
+    var aiCaseColorsStr by remember { mutableStateOf(prefs.getString("ai_case_colors_str", "") ?: "") }
+    var aiCasePremiumChance by remember { mutableStateOf(prefs.getFloat("ai_case_premium_chance", 0.1f)) }
+    var aiCaseExpiryTime by remember { mutableStateOf(prefs.getLong("ai_case_expiry_time", 0L)) }
+    
+    // User verification
+    val currentUser by viewModel.currentUser.collectAsState()
+    val isVerified = currentUser?.isVerified == true
+    
+    val todayStr = remember { SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date()) }
+    var showLimitAlert by remember { mutableStateOf(false) }
+    var isGeneratingByAI by remember { mutableStateOf(false) }
+    
+    val aiColors = remember(aiCaseColorsStr) {
+        if (aiCaseColorsStr.isEmpty()) {
+            listOf(Color(0xFF7F00FF), Color(0xFFFF007F))
+        } else {
+            aiCaseColorsStr.split(",").mapNotNull {
+                try {
+                    Color(it.toLong(16).toInt())
+                } catch (e: Exception) {
+                    null
+                }
+            }.ifEmpty {
+                listOf(Color(0xFF7F00FF), Color(0xFFFF007F))
+            }
+        }
+    }
+    
+    var timeLeftSeconds by remember { mutableStateOf(0L) }
+    
+    LaunchedEffect(aiCaseActive, aiCaseExpiryTime) {
+        if (aiCaseActive) {
+            while (true) {
+                val now = System.currentTimeMillis()
+                val diff = (aiCaseExpiryTime - now) / 1000
+                if (diff <= 0) {
+                    timeLeftSeconds = 0
+                    aiCaseActive = false
+                    prefs.edit().putBoolean("ai_case_active", false).apply()
+                    break
+                } else {
+                    timeLeftSeconds = diff
+                }
+                delay(1000)
+            }
+        }
+    }
+    
+    LaunchedEffect(isGeneratingByAI) {
+        if (isGeneratingByAI) {
+            viewModel.vibrate(20)
+            delay(800)
+            viewModel.vibrate(25)
+            delay(800)
+            viewModel.vibrate(30)
+            delay(1900) // Total 3.5 seconds
+            
+            val rand = Random()
+            
+            val adjRu = CaseGenerator.adjCaseRu[rand.nextInt(CaseGenerator.adjCaseRu.size)]
+            val nounRu = CaseGenerator.nounCaseRu[rand.nextInt(CaseGenerator.nounCaseRu.size)]
+            val suffixRu = CaseGenerator.suffixCaseRu[rand.nextInt(CaseGenerator.suffixCaseRu.size)]
+            
+            val adjEn = CaseGenerator.adjCaseEn[rand.nextInt(CaseGenerator.adjCaseEn.size)]
+            val nounEn = CaseGenerator.nounCaseEn[rand.nextInt(CaseGenerator.nounCaseEn.size)]
+            val suffixEn = CaseGenerator.suffixCaseEn[rand.nextInt(CaseGenerator.suffixCaseEn.size)]
+            
+            val emojis = listOf("🧠", "🦾", "👾", "⚡", "🔮", "🧬", "🌌", "💿", "🚀", "🛸")
+            val selectedEmoji = emojis[rand.nextInt(emojis.size)]
+            
+            val newNameRu = "AI Кейс «$adjRu $nounRu $suffixRu» $selectedEmoji"
+            val newNameEn = "AI «$adjEn $nounEn $suffixEn» Case $selectedEmoji"
+            
+            val templatesRu = CaseGenerator.descTemplatesRu
+            val templateRu = templatesRu[rand.nextInt(templatesRu.size)]
+            val newDescRu = templateRu
+                .replace("{adj}", adjRu.lowercase())
+                .replace("{noun}", nounRu.lowercase())
+                .replace("{suffix}", suffixRu)
+                
+            val templatesEn = CaseGenerator.descTemplatesEn
+            val templateEn = templatesEn[rand.nextInt(templatesEn.size)]
+            val newDescEn = templateEn
+                .replace("{adj}", adjEn.lowercase())
+                .replace("{noun}", nounEn.lowercase())
+                .replace("{suffix}", suffixEn)
+            
+            // Completely random price from 100 to 5 trillion (5,000,000,000,000)
+            val priceRange = 5_000_000_000_000L - 100L
+            val newPrice = 100L + (rand.nextDouble() * priceRange).toLong()
+            
+            // Random minimum rarity
+            val rarities = listOf("ОБЫЧНАЯ", "РЕДКАЯ", "АХУЕННАЯ", "НЕВЕБЕЙШАЯ", "ЭКСКЛЮЗИВНАЯ")
+            val newMinRarity = rarities[rand.nextInt(rarities.size)]
+            
+            // Random gradient colors (2 or 3 random hex colors)
+            val randomColorsList = List(2 + rand.nextInt(2)) {
+                val r = rand.nextInt(256)
+                val g = rand.nextInt(256)
+                val b = rand.nextInt(256)
+                String.format("FF%02X%02X%02X", r, g, b)
+            }
+            val newColorsStr = randomColorsList.joinToString(",")
+            
+            val newPremiumChance = 0.05f + rand.nextFloat() * 0.85f
+            
+            val durationMs = if (isVerified) {
+                3600 * 1000L // 1 hour
+            } else {
+                600 * 1000L // 10 minutes
+            }
+            val newExpiry = System.currentTimeMillis() + durationMs
+            
+            val lastDate = prefs.getString("ai_case_last_gen_date", "") ?: ""
+            val currentCount = if (lastDate == todayStr) prefs.getInt("ai_case_gen_count_today", 0) else 0
+            
+            val editor = prefs.edit()
+            editor.putBoolean("ai_case_active", true)
+            editor.putString("ai_case_name_ru", newNameRu)
+            editor.putString("ai_case_name_en", newNameEn)
+            editor.putString("ai_case_desc_ru", newDescRu)
+            editor.putString("ai_case_desc_en", newDescEn)
+            editor.putLong("ai_case_price", newPrice)
+            editor.putString("ai_case_min_rarity", newMinRarity)
+            editor.putString("ai_case_colors_str", newColorsStr)
+            editor.putFloat("ai_case_premium_chance", newPremiumChance)
+            editor.putLong("ai_case_expiry_time", newExpiry)
+            
+            if (!isVerified) {
+                editor.putString("ai_case_last_gen_date", todayStr)
+                editor.putInt("ai_case_gen_count_today", currentCount + 1)
+            }
+            editor.apply()
+            
+            aiCaseNameRu = newNameRu
+            aiCaseNameEn = newNameEn
+            aiCaseDescRu = newDescRu
+            aiCaseDescEn = newDescEn
+            aiCasePrice = newPrice
+            aiCaseMinRarity = newMinRarity
+            aiCaseColorsStr = newColorsStr
+            aiCasePremiumChance = newPremiumChance
+            aiCaseExpiryTime = newExpiry
+            aiCaseActive = true
+            
+            isGeneratingByAI = false
+            viewModel.vibrate(100)
+        }
+    }
+    
+    val generatedCase = remember(aiCaseActive, aiCaseNameRu, aiCaseNameEn, aiCaseDescRu, aiCaseDescEn, aiCasePrice, aiCaseMinRarity, aiCasePremiumChance, aiColors) {
+        CaseType(
+            id = 999,
+            nameRu = aiCaseNameRu,
+            nameEn = aiCaseNameEn,
+            price = aiCasePrice,
+            descriptionRu = aiCaseDescRu,
+            descriptionEn = aiCaseDescEn,
+            minRarity = aiCaseMinRarity,
+            premiumChance = aiCasePremiumChance,
+            colors = aiColors
+        )
+    }
+
+    fun skipAICase() {
+        viewModel.vibrate(30)
+        aiCaseActive = false
+        prefs.edit().putBoolean("ai_case_active", false).apply()
+    }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -2562,6 +2963,253 @@ fun CasesTab(viewModel: SocialViewModel, lang: String) {
                 .weight(1f)
                 .navigationBarsPadding()
         ) {
+            // First item: nOG AI generated case block!
+            item {
+                if (aiCaseActive) {
+                    val minutes = timeLeftSeconds / 60
+                    val seconds = timeLeftSeconds % 60
+                    val timerStr = String.format("%02d:%02d", minutes, seconds)
+                    val canAfford = userCoins >= generatedCase.price
+                    
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(6.dp))
+                            .background(Brush.linearGradient(generatedCase.colors))
+                            .border(1.5.dp, AlertYellow.copy(alpha = 0.8f), RoundedCornerShape(6.dp))
+                            .padding(14.dp)
+                    ) {
+                        Column {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = if (lang == "RU") generatedCase.nameRu else generatedCase.nameEn,
+                                    color = PureWhite,
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 14.sp,
+                                    fontFamily = FontFamily.Monospace,
+                                    modifier = Modifier.weight(1f)
+                                )
+                                
+                                Spacer(modifier = Modifier.width(8.dp))
+                                
+                                Box(
+                                    modifier = Modifier
+                                        .background(Color.Black.copy(alpha = 0.4f), RoundedCornerShape(2.dp))
+                                        .padding(horizontal = 8.dp, vertical = 4.dp)
+                                ) {
+                                    Text(
+                                        text = "${generatedCase.price} 🪙",
+                                        color = if (canAfford) AlertYellow else Color(0xFFFF6B6B),
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 12.sp,
+                                        fontFamily = FontFamily.Monospace
+                                    )
+                                }
+                            }
+
+                            Spacer(modifier = Modifier.height(10.dp))
+
+                            Text(
+                                text = if (lang == "RU") generatedCase.descriptionRu else generatedCase.descriptionEn,
+                                color = PureWhite.copy(alpha = 0.9f),
+                                fontSize = 10.sp,
+                                lineHeight = 13.sp,
+                                fontFamily = FontFamily.Monospace
+                            )
+
+                            Spacer(modifier = Modifier.height(14.dp))
+
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    Box(
+                                        modifier = Modifier
+                                            .background(getRarityColor(generatedCase.minRarity).copy(alpha = 0.3f), RoundedCornerShape(2.dp))
+                                            .border(1.dp, getRarityColor(generatedCase.minRarity), RoundedCornerShape(2.dp))
+                                            .padding(horizontal = 6.dp, vertical = 2.dp)
+                                    ) {
+                                        Text(
+                                            text = "MIN: ${generatedCase.minRarity}",
+                                            color = getRarityColor(generatedCase.minRarity),
+                                            fontSize = 8.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            fontFamily = FontFamily.Monospace
+                                        )
+                                    }
+                                    
+                                    Box(
+                                        modifier = Modifier
+                                            .background(Color.Black.copy(alpha = 0.5f), RoundedCornerShape(2.dp))
+                                            .padding(horizontal = 6.dp, vertical = 2.dp)
+                                    ) {
+                                        Text(
+                                            text = "⏳ $timerStr",
+                                            color = AlertYellow,
+                                            fontSize = 9.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            fontFamily = FontFamily.Monospace
+                                        )
+                                    }
+                                }
+
+                                Row(
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Button(
+                                        onClick = { skipAICase() },
+                                        colors = ButtonDefaults.buttonColors(
+                                            containerColor = Color(0xFF333333),
+                                            contentColor = PureWhite
+                                        ),
+                                        shape = RoundedCornerShape(4.dp),
+                                        contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
+                                        modifier = Modifier.height(30.dp)
+                                    ) {
+                                        Text(
+                                            text = if (lang == "RU") "ПРОПУСТИТЬ" else "SKIP",
+                                            fontSize = 9.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            fontFamily = FontFamily.Monospace
+                                        )
+                                    }
+
+                                    Button(
+                                        onClick = {
+                                            viewModel.vibrate(50)
+                                            selectedCaseForOpening = generatedCase
+                                        },
+                                        colors = ButtonDefaults.buttonColors(
+                                            containerColor = PureWhite,
+                                            contentColor = PureBlack
+                                        ),
+                                        shape = RoundedCornerShape(4.dp),
+                                        contentPadding = PaddingValues(horizontal = 14.dp, vertical = 4.dp),
+                                        modifier = Modifier.height(30.dp)
+                                    ) {
+                                        Text(
+                                            text = if (lang == "RU") "ОТКРЫТЬ" else "OPEN",
+                                            fontSize = 10.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            fontFamily = FontFamily.Monospace
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                } else {
+                    val lastDate = prefs.getString("ai_case_last_gen_date", "") ?: ""
+                    val currentCount = if (lastDate == todayStr) prefs.getInt("ai_case_gen_count_today", 0) else 0
+                    
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(6.dp))
+                            .background(Brush.linearGradient(listOf(Color(0xFF7F00FF), Color(0xFFFF007F))))
+                            .border(2.dp, Color(0xFF00FFCC).copy(alpha = 0.8f), RoundedCornerShape(6.dp))
+                            .padding(14.dp)
+                    ) {
+                        Column {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = if (lang == "RU") "🔮 Сгенерировать кейс с помощью nOG AI" else "🔮 Generate Case using nOG AI",
+                                    color = PureWhite,
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 14.sp,
+                                    fontFamily = FontFamily.Monospace,
+                                    modifier = Modifier.weight(1f)
+                                )
+                                
+                                Box(
+                                    modifier = Modifier
+                                        .background(Color.Black.copy(alpha = 0.5f), RoundedCornerShape(4.dp))
+                                        .padding(horizontal = 8.dp, vertical = 4.dp)
+                                ) {
+                                    Text(
+                                        text = "AI 🧠",
+                                        color = Color(0xFF00FFCC),
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 10.sp,
+                                        fontFamily = FontFamily.Monospace
+                                    )
+                                }
+                            }
+
+                            Spacer(modifier = Modifier.height(10.dp))
+
+                            Text(
+                                text = if (lang == "RU") "Этот кейс будет сгенерирован полностью nOG AI" else "This case will be fully generated by nOG AI",
+                                color = PureWhite.copy(alpha = 0.9f),
+                                fontSize = 10.sp,
+                                lineHeight = 13.sp,
+                                fontFamily = FontFamily.Monospace
+                            )
+
+                            Spacer(modifier = Modifier.height(14.dp))
+
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = if (isVerified) {
+                                        if (lang == "RU") "⚡ БЕЗЛИМИТНЫЙ ДОСТУП" else "⚡ UNLIMITED ACCESS"
+                                    } else {
+                                        if (lang == "RU") "Генераций сегодня: $currentCount / 2" else "Generations today: $currentCount / 2"
+                                    },
+                                    color = if (isVerified) Color(0xFF00FFCC) else if (currentCount < 2) TextGray else Color(0xFFFF6B6B),
+                                    fontSize = 9.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    fontFamily = FontFamily.Monospace
+                                )
+
+                                Button(
+                                    onClick = {
+                                        if (!isVerified && currentCount >= 2) {
+                                            showLimitAlert = true
+                                        } else {
+                                            viewModel.vibrate(50)
+                                            isGeneratingByAI = true
+                                        }
+                                    },
+                                    colors = ButtonDefaults.buttonColors(
+                                        containerColor = Color(0xFF00FFCC),
+                                        contentColor = PureBlack
+                                    ),
+                                    shape = RoundedCornerShape(4.dp),
+                                    contentPadding = PaddingValues(horizontal = 14.dp, vertical = 4.dp),
+                                    modifier = Modifier.height(30.dp)
+                                ) {
+                                    Text(
+                                        text = if (lang == "RU") "ГЕНЕРИРОВАТЬ" else "GENERATE",
+                                        fontSize = 10.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        fontFamily = FontFamily.Monospace
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            
+            // Standard cases list
             items(cases) { caseItem ->
                 CaseListItem(
                     caseItem = caseItem,
@@ -2585,12 +3233,186 @@ fun CasesTab(viewModel: SocialViewModel, lang: String) {
             onDismiss = { selectedCaseForOpening = null }
         )
     }
+
+    if (showLimitAlert) {
+        AlertDialog(
+            onDismissRequest = { showLimitAlert = false },
+            containerColor = Color(0xFF1E1E1E),
+            title = {
+                Text(
+                    text = if (lang == "RU") "Лимит генераций исчерпан 🛑" else "Generation Limit Reached 🛑",
+                    color = PureWhite,
+                    fontFamily = FontFamily.Monospace,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 15.sp
+                )
+            },
+            text = {
+                Text(
+                    text = if (lang == "RU") {
+                        "Вы можете сгенерировать не более 2 кейсов в день.\nЛимит обновляется каждый день в 00:00.\n\n⭐ Пользователи с галочкой верификации имеют безлимитный доступ!"
+                    } else {
+                        "You can generate at most 2 cases per day.\nLimits reset daily at 00:00.\n\n⭐ Verified users have unlimited generations!"
+                    },
+                    color = TextGray,
+                    fontFamily = FontFamily.Monospace,
+                    fontSize = 11.sp,
+                    lineHeight = 15.sp
+                )
+            },
+            confirmButton = {
+                Button(
+                    onClick = { showLimitAlert = false },
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = AlertYellow,
+                        contentColor = PureBlack
+                    ),
+                    shape = RoundedCornerShape(4.dp)
+                ) {
+                    Text(
+                        text = if (lang == "RU") "ОК" else "OK",
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 12.sp,
+                        fontFamily = FontFamily.Monospace
+                    )
+                }
+            }
+        )
+    }
+
+    if (isGeneratingByAI) {
+        Dialog(
+            onDismissRequest = {},
+            properties = DialogProperties(usePlatformDefaultWidth = false)
+        ) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(PureBlack.copy(alpha = 0.95f)),
+                contentAlignment = Alignment.Center
+            ) {
+                val infiniteTransition = rememberInfiniteTransition()
+                
+                val pulseScale by infiniteTransition.animateFloat(
+                    initialValue = 0.8f,
+                    targetValue = 1.2f,
+                    animationSpec = infiniteRepeatable(
+                        animation = tween(1200, easing = LinearEasing),
+                        repeatMode = RepeatMode.Reverse
+                    )
+                )
+                
+                val rotationAngle by infiniteTransition.animateFloat(
+                    initialValue = 0f,
+                    targetValue = 360f,
+                    animationSpec = infiniteRepeatable(
+                        animation = tween(2500, easing = LinearEasing),
+                        repeatMode = RepeatMode.Restart
+                    )
+                )
+
+                Canvas(modifier = Modifier.fillMaxSize()) {
+                    val width = size.width
+                    val height = size.height
+                    
+                    val gridSpacing = 60f
+                    var x = 0f
+                    while (x < width) {
+                        drawLine(
+                            color = Color(0xFF00FFCC).copy(alpha = 0.05f),
+                            start = Offset(x, 0f),
+                            end = Offset(x, height),
+                            strokeWidth = 1f
+                        )
+                        x += gridSpacing
+                    }
+                    var y = 0f
+                    while (y < height) {
+                        drawLine(
+                            color = Color(0xFF00FFCC).copy(alpha = 0.05f),
+                            start = Offset(0f, y),
+                            end = Offset(width, y),
+                            strokeWidth = 1f
+                        )
+                        y += gridSpacing
+                    }
+                }
+
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(150.dp)
+                            .graphicsLayer {
+                                rotationZ = rotationAngle
+                            },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(110.dp)
+                                .graphicsLayer {
+                                    scaleX = pulseScale
+                                    scaleY = pulseScale
+                                }
+                                .border(1.5.dp, Color(0xFFFF007F), CircleShape)
+                        )
+                        
+                        Box(
+                            modifier = Modifier
+                                .size(125.dp)
+                                .border(2.dp, Color(0xFF00FFCC), CircleShape)
+                        )
+                        
+                        Row(
+                            modifier = Modifier.fillMaxWidth(0.8f),
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Box(modifier = Modifier.size(10.dp).background(Color(0xFF00FFCC), CircleShape))
+                            Box(modifier = Modifier.size(10.dp).background(Color(0xFFFF007F), CircleShape))
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(40.dp))
+
+                    Text(
+                        text = if (lang == "RU") "nOG AI ГЕНЕРИРУЕТ ВАШ КЕЙС..." else "nOG AI IS GENERATING YOUR CASE...",
+                        color = Color(0xFF00FFCC),
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.Bold,
+                        fontFamily = FontFamily.Monospace,
+                        letterSpacing = 1.sp,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.graphicsLayer {
+                            scaleX = pulseScale * 0.1f + 0.95f
+                            scaleY = pulseScale * 0.1f + 0.95f
+                        }
+                    )
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    val consoleWords = listOf("SYNAPSE_LINKING...", "DATA_DECRYPTING...", "DREAM_HARVESTING...", "RARITY_CALIBRATING...", "CREATING_REWARDS...")
+                    val activeConsoleIndex = (timeLeftSeconds.toInt() % consoleWords.size)
+                    val activeConsoleWord = consoleWords[activeConsoleIndex]
+                    
+                    Text(
+                        text = ">>> STATUS: $activeConsoleWord",
+                        color = Color.White.copy(alpha = 0.5f),
+                        fontSize = 11.sp,
+                        fontFamily = FontFamily.Monospace
+                    )
+                }
+            }
+        }
+    }
 }
 
 @Composable
 fun CaseListItem(
     caseItem: CaseType,
-    userCoins: Int,
+    userCoins: Long,
     lang: String,
     onOpenRequest: () -> Unit
 ) {
@@ -2759,7 +3581,7 @@ fun CaseItemCard(item: AvatarDecoration, lang: String) {
 fun CaseOpenerDialog(
     caseItem: CaseType,
     viewModel: SocialViewModel,
-    userCoins: Int,
+    userCoins: Long,
     lang: String,
     onDismiss: () -> Unit
 ) {
@@ -2806,54 +3628,75 @@ fun CaseOpenerDialog(
         
         // Pick the winning rarity category with high risk
         val roll = Random().nextFloat()
-        val winRarity = when (caseItem.minRarity) {
-            "ОБЫЧНАЯ" -> {
-                when {
-                    roll < caseItem.premiumChance -> "ЭКСКЛЮЗИВНАЯ"
-                    roll < caseItem.premiumChance + 0.05f -> "НЕВЕБЕЙШАЯ"
-                    roll < caseItem.premiumChance + 0.15f -> "АХУЕННАЯ"
-                    roll < caseItem.premiumChance + 0.45f -> "РЕДКАЯ"
-                    else -> "ОБЫЧНАЯ"
+        val isCheap = caseItem.price <= 35000
+        val isTopTwo = caseItem.price >= 1500000000
+        
+        val winRarity = if (caseItem.id == 999) {
+            // Unrestricted roll for AI case - even exclusives can drop!
+            when {
+                roll < 0.05f -> "ЭКСКЛЮЗИВНАЯ"
+                roll < 0.15f -> "НЕВЕБЕЙШАЯ"
+                roll < 0.35f -> "АХУЕННАЯ"
+                roll < 0.70f -> "РЕДКАЯ"
+                else -> "ОБЫЧНАЯ"
+            }
+        } else if (isCheap) {
+            // Cheap cases (<= 35k): only Ordinary (ОБЫЧНАЯ) or Rare (РЕДКАЯ)
+            if (roll < caseItem.premiumChance) "РЕДКАЯ" else "ОБЫЧНАЯ"
+        } else if (isTopTwo) {
+            // Top 2 most expensive cases: only Exclusive (ЭКСКЛЮЗИВНАЯ)
+            "ЭКСКЛЮЗИВНАЯ"
+        } else {
+            // Medium/High cases: can drop ОБЫЧНАЯ, РЕДКАЯ, АХУЕННАЯ, НЕВЕБЕЙШАЯ. No EXCLUSIVE.
+            when (caseItem.minRarity) {
+                "ОБЫЧНАЯ" -> {
+                    when {
+                        roll < caseItem.premiumChance -> "НЕВЕБЕЙШАЯ"
+                        roll < caseItem.premiumChance + 0.05f -> "НЕВЕБЕЙШАЯ"
+                        roll < caseItem.premiumChance + 0.15f -> "АХУЕННАЯ"
+                        roll < caseItem.premiumChance + 0.45f -> "РЕДКАЯ"
+                        else -> "ОБЫЧНАЯ"
+                    }
                 }
-            }
-            "РЕДКАЯ" -> {
-                when {
-                    roll < caseItem.premiumChance -> "ЭКСКЛЮЗИВНАЯ"
-                    roll < caseItem.premiumChance + 0.08f -> "НЕВЕБЕЙШАЯ"
-                    roll < caseItem.premiumChance + 0.28f -> "АХУЕННАЯ"
-                    else -> "РЕДКАЯ"
+                "РЕДКАЯ" -> {
+                    when {
+                        roll < caseItem.premiumChance -> "НЕВЕБЕЙШАЯ"
+                        roll < caseItem.premiumChance + 0.08f -> "НЕВЕБЕЙШАЯ"
+                        roll < caseItem.premiumChance + 0.28f -> "АХУЕННАЯ"
+                        else -> "РЕДКАЯ"
+                    }
                 }
-            }
-            "АХУЕННАЯ" -> {
-                when {
-                    roll < caseItem.premiumChance -> "ЭКСКЛЮЗИВНАЯ"
-                    roll < caseItem.premiumChance + 0.18f -> "НЕВЕБЕЙШАЯ"
-                    else -> "АХУЕННАЯ"
+                "АХУЕННАЯ" -> {
+                    when {
+                        roll < caseItem.premiumChance -> "НЕВЕБЕЙШАЯ"
+                        roll < caseItem.premiumChance + 0.18f -> "НЕВЕБЕЙШАЯ"
+                        else -> "АХУЕННАЯ"
+                    }
                 }
-            }
-            "НЕВЕБЕЙШАЯ" -> {
-                when {
-                    roll < caseItem.premiumChance -> "ЭКСКЛЮЗИВНАЯ"
-                    else -> "НЕВЕБЕЙШАЯ"
+                "НЕВЕБЕЙШАЯ" -> {
+                    "НЕВЕБЕЙШАЯ"
                 }
-            }
-            "ЭКСКЛЮЗИВНАЯ" -> {
-                "ЭКСКЛЮЗИВНАЯ"
-            }
-            else -> {
-                "ОБЫЧНАЯ"
+                else -> "НЕВЕБЕЙШАЯ"
             }
         }
         
-        // Populate 35 carousel scroll items
+        // Populate 35 carousel scroll items with appropriate pool
         spinItems.clear()
-        val possibleRarities = listOf("ОБЫЧНАЯ", "РЕДКАЯ", "АХУЕННАЯ", "НЕВЕБЕЙШАЯ", "ЭКСКЛЮЗИВНАЯ")
+        val allowedRarities = if (caseItem.id == 999) {
+            listOf("ОБЫЧНАЯ", "РЕДКАЯ", "АХУЕННАЯ", "НЕВЕБЕЙШАЯ", "ЭКСКЛЮЗИВНАЯ")
+        } else if (isCheap) {
+            listOf("ОБЫЧНАЯ", "РЕДКАЯ")
+        } else if (isTopTwo) {
+            listOf("ЭКСКЛЮЗИВНАЯ")
+        } else {
+            listOf("ОБЫЧНАЯ", "РЕДКАЯ", "АХУЕННАЯ", "НЕВЕБЕЙШАЯ")
+        }
         
         for (i in 0 until 35) {
             if (i == 32) {
                 spinItems.add(getDecorationForRarity(winRarity))
             } else {
-                spinItems.add(getDecorationForRarity(possibleRarities.random()))
+                spinItems.add(getDecorationForRarity(allowedRarities.random()))
             }
         }
         
