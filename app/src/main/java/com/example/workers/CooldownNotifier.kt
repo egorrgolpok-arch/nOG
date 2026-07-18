@@ -81,7 +81,7 @@ object CooldownNotifier {
             if (!isVerified && lastGameOverTime > 0L) {
                 val notifiedFlappy = flappyPrefs.getBoolean("notified_flappy", false)
                 val elapsedFlappy = System.currentTimeMillis() - lastGameOverTime
-                val cooldownMs = 5 * 60 * 1000L
+                val cooldownMs = 40 * 60 * 1000L
                 if (elapsedFlappy >= cooldownMs) {
                     if (!notifiedFlappy) {
                         sendPushAndDatabase(

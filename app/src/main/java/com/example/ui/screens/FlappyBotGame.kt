@@ -102,10 +102,19 @@ fun FlappyBotGameDialog(
         }
     }
 
-    val cooldownMs = 5 * 1000 // 5 seconds cooldown
+    val cooldownMs = 40 * 60 * 1000L // 40 minutes cooldown
     val timePassed = systemTime - lastGameOverTime
     val isCooldownActive = !isVerified && (timePassed < cooldownMs) && (lastGameOverTime > 0)
     val remainingSeconds = if (isCooldownActive) ((cooldownMs - timePassed) / 1000).toInt() else 0
+    val cooldownText = remember(remainingSeconds, lang) {
+        val minutes = remainingSeconds / 60
+        val seconds = remainingSeconds % 60
+        if (minutes > 0) {
+            if (lang == "RU") "${minutes}м ${seconds}с" else "${minutes}m ${seconds}s"
+        } else {
+            if (lang == "RU") "${seconds}с" else "${seconds}s"
+        }
+    }
 
     var gameCounter by remember { mutableStateOf(0) }
     var isPlaying by remember { mutableStateOf(false) }
@@ -618,8 +627,8 @@ fun FlappyBotGameDialog(
                                         fontFamily = FontFamily.Monospace
                                     )
                                     Text(
-                                        text = if (lang == "RU") "Бот остывает, запуск через ${remainingSeconds}с" 
-                                               else "System cooling... Retry in ${remainingSeconds}s",
+                                        text = if (lang == "RU") "Бот остывает, запуск через $cooldownText"
+                                               else "System cooling... Retry in $cooldownText",
                                         color = AlertRed,
                                         fontSize = 13.sp,
                                         fontFamily = FontFamily.Monospace,
@@ -712,8 +721,8 @@ fun FlappyBotGameDialog(
 
                                 if (isCooldownActive) {
                                     Text(
-                                        text = if (lang == "RU") "Кулдаун: запуск через ${remainingSeconds}с" 
-                                               else "Lockout: refresh in ${remainingSeconds}s",
+                                        text = if (lang == "RU") "Кулдаун: запуск через $cooldownText"
+                                               else "Lockout: refresh in $cooldownText",
                                         color = AlertYellow,
                                         fontSize = 11.sp,
                                         fontFamily = FontFamily.Monospace,

@@ -1614,22 +1614,98 @@ fun AvatarDecorationShopDialog(
                                     animationSpec = infiniteRepeatable(animation = tween(1000, easing = LinearEasing)),
                                     label = "rot"
                                 )
+                                
+                                Box(
+                                    modifier = Modifier.size(112.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    AvatarWithDecoration(
+                                        avatarUrl = currentUser?.avatarUrl,
+                                        decorationId = null,
+                                        sizeDp = 96,
+                                        borderWidthDp = 2
+                                    )
+                                    
+                                    val scanProgress = infiniteTransition.animateFloat(
+                                        initialValue = 0f,
+                                        targetValue = 1f,
+                                        animationSpec = infiniteRepeatable(
+                                            animation = tween(1500, easing = LinearEasing),
+                                            repeatMode = RepeatMode.Reverse
+                                        ),
+                                        label = "scan_prog"
+                                    )
+                                    
+                                    val glowAlpha = infiniteTransition.animateFloat(
+                                        initialValue = 0.2f,
+                                        targetValue = 0.8f,
+                                        animationSpec = infiniteRepeatable(
+                                            animation = tween(600, easing = LinearEasing),
+                                            repeatMode = RepeatMode.Reverse
+                                        ),
+                                        label = "glow"
+                                    )
+
+                                    Canvas(modifier = Modifier.size(112.dp)) {
+                                        val y = scanProgress.value * size.height
+                                        val radius = size.minDimension / 2
+                                        
+                                        // Draw a glowing digital matrix scan line
+                                        drawLine(
+                                            brush = Brush.horizontalGradient(
+                                                listOf(
+                                                    Color.Transparent,
+                                                    Color(0xFFFF007F).copy(alpha = glowAlpha.value),
+                                                    Color(0xFF00FFFF).copy(alpha = glowAlpha.value),
+                                                    Color(0xFFFF007F).copy(alpha = glowAlpha.value),
+                                                    Color.Transparent
+                                                )
+                                            ),
+                                            start = Offset(0f, y),
+                                            end = Offset(size.width, y),
+                                            strokeWidth = 3.dp.toPx()
+                                        )
+                                        
+                                        // Draw custom digital matrix particles / binary streams fading around
+                                        drawCircle(
+                                            color = Color(0xFF00FFFF).copy(alpha = (1f - scanProgress.value) * 0.5f),
+                                            radius = 4.dp.toPx(),
+                                            center = Offset(size.width * 0.3f, size.height * (0.2f + scanProgress.value * 0.6f))
+                                        )
+                                        drawCircle(
+                                            color = Color(0xFFFF007F).copy(alpha = scanProgress.value * 0.5f),
+                                            radius = 3.dp.toPx(),
+                                            center = Offset(size.width * 0.7f, size.height * (0.8f - scanProgress.value * 0.5f))
+                                        )
+                                        
+                                        // Outer glowing cybernetic ring
+                                        drawCircle(
+                                            color = Color(0xFF7F00FF).copy(alpha = glowAlpha.value * 0.4f),
+                                            radius = radius - 2.dp.toPx(),
+                                            style = Stroke(width = 2.dp.toPx())
+                                        )
+                                    }
+                                }
+
+                                Spacer(modifier = Modifier.height(12.dp))
+                                
                                 Box(
                                     modifier = Modifier
-                                        .size(40.dp)
+                                        .size(32.dp)
                                         .border(2.dp, Color(0xFFFF007F), CircleShape)
                                         .graphicsLayer { rotationZ = rotation.value },
                                     contentAlignment = Alignment.Center
                                 ) {
                                     Box(
                                         modifier = Modifier
-                                            .size(24.dp)
+                                            .size(16.dp)
                                             .background(Color(0xFF00FFFF), CircleShape)
                                     )
                                 }
+                                
                                 Spacer(modifier = Modifier.height(8.dp))
                                 Text(
-                                    text = if (lang == "RU") "nOG AI ГЕНЕРИРУЕТ..." else "nOG AI GENERATING...",
+                                    text = if (lang == "RU") "nOG AI СИНТЕЗИРУЕТ..." else "nOG AI SYNTHESIZING...",
                                     color = Color(0xFFFF007F),
                                     fontSize = 12.sp,
                                     fontWeight = FontWeight.Bold,
@@ -1830,7 +1906,7 @@ fun AvatarDecorationShopDialog(
 
                     1 -> { // Owned items list
                         val ownedList = remember(purchasableOwnedListTrigger(purchasedIds, allDecorations)) {
-                            purchasedIds.map { id ->
+                            purchasedIds.filter { viewModel.isDecorationOwnedValid(it) }.map { id ->
                                 if (id == 9999) {
                                     val customName = prefs.getString("ai_dec_name", "AI Artifact") ?: "AI Artifact"
                                     val customRarity = prefs.getString("ai_dec_rarity", "НЕВЕБЕЙШАЯ") ?: "НЕВЕБЕЙШАЯ"

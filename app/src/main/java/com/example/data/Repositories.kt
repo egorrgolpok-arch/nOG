@@ -1041,6 +1041,50 @@ class SocialRepository(private val context: Context, private val scope: Coroutin
         return list
     }
 
+    fun determineBotPostMedia(
+        gallery: List<String>,
+        newsImageUrl: String?,
+        preferredType: String,
+        query: String
+    ): Pair<String?, String?> {
+        val galleryVideos = gallery.filter { it.endsWith(".mp4") || it.contains("video", ignoreCase = true) }
+        val galleryPhotos = gallery.filter { !it.endsWith(".mp4") && !it.contains("video", ignoreCase = true) }
+
+        if (preferredType == "VIDEO") {
+            // Videos can strictly only come from the gallery
+            if (galleryVideos.isNotEmpty()) {
+                return Pair(galleryVideos.random(), "VIDEO")
+            }
+            // Fallback to image if no videos in gallery
+            return determineBotPostMedia(gallery, newsImageUrl, "IMAGE", query)
+        }
+
+        // Now handling IMAGE or GIF
+        val isGif = preferredType == "GIF"
+        val chosenType = if (isGif) "GIF" else "IMAGE"
+
+        // 50% chance to prefer gallery, or fallback to gallery if newsImageUrl is null/empty
+        val useGallery = newsImageUrl.isNullOrEmpty() || kotlin.random.Random.nextBoolean()
+
+        if (useGallery) {
+            if (galleryPhotos.isNotEmpty()) {
+                return Pair(galleryPhotos.random(), chosenType)
+            } else if (!newsImageUrl.isNullOrEmpty()) {
+                return Pair(newsImageUrl, "IMAGE")
+            }
+        } else {
+            if (!newsImageUrl.isNullOrEmpty()) {
+                return Pair(newsImageUrl, "IMAGE")
+            } else if (galleryPhotos.isNotEmpty()) {
+                return Pair(galleryPhotos.random(), chosenType)
+            }
+        }
+
+        // Fallback to dynamic internet query
+        val fallbackUrl = getDynamicInternetMediaForQuery(query, chosenType)
+        return Pair(fallbackUrl, chosenType)
+    }
+
     fun getContactNames(): List<String> {
         val names = mutableListOf<String>()
         if (ContextCompat.checkSelfPermission(context, Manifest.permission.READ_CONTACTS) != PackageManager.PERMISSION_GRANTED) {
@@ -1472,27 +1516,13 @@ class SocialRepository(private val context: Context, private val scope: Coroutin
                             }
                         }
                     }
-                    val finalMediaUrl = if (Random.nextInt(100) < 45) {
+                    val mediaPair = if (Random.nextInt(100) < 45) {
                         val galleryFiles = getGalleryMediaUrls()
-                        if (galleryFiles.isNotEmpty() && Random.nextBoolean()) {
-                            galleryFiles.random()
-                        } else if (newsImgUrl != null) {
-                            newsImgUrl
-                        } else {
-                            null
-                        }
-                    } else null
+                        determineBotPostMedia(galleryFiles, newsImgUrl, mediaTypeStr, chosenCategory)
+                    } else Pair(null, null)
 
-                    val finalMediaType = if (finalMediaUrl != null) {
-                        val lower = finalMediaUrl.lowercase()
-                        when {
-                            lower.endsWith(".mp4") || lower.endsWith(".mkv") || lower.endsWith(".webm") || lower.contains("video") -> "VIDEO"
-                            lower.endsWith(".mp3") || lower.endsWith(".wav") || lower.endsWith(".ogg") || lower.contains("audio") -> "AUDIO"
-                            lower.endsWith(".gif") -> "GIF"
-                            lower.endsWith(".jpg") || lower.endsWith(".jpeg") || lower.endsWith(".png") || lower.endsWith(".webp") || lower.contains("image") -> "IMAGE"
-                            else -> "FILE"
-                        }
-                    } else null
+                    val finalMediaUrl = mediaPair.first
+                    val finalMediaType = mediaPair.second
 
                     val localPost = PostEntity(
                         authorId = bot.id,
@@ -1544,31 +1574,10 @@ class SocialRepository(private val context: Context, private val scope: Coroutin
 
             if (attachMedia) {
                 val gallery = getGalleryMediaUrls()
-                if (mediaTypeStr == "VIDEO") {
-                    val galleryVideos = gallery.filter { it.endsWith(".mp4") || it.contains("video", ignoreCase = true) }
-                    if (galleryVideos.isNotEmpty()) {
-                        mediaUrl = galleryVideos.random()
-                        isFromGallery = true
-                    } else {
-                        val galleryPhotos = gallery.filter { !it.endsWith(".mp4") && !it.contains("video", ignoreCase = true) }
-                        if (galleryPhotos.isNotEmpty() && Random.nextBoolean()) {
-                            mediaUrl = galleryPhotos.random()
-                            isFromGallery = true
-                        } else if (!externalNewsRaw.imageUrl.isNullOrEmpty()) {
-                            mediaUrl = externalNewsRaw.imageUrl
-                            isFromGallery = false
-                        }
-                    }
-                } else {
-                    val galleryPhotos = gallery.filter { !it.endsWith(".mp4") && !it.contains("video", ignoreCase = true) }
-                    if (galleryPhotos.isNotEmpty() && Random.nextBoolean()) {
-                        mediaUrl = galleryPhotos.random()
-                        isFromGallery = true
-                    } else if (!externalNewsRaw.imageUrl.isNullOrEmpty()) {
-                        mediaUrl = externalNewsRaw.imageUrl
-                        isFromGallery = false
-                    }
-                }
+                val query = if (selectedSource.contains("X")) "x_feed" else targetCategory
+                val mediaPair = determineBotPostMedia(gallery, externalNewsRaw.imageUrl, mediaTypeStr, query)
+                mediaUrl = mediaPair.first
+                isFromGallery = mediaUrl != null && gallery.contains(mediaUrl)
             } else {
                 mediaUrl = null
                 isFromGallery = false
