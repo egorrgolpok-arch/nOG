@@ -85,6 +85,7 @@ fun CommunityScreen(viewModel: SocialViewModel, innerPadding: PaddingValues) {
     var showMatch3Game by remember { mutableStateOf(false) }
     var showFlappyBotGame by remember { mutableStateOf(false) }
     var showDurakGame by remember { mutableStateOf(false) }
+    var showAiOracle by remember { mutableStateOf(false) }
     val context = androidx.compose.ui.platform.LocalContext.current
     
     val imagePickerLauncher = rememberLauncherForActivityResult(
@@ -320,6 +321,42 @@ fun CommunityScreen(viewModel: SocialViewModel, innerPadding: PaddingValues) {
                                     fontFamily = FontFamily.Monospace,
                                     fontWeight = FontWeight.Bold
                                 )
+                            }
+                        }
+                    }
+
+                    // Row 3 (nOG AI Fortune Teller)
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(44.dp)
+                                .clip(RoundedCornerShape(4.dp))
+                                .background(DeepGray)
+                                .border(1.dp, PureWhite, RoundedCornerShape(4.dp))
+                                .clickable {
+                                    viewModel.vibrate(30)
+                                    showAiOracle = true
+                                }
+                                .padding(horizontal = 8.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text("✧", color = PureWhite, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text(
+                                    text = if (isRu) "nOG AI ГАДАЛКА" else "nOG AI ORACLE",
+                                    color = PureWhite,
+                                    fontSize = 10.sp,
+                                    fontFamily = FontFamily.Monospace,
+                                    fontWeight = FontWeight.Bold,
+                                    letterSpacing = 1.sp
+                                )
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text("✧", color = PureWhite, fontSize = 14.sp, fontWeight = FontWeight.Bold)
                             }
                         }
                     }
@@ -713,6 +750,10 @@ fun CommunityScreen(viewModel: SocialViewModel, innerPadding: PaddingValues) {
 
     if (showDurakGame) {
         DurakDialog(onDismiss = { showDurakGame = false }, lang = lang, viewModel = viewModel)
+    }
+
+    if (showAiOracle) {
+        AiOracleDialog(onDismiss = { showAiOracle = false }, lang = lang, viewModel = viewModel)
     }
 }
 

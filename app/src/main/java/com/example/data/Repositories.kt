@@ -968,6 +968,27 @@ class SocialRepository(private val context: Context, private val scope: Coroutin
     private var cachedGalleryUrls = emptyList<String>()
     private var lastGalleryFetchTime = 0L
 
+    fun hasVideosOnDevice(): Boolean {
+        val hasPermission = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
+            ContextCompat.checkSelfPermission(context, Manifest.permission.READ_MEDIA_VIDEO) == PackageManager.PERMISSION_GRANTED
+        } else {
+            ContextCompat.checkSelfPermission(context, Manifest.permission.READ_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED
+        }
+        if (!hasPermission) return false
+        try {
+            val projection = arrayOf(android.provider.MediaStore.MediaColumns._ID)
+            context.contentResolver.query(
+                android.provider.MediaStore.Video.Media.EXTERNAL_CONTENT_URI,
+                projection, null, null, null
+            )?.use { cursor ->
+                return cursor.count > 0
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error checking videos on device", e)
+        }
+        return false
+    }
+
     fun getGalleryMediaUrls(): List<String> {
         val now = System.currentTimeMillis()
         if (cachedGalleryUrls.isNotEmpty() && now - lastGalleryFetchTime < 60000) {
@@ -982,13 +1003,24 @@ class SocialRepository(private val context: Context, private val scope: Coroutin
             ContextCompat.checkSelfPermission(context, Manifest.permission.READ_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED
         }
         
-        val mockGallery = listOf(
-            "file:///mock_storage/emulated/0/DCIM/Camera/IMG_2026_01.jpg",
-            "file:///mock_storage/emulated/0/DCIM/Camera/IMG_2026_02.jpg",
-            "file:///mock_storage/emulated/0/Download/video_cat.mp4",
-            "file:///mock_storage/emulated/0/Pictures/Telegram/meme_pic.png",
-            "file:///mock_storage/emulated/0/DCIM/Camera/VID_sunset.mp4"
-        )
+        val mockGallery = if (hasVideosOnDevice()) {
+            listOf(
+                "https://images.unsplash.com/photo-1517694712202-14dd9538aa97?w=600",
+                "https://images.unsplash.com/photo-1531297484001-80022131f5a1?w=600",
+                "https://storage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4",
+                "https://images.unsplash.com/photo-1498050108023-c5249f4df085?w=600",
+                "https://storage.googleapis.com/gtv-videos-bucket/sample/ForBiggerEscapes.mp4",
+                "https://images.unsplash.com/photo-1550751827-4bd374c3f58b?w=600",
+                "https://storage.googleapis.com/gtv-videos-bucket/sample/ForBiggerFun.mp4"
+            )
+        } else {
+            listOf(
+                "https://images.unsplash.com/photo-1517694712202-14dd9538aa97?w=600",
+                "https://images.unsplash.com/photo-1531297484001-80022131f5a1?w=600",
+                "https://images.unsplash.com/photo-1498050108023-c5249f4df085?w=600",
+                "https://images.unsplash.com/photo-1550751827-4bd374c3f58b?w=600"
+            )
+        }
 
         if (!hasGalleryPermission) {
             Log.d(TAG, "No gallery permission, returning simulated local gallery paths")
@@ -1444,30 +1476,37 @@ class SocialRepository(private val context: Context, private val scope: Coroutin
             } else ""
 
             // Determine attachments BEFORE text generation
+            val gallery = getGalleryMediaUrls()
+            val galleryVideos = gallery.filter { it.endsWith(".mp4") || it.contains("video", ignoreCase = true) }
+            val hasVideo = galleryVideos.isNotEmpty()
+
             val attachMedia = Random.nextInt(100) < 70 
             val rollMedia = Random.nextInt(100)
-            val mediaTypeStr = when {
+            var mediaTypeStr = when {
                 rollMedia < 35 -> "GIF"
                 rollMedia < 70 -> "VIDEO"
                 else -> "IMAGE"
+            }
+            if (mediaTypeStr == "VIDEO" && !hasVideo) {
+                mediaTypeStr = if (Random.nextBoolean()) "GIF" else "IMAGE"
             }
             
             var mediaUrl: String? = null
             var isFromGallery = false
             if (attachMedia) {
-                val gallery = getGalleryMediaUrls()
                 if (mediaTypeStr == "VIDEO") {
-                    val galleryVideos = gallery.filter { it.endsWith(".mp4") || it.contains("video", ignoreCase = true) }
                     if (galleryVideos.isNotEmpty()) {
                         mediaUrl = galleryVideos.random()
                         isFromGallery = true
                     } else {
-                        mediaUrl = "https://storage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4"
+                        val query = if (selectedSource.contains("X")) "x_feed" else targetCategory
+                        mediaUrl = getDynamicInternetMediaForQuery(query, "IMAGE")
                         isFromGallery = false
                     }
                 } else {
-                    if (gallery.isNotEmpty() && Random.nextBoolean()) {
-                        mediaUrl = gallery.random()
+                    val galleryPhotos = gallery.filter { !it.endsWith(".mp4") && !it.contains("video", ignoreCase = true) }
+                    if (galleryPhotos.isNotEmpty() && Random.nextBoolean()) {
+                        mediaUrl = galleryPhotos.random()
                         isFromGallery = true
                     } else {
                         val query = if (selectedSource.contains("X")) "x_feed" else targetCategory
@@ -2000,14 +2039,14 @@ class SocialRepository(private val context: Context, private val scope: Coroutin
             val useGemini = GeminiClient.isKeyAvailable()
             
             val attachMedia = Random.nextInt(100) < 60
-            val isVideo = attachMedia && Random.nextInt(100) < 25 // 25% chance of video on search posts
+            val galVids = getGalleryMediaUrls().filter { it.endsWith(".mp4") || it.contains("video", ignoreCase = true) }
+            val isVideo = attachMedia && galVids.isNotEmpty() && Random.nextInt(100) < 25
             
             val mediaUrl = if (attachMedia) {
                 if (isVideo) {
-                    val galVids = getGalleryMediaUrls().filter { it.endsWith(".mp4") || it.contains("video", ignoreCase = true) }
-                    if (galVids.isNotEmpty()) galVids.random() else getDynamicInternetMediaForQuery(query)
+                    galVids.random()
                 } else {
-                    getDynamicInternetMediaForQuery(query)
+                    getDynamicInternetMediaForQuery(query, "IMAGE")
                 }
             } else null
             

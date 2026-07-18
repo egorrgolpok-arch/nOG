@@ -1160,7 +1160,7 @@ fun generateRandomHorses(allUsers: List<com.example.data.UserEntity>, isRu: Bool
     return selectedBots.mapIndexed { idx, bot ->
         val hasDec = kotlin.random.Random.nextFloat() < 0.85f
         val randomDecId = if (hasDec) {
-            if (kotlin.random.Random.nextFloat() < 0.25f) kotlin.random.Random.nextInt(201, 221) else kotlin.random.Random.nextInt(1, 251)
+            if (kotlin.random.Random.nextFloat() < 0.25f) kotlin.random.Random.nextInt(1001, 1021) else kotlin.random.Random.nextInt(1, 251)
         } else {
             null
         }

@@ -269,11 +269,15 @@ class SocialViewModel(application: Application) : AndroidViewModel(application) 
                         val mediaUrl = news.imageUrl
                         val mediaType = if (mediaUrl != null) {
                             val lower = mediaUrl.lowercase()
-                            when {
-                                lower.endsWith(".mp4") || lower.endsWith(".mkv") || lower.endsWith(".webm") || lower.contains("video") || lower.contains("gtv-videos-bucket") -> "VIDEO"
-                                lower.endsWith(".mp3") || lower.endsWith(".wav") || lower.endsWith(".ogg") || lower.contains("audio") -> "AUDIO"
-                                lower.endsWith(".gif") -> "GIF"
-                                else -> "IMAGE"
+                            val isVid = lower.endsWith(".mp4") || lower.endsWith(".mkv") || lower.endsWith(".webm") || lower.contains("video") || lower.contains("gtv-videos-bucket")
+                            if (isVid && repository.hasVideosOnDevice()) {
+                                "VIDEO"
+                            } else {
+                                when {
+                                    lower.endsWith(".mp3") || lower.endsWith(".wav") || lower.endsWith(".ogg") || lower.contains("audio") -> "AUDIO"
+                                    lower.endsWith(".gif") -> "GIF"
+                                    else -> "IMAGE"
+                                }
                             }
                         } else null
                         
@@ -458,7 +462,7 @@ class SocialViewModel(application: Application) : AndroidViewModel(application) 
         val prefs = context.getSharedPreferences("nog_prefs", Context.MODE_PRIVATE)
         
         // Exclusives check
-        if (id in 201..230) {
+        if (id in 1001..1030) {
             val user = currentUser.value
             if (user?.isVerified != true) return false
         }

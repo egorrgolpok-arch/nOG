@@ -357,7 +357,7 @@ object DecorationGenerator {
                 if (lang == "RU") "Королевское Солнечное Затмение ☀️" else "Royal Solar Eclipse Ring ☀️", 
                 "ЭКСКЛЮЗИВНАЯ", 10000000, 40
             )
-        )
+        ).map { it.copy(id = it.id + 800) }
     }
 
     // Get 300 normal + 30 exclusives
@@ -507,7 +507,7 @@ fun AvatarWithDecoration(
                 // Procedurally resolve styleType & colors using deterministic math on decorationId
                 val decorationItem = if (decorationId == 9999) {
                     AvatarDecoration(9999, aiDecProps.first, aiDecProps.second, 0, aiDecProps.third.first)
-                } else if (decorationId >= 201) {
+                } else if (decorationId >= 1001) {
                     DecorationGenerator.getExclusiveDecorations("EN").find { it.id == decorationId }
                 } else {
                     DecorationGenerator.generateDecoration(decorationId, "EN")
@@ -867,7 +867,7 @@ fun AvatarWithDecoration(
                     }
                     
                     // --- EXCLUSIVE PREMIUM DECORATIONS (11 to 20) ---
-                    11 -> { // Plasma Demon Wings (ID 201)
+                    11 -> { // Plasma Demon Wings (ID 1001)
                         val leftWing = Path().apply {
                             moveTo(centerOffset.x - avatarRadius * 0.9f, centerOffset.y)
                             cubicTo(
@@ -1292,12 +1292,12 @@ fun AvatarDecorationShopDialog(
     val isClaimable by viewModel.isDailyRewardClaimable.collectAsState()
     val currentUser by viewModel.currentUser.collectAsState()
 
-    // Determine current weekly exclusive (ID 201 to 230 deterministically based on real week)
+    // Determine current weekly exclusive (ID 1001 to 1030 deterministically based on real week)
     val calendar = Calendar.getInstance()
     val weekOfYear = calendar.get(Calendar.WEEK_OF_YEAR)
     val year = calendar.get(Calendar.YEAR)
     val exclusiveIndex = (year * 52 + weekOfYear) % 30
-    val activeWeeklyExclusiveId = 201 + exclusiveIndex
+    val activeWeeklyExclusiveId = 1001 + exclusiveIndex
 
     val allDecorations = remember(lang) { DecorationGenerator.getAll(lang) }
     val exclusiveList = remember(lang) { DecorationGenerator.getExclusiveDecorations(lang) }
@@ -1921,7 +1921,7 @@ fun AvatarDecorationShopDialog(
                                         patternStyleName = "AI Generated",
                                         patternAnimation = "Active"
                                     )
-                                } else if (id in 201..230) {
+                                } else if (id in 1001..1030) {
                                     exclusiveList.find { it.id == id } ?: DecorationGenerator.generateDecoration(id, lang)
                                 } else {
                                     allDecorations.find { it.id == id } ?: DecorationGenerator.generateDecoration(id, lang)
