@@ -402,15 +402,16 @@ fun AvatarWithDecoration(
         if (decorationId != null && decorationId > 0) {
             val isSmall = sizeDp <= 56
             
-            // Retrieve AI decoration properties if ID is 9999
+            // Retrieve AI decoration properties if ID is 9999 or >= 10000
             val context = LocalContext.current
             val aiDecProps = remember(decorationId) {
-                if (decorationId == 9999) {
+                if (decorationId == 9999 || (decorationId != null && decorationId >= 10000)) {
                     val prefs = context.getSharedPreferences("nog_prefs", Context.MODE_PRIVATE)
-                    val name = prefs.getString("ai_dec_name", "nOG AI Artifact") ?: "nOG AI Artifact"
-                    val rarity = prefs.getString("ai_dec_rarity", "НЕВЕБЕЙШАЯ") ?: "НЕВЕБЕЙШАЯ"
-                    val styleType = prefs.getInt("ai_dec_style_type", 1)
-                    val colorOffset = prefs.getInt("ai_dec_color_offset", 0)
+                    val idSuffix = if (decorationId == 9999) "" else "_$decorationId"
+                    val name = prefs.getString("ai_dec_name$idSuffix", "nOG AI Artifact") ?: "nOG AI Artifact"
+                    val rarity = prefs.getString("ai_dec_rarity$idSuffix", "НЕВЕБЕЙШАЯ") ?: "НЕВЕБЕЙШАЯ"
+                    val styleType = prefs.getInt("ai_dec_style_type$idSuffix", 1)
+                    val colorOffset = prefs.getInt("ai_dec_color_offset$idSuffix", 0)
                     Triple(name, rarity, Pair(styleType, colorOffset))
                 } else {
                     Triple("", "", Pair(0, 0))
@@ -505,15 +506,15 @@ fun AvatarWithDecoration(
                 val decorRadius = avatarRadius + 4.dp.toPx()
  
                 // Procedurally resolve styleType & colors using deterministic math on decorationId
-                val decorationItem = if (decorationId == 9999) {
-                    AvatarDecoration(9999, aiDecProps.first, aiDecProps.second, 0, aiDecProps.third.first)
+                val decorationItem = if (decorationId == 9999 || decorationId >= 10000) {
+                    AvatarDecoration(decorationId, aiDecProps.first, aiDecProps.second, 0, aiDecProps.third.first)
                 } else if (decorationId >= 1001) {
                     DecorationGenerator.getExclusiveDecorations("EN").find { it.id == decorationId }
                 } else {
                     DecorationGenerator.generateDecoration(decorationId, "EN")
                 }
                 
-                val styleType = if (decorationId == 9999) aiDecProps.third.first else (decorationItem?.styleType ?: ((decorationId % 30) + 1))
+                val styleType = if (decorationId == 9999 || decorationId >= 10000) aiDecProps.third.first else (decorationItem?.styleType ?: ((decorationId % 30) + 1))
                 
                 val premiumProceduralColors = listOf(
                     Color(0xFFFF1493), // Hot Pink
@@ -530,7 +531,7 @@ fun AvatarWithDecoration(
                     Color(0xFFFF9100)  // Gold Amber
                 )
  
-                val colorOffset = if (decorationId == 9999) aiDecProps.third.second else (decorationId % 10)
+                val colorOffset = if (decorationId == 9999 || decorationId >= 10000) aiDecProps.third.second else (decorationId % 10)
                 val primaryColor = premiumProceduralColors[colorOffset % premiumProceduralColors.size]
                 val secondaryColor = premiumProceduralColors[(colorOffset + 3) % premiumProceduralColors.size]
                 val tertiaryColor = premiumProceduralColors[(colorOffset + 7) % premiumProceduralColors.size]
@@ -1550,17 +1551,43 @@ fun AvatarDecorationShopDialog(
                                                 val prefixesEn = listOf("Quantum ", "Cybernetic ", "Chromatic ", "Singular ", "Transcendent ", "Superconducting ", "Aetherial ", "Hyperborean ", "Photonic ", "Plasma ")
                                                 val coresRu = listOf("Нексус ", "Кристалл ", "Вихрь ", "Глитч ", "Фрагмент ", "Резонатор ", "Спектр ", "Венец ", "Синтезатор ", "Модуль ")
                                                 val coresEn = listOf("Nexus ", "Crystal ", "Vortex ", "Glitch ", "Fragment ", "Resonator ", "Spectrum ", "Crest ", "Synthesizer ", "Module ")
-                                                val suffix = listOf(" nOG AI", " v2.0 AI", " (Beta-S)").random()
                                                 
-                                                val pIdx = rand.nextInt(prefixesRu.size)
-                                                val cIdx = rand.nextInt(coresRu.size)
-                                                aiGenName = if (lang == "RU") {
-                                                    "${prefixesRu[pIdx]}${coresRu[cIdx]}$suffix"
+                                                var pIdx = rand.nextInt(prefixesRu.size)
+                                                var cIdx = rand.nextInt(coresRu.size)
+                                                var sfx = listOf(" nOG AI", " v2.0 AI", " (Beta-S)").random()
+                                                var proposedName = if (lang == "RU") {
+                                                    "${prefixesRu[pIdx]}${coresRu[cIdx]}$sfx"
                                                 } else {
-                                                    "${prefixesEn[pIdx]}${coresEn[cIdx]}$suffix"
+                                                    "${prefixesEn[pIdx]}${coresEn[cIdx]}$sfx"
                                                 }
                                                 
-                                                prefs.edit().putLong("ai_dec_last_generated_time", System.currentTimeMillis()).apply()
+                                                var attempts = 0
+                                                val ownedNames = purchasedIds.map { id ->
+                                                    if (id == 9999 || id >= 10000) {
+                                                        val idSuffix = if (id == 9999) "" else "_$id"
+                                                        prefs.getString("ai_dec_name$idSuffix", "") ?: ""
+                                                    } else {
+                                                        allDecorations.find { it.id == id }?.name ?: ""
+                                                    }
+                                                }.filter { it.isNotEmpty() }
+
+                                                while (ownedNames.contains(proposedName) && attempts < 50) {
+                                                    pIdx = rand.nextInt(prefixesRu.size)
+                                                    cIdx = rand.nextInt(coresRu.size)
+                                                    sfx = listOf(" nOG AI", " v2.0 AI", " (Beta-S)").random()
+                                                    proposedName = if (lang == "RU") {
+                                                        "${prefixesRu[pIdx]}${coresRu[cIdx]}$sfx"
+                                                     } else {
+                                                        "${prefixesEn[pIdx]}${coresEn[cIdx]}$sfx"
+                                                     }
+                                                     attempts++
+                                                }
+                                                aiGenName = proposedName
+                                                
+                                                prefs.edit()
+                                                    .putLong("ai_dec_last_generated_time", System.currentTimeMillis())
+                                                    .putBoolean("notified_ai_dec", false)
+                                                    .apply()
                                                 
                                                 prefs.edit()
                                                     .putString("ai_dec_name", aiGenName)
@@ -1907,12 +1934,13 @@ fun AvatarDecorationShopDialog(
                     1 -> { // Owned items list
                         val ownedList = remember(purchasableOwnedListTrigger(purchasedIds, allDecorations)) {
                             purchasedIds.filter { viewModel.isDecorationOwnedValid(it) }.map { id ->
-                                if (id == 9999) {
-                                    val customName = prefs.getString("ai_dec_name", "AI Artifact") ?: "AI Artifact"
-                                    val customRarity = prefs.getString("ai_dec_rarity", "НЕВЕБЕЙШАЯ") ?: "НЕВЕБЕЙШАЯ"
-                                    val styleType = prefs.getInt("ai_dec_style_type", 1)
+                                if (id == 9999 || id >= 10000) {
+                                    val idSuffix = if (id == 9999) "" else "_$id"
+                                    val customName = prefs.getString("ai_dec_name$idSuffix", "AI Artifact") ?: "AI Artifact"
+                                    val customRarity = prefs.getString("ai_dec_rarity$idSuffix", "НЕВЕБЕЙШАЯ") ?: "НЕВЕБЕЙШАЯ"
+                                    val styleType = prefs.getInt("ai_dec_style_type$idSuffix", 1)
                                     AvatarDecoration(
-                                        id = 9999,
+                                        id = id,
                                         name = customName,
                                         rarity = customRarity,
                                         basePrice = 0,

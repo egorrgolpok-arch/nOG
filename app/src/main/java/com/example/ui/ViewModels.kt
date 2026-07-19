@@ -146,7 +146,32 @@ class SocialViewModel(application: Application) : AndroidViewModel(application) 
                 author?.handle?.contains(query, ignoreCase = true) == true
             }
         }
-        filtered
+
+        // Split into three distinct groups for balanced/equal feed distribution
+        val textPosts = filtered.filter { it.mediaUrl == null || it.mediaType == null }
+        val imagePosts = filtered.filter { it.mediaUrl != null && (it.mediaType == "IMAGE" || it.mediaType == "GIF") }
+        val videoPosts = filtered.filter { it.mediaUrl != null && it.mediaType == "VIDEO" }
+
+        val balanced = mutableListOf<com.example.data.PostEntity>()
+        val minSize = minOf(textPosts.size, imagePosts.size, videoPosts.size)
+
+        if (minSize > 0) {
+            // We have all three types! Interleave them equally to maintain absolute 1:1:1 division
+            for (i in 0 until minSize) {
+                balanced.add(textPosts[i])
+                balanced.add(imagePosts[i])
+                balanced.add(videoPosts[i])
+            }
+        } else {
+            // Fallback: Interleave whatever types are available so we don't display an empty feed
+            val maxLen = maxOf(textPosts.size, imagePosts.size, videoPosts.size)
+            for (i in 0 until maxLen) {
+                if (i < textPosts.size) balanced.add(textPosts[i])
+                if (i < imagePosts.size) balanced.add(imagePosts[i])
+                if (i < videoPosts.size) balanced.add(videoPosts[i])
+            }
+        }
+        balanced
     }.stateIn(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(5000),
@@ -266,20 +291,10 @@ class SocialViewModel(application: Application) : AndroidViewModel(application) 
                     val newsList = NewsFetcher.fetchLatestNewsForSource(source, _selectedLanguage.value)
                     for (news in newsList.take(3)) {
                         val bot = bots.randomOrNull() ?: continue
-                        val mediaUrl = news.imageUrl
-                        val mediaType = if (mediaUrl != null) {
-                            val lower = mediaUrl.lowercase()
-                            val isVid = lower.endsWith(".mp4") || lower.endsWith(".mkv") || lower.endsWith(".webm") || lower.contains("video") || lower.contains("gtv-videos-bucket")
-                            if (isVid && repository.hasVideosOnDevice()) {
-                                "VIDEO"
-                            } else {
-                                when {
-                                    lower.endsWith(".mp3") || lower.endsWith(".wav") || lower.endsWith(".ogg") || lower.contains("audio") -> "AUDIO"
-                                    lower.endsWith(".gif") -> "GIF"
-                                    else -> "IMAGE"
-                                }
-                            }
-                        } else null
+                        val galleryFiles = repository.getGalleryMediaUrls()
+                        val mediaPair = repository.determineBotPostMedia(galleryFiles, news.imageUrl, "IMAGE", news.title)
+                        val mediaUrl = mediaPair.first
+                        val mediaType = mediaPair.second
                         
                         val newPost = PostEntity(
                             authorId = bot.id,
@@ -505,26 +520,34 @@ class SocialViewModel(application: Application) : AndroidViewModel(application) 
     fun wearTemporaryAIDecoration(name: String, rarity: String, styleType: Int, colorOffset: Int) {
         val context = getApplication<Application>()
         val prefs = context.getSharedPreferences("nog_prefs", Context.MODE_PRIVATE)
+        val lastId = prefs.getInt("last_synthetic_dec_id", 9999)
+        val id = lastId + 1
+        prefs.edit().putInt("last_synthetic_dec_id", id).apply()
+        
         val expiry = System.currentTimeMillis() + 5 * 60 * 1000 // 5 minutes
+        val idSuffix = "_$id"
         
         prefs.edit()
-            .putString("ai_dec_name", name)
-            .putString("ai_dec_rarity", rarity)
-            .putInt("ai_dec_style_type", styleType)
-            .putInt("ai_dec_color_offset", colorOffset)
-            .putLong("user_decoration_expires_id_9999", expiry)
+            .putString("ai_dec_name$idSuffix", name)
+            .putString("ai_dec_rarity$idSuffix", rarity)
+            .putInt("ai_dec_style_type$idSuffix", styleType)
+            .putInt("ai_dec_color_offset$idSuffix", colorOffset)
+            .putLong("user_decoration_expires_id_$id", expiry)
             .apply()
             
         val currentPurchased = prefs.getStringSet("purchased_decorations", emptySet())?.toMutableSet() ?: mutableSetOf()
-        currentPurchased.add("9999")
+        currentPurchased.add(id.toString())
         prefs.edit().putStringSet("purchased_decorations", currentPurchased).apply()
         
         prefs.edit()
-            .putInt("user_active_decoration", 9999)
+            .putInt("user_active_decoration", id)
             .putLong("user_decoration_expiry", expiry)
             .apply()
             
         checkAndRefreshDecorationExpiry()
+        
+        val purchasedStr = prefs.getStringSet("purchased_decorations", emptySet()) ?: emptySet()
+        _purchasedDecorationIds.value = purchasedStr.mapNotNull { it.toIntOrNull() }.toSet()
         
         viewModelScope.launch {
             repository.insertNotification(
@@ -541,18 +564,20 @@ class SocialViewModel(application: Application) : AndroidViewModel(application) 
         val context = getApplication<Application>()
         val prefs = context.getSharedPreferences("nog_prefs", Context.MODE_PRIVATE)
         
-        // Calculate new expiry for ID 9999 (the AI generated one)
-        val currentExpiry = prefs.getLong("user_decoration_expires_id_9999", 0L)
-        val baseTime = if (currentExpiry > System.currentTimeMillis()) currentExpiry else System.currentTimeMillis()
+        val lastId = prefs.getInt("last_synthetic_dec_id", 9999)
+        val id = lastId + 1
+        prefs.edit().putInt("last_synthetic_dec_id", id).apply()
+        
         val durationMs = durationDays * 24L * 3600L * 1000L
-        val newExpiry = baseTime + durationMs
+        val expiry = System.currentTimeMillis() + durationMs
+        val idSuffix = "_$id"
         
         prefs.edit()
-            .putString("ai_dec_name", name)
-            .putString("ai_dec_rarity", rarity)
-            .putInt("ai_dec_style_type", styleType)
-            .putInt("ai_dec_color_offset", colorOffset)
-            .putLong("user_decoration_expires_id_9999", newExpiry)
+            .putString("ai_dec_name$idSuffix", name)
+            .putString("ai_dec_rarity$idSuffix", rarity)
+            .putInt("ai_dec_style_type$idSuffix", styleType)
+            .putInt("ai_dec_color_offset$idSuffix", colorOffset)
+            .putLong("user_decoration_expires_id_$id", expiry)
             .apply()
             
         // Deduct money
@@ -560,15 +585,18 @@ class SocialViewModel(application: Application) : AndroidViewModel(application) 
         updateCoins(updatedCoins)
         
         val currentPurchased = prefs.getStringSet("purchased_decorations", emptySet())?.toMutableSet() ?: mutableSetOf()
-        currentPurchased.add("9999")
+        currentPurchased.add(id.toString())
         prefs.edit().putStringSet("purchased_decorations", currentPurchased).apply()
         
         prefs.edit()
-            .putInt("user_active_decoration", 9999)
-            .putLong("user_decoration_expiry", newExpiry)
+            .putInt("user_active_decoration", id)
+            .putLong("user_decoration_expiry", expiry)
             .apply()
             
         checkAndRefreshDecorationExpiry()
+        
+        val purchasedStr = prefs.getStringSet("purchased_decorations", emptySet()) ?: emptySet()
+        _purchasedDecorationIds.value = purchasedStr.mapNotNull { it.toIntOrNull() }.toSet()
         
         viewModelScope.launch {
             repository.insertNotification(

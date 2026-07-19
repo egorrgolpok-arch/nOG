@@ -76,7 +76,8 @@ object GeminiClient {
     }
 
     fun isKeyAvailable(): Boolean {
-        return false
+        val key = getApiKey()
+        return key.isNotEmpty() && key != "MY_GEMINI_API_KEY" && key != "placeholder" && key != "null"
     }
 
     suspend fun getCompletion(

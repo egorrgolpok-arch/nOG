@@ -197,7 +197,10 @@ fun FlappyBotGameDialog(
                     // Save Game Over timestamp for Cooldown
                     val now = System.currentTimeMillis()
                     lastGameOverTime = now
-                    prefs.edit().putLong("flappy_last_game_over", now).apply()
+                    prefs.edit()
+                        .putLong("flappy_last_game_over", now)
+                        .putBoolean("notified_flappy", false)
+                        .apply()
                 }
 
                 // Update pipe coordinates
@@ -226,7 +229,10 @@ fun FlappyBotGameDialog(
                             
                             val now = System.currentTimeMillis()
                             lastGameOverTime = now
-                            prefs.edit().putLong("flappy_last_game_over", now).apply()
+                            prefs.edit()
+                                .putLong("flappy_last_game_over", now)
+                                .putBoolean("notified_flappy", false)
+                                .apply()
                         }
                     }
 

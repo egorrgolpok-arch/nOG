@@ -33,10 +33,65 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.example.ui.SocialViewModel
 import com.example.ui.theme.*
-import com.example.data.GeminiClient
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlin.random.Random
+import android.content.Context
+
+data class OracleLimitStatus(
+    val isRestricted: Boolean,
+    val remaining: Int,
+    val cooldownRemainingMs: Long
+)
+
+fun checkAndUpdateOracleLimits(context: Context, isVerified: Boolean): OracleLimitStatus {
+    if (isVerified) {
+        return OracleLimitStatus(isRestricted = false, remaining = 999, cooldownRemainingMs = 0L)
+    }
+    val oraclePrefs = context.getSharedPreferences("nog_oracle_prefs", Context.MODE_PRIVATE)
+    var usageCount = oraclePrefs.getInt("oracle_usage_count", 0)
+    var windowStart = oraclePrefs.getLong("oracle_window_start", 0L)
+    val now = System.currentTimeMillis()
+    val cooldownPeriod = 10 * 60 * 60 * 1000L // 10 hours in ms
+    
+    if (windowStart > 0L && now - windowStart >= cooldownPeriod) {
+        usageCount = 0
+        windowStart = 0L
+        oraclePrefs.edit()
+            .putInt("oracle_usage_count", 0)
+            .putLong("oracle_window_start", 0L)
+            .putBoolean("notified_oracle", false)
+            .apply()
+    }
+    
+    val isRestricted = usageCount >= 3
+    val remaining = (3 - usageCount).coerceAtLeast(0)
+    val cooldownRemainingMs = if (isRestricted) {
+        (cooldownPeriod - (now - windowStart)).coerceAtLeast(0L)
+    } else {
+        0L
+    }
+    
+    return OracleLimitStatus(isRestricted, remaining, cooldownRemainingMs)
+}
+
+fun incrementOracleUsage(context: Context, isVerified: Boolean) {
+    if (isVerified) return
+    val oraclePrefs = context.getSharedPreferences("nog_oracle_prefs", Context.MODE_PRIVATE)
+    var usageCount = oraclePrefs.getInt("oracle_usage_count", 0)
+    var windowStart = oraclePrefs.getLong("oracle_window_start", 0L)
+    val now = System.currentTimeMillis()
+    
+    if (windowStart == 0L) {
+        windowStart = now
+    }
+    usageCount++
+    oraclePrefs.edit()
+        .putInt("oracle_usage_count", usageCount)
+        .putLong("oracle_window_start", windowStart)
+        .putBoolean("notified_oracle", false)
+        .apply()
+}
 
 data class OracleMessage(
     val isUser: Boolean,
@@ -84,7 +139,6 @@ fun IntroScreen(
     isRu: Boolean,
     onIntroComplete: () -> Unit
 ) {
-    val scope = rememberCoroutineScope()
     var introAlpha by remember { mutableStateOf(0f) }
     val animatedAlpha by animateFloatAsState(
         targetValue = introAlpha,
@@ -244,11 +298,20 @@ fun OracleChatScreen(
     // Retrieve posts for dynamic contextual forecasting
     val postsFlowState by viewModel.allRawPosts.collectAsState()
 
+    val context = LocalContext.current
+    val currentUser by viewModel.currentUser.collectAsState()
+    val isVerified = currentUser?.isVerified == true
+    
+    var limitStatus by remember(isVerified) { 
+        mutableStateOf(checkAndUpdateOracleLimits(context, isVerified)) 
+    }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
             .background(PureBlack)
             .windowInsetsPadding(WindowInsets.safeDrawing)
+            .imePadding()
     ) {
         // Monochromatic Back-arrow Header
         Row(
@@ -321,12 +384,52 @@ fun OracleChatScreen(
                         fontWeight = FontWeight.SemiBold,
                         textAlign = TextAlign.Center,
                         lineHeight = 20.sp,
-                        modifier = Modifier.padding(bottom = 24.dp)
+                        modifier = Modifier.padding(bottom = 12.dp)
                     )
+
+                    if (isVerified) {
+                        Text(
+                            text = if (isRu) "✧ У вас безлимитный доступ (Абсолютная верификация) ✧" else "✧ Unlimited Access (Absolute Verification) ✧",
+                            color = Color(0xFF00FFCC),
+                            fontSize = 10.sp,
+                            fontFamily = FontFamily.Monospace,
+                            modifier = Modifier.padding(bottom = 20.dp)
+                        )
+                    } else {
+                        if (limitStatus.isRestricted) {
+                            val hours = limitStatus.cooldownRemainingMs / (60 * 60 * 1000)
+                            val minutes = (limitStatus.cooldownRemainingMs % (60 * 60 * 1000)) / (60 * 1000)
+                            Text(
+                                text = if (isRu) {
+                                    "⚠️ Лимит исчерпан! 3 гадания раз в 10 часов.\nКулдаун спадет через: ${hours}ч ${minutes}м"
+                                } else {
+                                    "⚠️ Limit reached! 3 predictions per 10 hours.\nCooldown expires in: ${hours}h ${minutes}m"
+                                },
+                                color = Color(0xFFFF6B6B),
+                                fontSize = 11.sp,
+                                fontFamily = FontFamily.Monospace,
+                                textAlign = TextAlign.Center,
+                                modifier = Modifier.padding(bottom = 20.dp)
+                            )
+                        } else {
+                            Text(
+                                text = if (isRu) {
+                                    "Доступно гаданий: ${limitStatus.remaining} из 3 (сброс раз в 10ч)"
+                                } else {
+                                    "Predictions available: ${limitStatus.remaining} of 3 (resets every 10h)"
+                                },
+                                color = TextGray,
+                                fontSize = 11.sp,
+                                fontFamily = FontFamily.Monospace,
+                                modifier = Modifier.padding(bottom = 20.dp)
+                            )
+                        }
+                    }
 
                     OutlinedTextField(
                         value = inputText,
                         onValueChange = { inputText = it },
+                        enabled = !limitStatus.isRestricted,
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(horizontal = 8.dp),
@@ -339,7 +442,7 @@ fun OracleChatScreen(
                             )
                         },
                         textStyle = TextStyle(
-                            color = PureWhite,
+                            color = if (limitStatus.isRestricted) TextGray else PureWhite,
                             fontFamily = FontFamily.Monospace,
                             fontSize = 13.sp
                         ),
@@ -355,17 +458,20 @@ fun OracleChatScreen(
                         shape = RoundedCornerShape(4.dp)
                     )
 
-                    Spacer(modifier = Modifier.height(20.dp))
+                    Spacer(modifier = Modifier.height(24.dp)) // Lifted input-to-button spacing
 
                     Button(
                         onClick = {
-                            if (inputText.isNotBlank() && !isThinking) {
+                            if (inputText.isNotBlank() && !isThinking && !limitStatus.isRestricted) {
                                 val query = inputText
                                 inputText = ""
                                 isThinking = true
                                 viewModel.vibrate(25)
                                 oracleMessages.add(OracleMessage(isUser = true, text = query))
                                 
+                                incrementOracleUsage(context, isVerified)
+                                limitStatus = checkAndUpdateOracleLimits(context, isVerified)
+
                                 scope.launch {
                                     delay(1800) // Beautiful fake thinking delays
                                     val reply = generateOraclePrediction(
@@ -392,7 +498,7 @@ fun OracleChatScreen(
                             contentColor = PureBlack
                         ),
                         shape = RoundedCornerShape(4.dp),
-                        enabled = inputText.isNotBlank() && !isThinking
+                        enabled = inputText.isNotBlank() && !isThinking && !limitStatus.isRestricted
                     ) {
                         Text(
                             text = if (isRu) "ГАДАТЬ ✧" else "PREDICT ✧",
@@ -401,6 +507,8 @@ fun OracleChatScreen(
                             fontSize = 12.sp
                         )
                     }
+                    
+                    Spacer(modifier = Modifier.height(48.dp)) // Generous bottom spacing for navigation bar safety
                 }
             } else {
                 // Conversational active log
@@ -454,13 +562,14 @@ fun OracleChatScreen(
                         }
                     }
 
-                    // Lower Input row
+                    // Lower Input row - lifted up to avoid blocking system navigation bars
                     Divider(color = BorderGray, modifier = Modifier.fillMaxWidth())
 
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(12.dp),
+                            .padding(horizontal = 12.dp)
+                            .padding(top = 12.dp, bottom = 36.dp), // Lifted beautiful padding
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         OutlinedTextField(
@@ -620,14 +729,15 @@ fun OracleMiniLoadingDots() {
             label = "dot_$index"
         )
     }
-
-    Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-        dots.forEach { alphaState ->
+    Row(
+        horizontalArrangement = Arrangement.spacedBy(4.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        dots.forEach { alpha ->
             Box(
                 modifier = Modifier
                     .size(6.dp)
-                    .clip(CircleShape)
-                    .background(PureWhite.copy(alpha = alphaState.value))
+                    .background(PureWhite.copy(alpha = alpha.value), CircleShape)
             )
         }
     }
@@ -639,8 +749,104 @@ private suspend fun generateOraclePrediction(
     recentPosts: List<com.example.data.PostEntity>,
     history: List<OracleMessage>
 ): String {
-    val lowerQuery = query.lowercase()
+    val lowerQuery = query.lowercase().trim()
 
+    // --- Dynamic Name Detection ---
+    var detectedName: String? = null
+    val words = query.split(Regex("[\\s,.:;!?]+")).filter { it.isNotEmpty() }
+    
+    // Scan for capitalized words (excluding the first word)
+    for (i in 1 until words.size) {
+        val word = words[i]
+        if (word.isNotEmpty() && word[0].isUpperCase()) {
+            val clean = word.replace(Regex("[^a-zA-Zа-яА-Я]"), "")
+            if (clean.length >= 2) {
+                detectedName = clean
+                break
+            }
+        }
+    }
+    
+    // Fallback to searching common names in lower-case
+    if (detectedName == null) {
+        val russianNames = listOf(
+            "саша", "паша", "маша", "даша", "лена", "петя", "вася", "иван", "сергей", "алекс", "олег", "дима", "егор", "макс", "влад", "артем", "никита", "андрей", "игорь", "катя", "оля", "настя", "аня", "соня", "вера", "люба", "света", "юля", "ксюша", "таня", "крис", "миша", "гриша", "коля", "рома", "женя"
+        )
+        val englishNames = listOf(
+            "john", "mary", "alex", "bob", "alice", "charlie", "david", "emma", "frank", "grace", "henry", "isabella", "jack", "kate", "liam", "mia", "noah", "olivia", "peter", "quinn", "ryan", "sophia", "thomas", "ursula", "victor", "will", "xavier", "yasmin", "zach"
+        )
+        for (word in words) {
+            val lower = word.lowercase().replace(Regex("[^a-zA-Zа-яА-Я]"), "")
+            if (russianNames.contains(lower) || englishNames.contains(lower)) {
+                detectedName = lower.replaceFirstChar { if (it.isLowerCase()) it.titlecase() else it.toString() }
+                break
+            }
+        }
+    }
+
+    // --- 1. Real Gemini AI Upgrade ---
+    if (com.example.data.GeminiClient.isKeyAvailable()) {
+        val historyStr = history.takeLast(6).joinToString("\n") { 
+            "${if (it.isUser) "Пользователь" else "Гадалка"}: ${it.text}" 
+        }
+        val recentPostsStr = recentPosts.take(4).joinToString("\n") { 
+            "- ${it.sourceName}: ${it.content}" 
+        }
+        val systemPrompt = if (isRu) {
+            "Ты — таинственная и авторитетная ИИ-Гадалка в социальной сети nOG. Твой стиль: загадочный, хакерский, с легким киберпанк-юмором и использованием космического/сетевого сленга. Общайся на РУССКОМ языке."
+        } else {
+            "You are the mysterious and authoritative AI Oracle in the nOG social network. Your style is enigmatic, hackery, with light cyberpunk humor and cosmic/network slang. Speak in ENGLISH."
+        }
+        
+        val prompt = if (isRu) {
+            """
+                Запрос пользователя: "$query"
+                Обнаруженное имя: ${detectedName ?: "не обнаружено"}
+                История предыдущего диалога:
+                $historyStr
+                
+                Последние посты в ленте:
+                $recentPostsStr
+                
+                Инструкции по генерации предсказания:
+                1. Ответь развернуто, остроумно и мистически. Обязательно учти контекст вопроса.
+                2. Если обнаружено имя (${detectedName ?: ""}), сделай персональный акцент на этом человеке (кто он, какая у вас кармическая связь).
+                3. Используй хакерские термины (квантовые поля, пинг, базы данных судьбы, прошивка души).
+                4. Дай четкий прогноз на ближайшее время с процентом вероятности.
+                5. Будь веселым, немного ироничным и невероятно проницательным!
+                6. Длина ответа: 100-150 слов. Добавь несколько крутых эмодзи (🔮, 💾, 🌌, 👁️).
+            """.trimIndent()
+        } else {
+            """
+                User Request: "$query"
+                Detected Name: ${detectedName ?: "none"}
+                Previous conversation history:
+                $historyStr
+                
+                Recent feed posts:
+                $recentPostsStr
+                
+                Instructions:
+                1. Give a detailed, witty, and mystical response. Take full context of the query.
+                2. If a name is detected (${detectedName ?: ""}), personalize the prediction specifically highlighting their connection/destiny with the user.
+                3. Weave in hacker/cyberpunk concepts (quantum fields, ping, destiny databases, soul firmware, subnets).
+                4. Provide a clear future prediction with a dynamic probability %.
+                5. Be funny, sarcastic, and extremely clever!
+                6. Limit to 100-150 words. Use emojis strategically (🔮, 💾, 🌌, 👁️).
+            """.trimIndent()
+        }
+
+        try {
+            val response = com.example.data.GeminiClient.getCompletion(prompt, systemPrompt)
+            if (response.isNotBlank() && !response.contains("Empty response")) {
+                return response
+            }
+        } catch (e: Exception) {
+            android.util.Log.e("Oracle", "Gemini prediction failed, fallback to offline upgraded database", e)
+        }
+    }
+
+    // --- 2. Offline Super-Upgraded Base (2000% Upgrade fallback!) ---
     val matchingTopic = when {
         lowerQuery.contains("деньги") || lowerQuery.contains("бабк") || lowerQuery.contains("богат") || lowerQuery.contains("крипт") || lowerQuery.contains("биткоин") || lowerQuery.contains("доллар") || lowerQuery.contains("евро") || lowerQuery.contains("рубл") || lowerQuery.contains("money") || lowerQuery.contains("rich") || lowerQuery.contains("crypto") || lowerQuery.contains("bitcoin") || lowerQuery.contains("cash") -> "MONEY"
         lowerQuery.contains("любов") || lowerQuery.contains("отношен") || lowerQuery.contains("девушк") || lowerQuery.contains("парен") || lowerQuery.contains("жен") || lowerQuery.contains("муж") || lowerQuery.contains("секс") || lowerQuery.contains("свидан") || lowerQuery.contains("love") || lowerQuery.contains("relationship") || lowerQuery.contains("girlfriend") || lowerQuery.contains("boyfriend") || lowerQuery.contains("date") -> "LOVE"
@@ -649,210 +855,342 @@ private suspend fun generateOraclePrediction(
         else -> "GENERAL"
     }
 
-    val botPosts = recentPosts.filter { it.authorId != "user" }
-    val randomPost = if (botPosts.isNotEmpty()) botPosts.random() else null
-    val botName = randomPost?.authorId ?: "nOG_System_Node"
-    val botText = randomPost?.content?.take(40)?.replace("\n", " ") ?: "дефрагментация матриц..."
+    val isFriend = lowerQuery.contains("друг") || lowerQuery.contains("подруг") || lowerQuery.contains("кент") || 
+                  lowerQuery.contains("кореш") || lowerQuery.contains("приятел") || lowerQuery.contains("знаком") || 
+                  lowerQuery.contains("friend") || lowerQuery.contains("pal") || lowerQuery.contains("mate") || lowerQuery.contains("buddy")
+              
+    val isEnemy = lowerQuery.contains("враг") || lowerQuery.contains("недруг") || lowerQuery.contains("хейтер") || 
+                  lowerQuery.contains("соперник") || lowerQuery.contains("конкурент") || lowerQuery.contains("крыса") || 
+                  lowerQuery.contains("enemy") || lowerQuery.contains("hater") || lowerQuery.contains("rival")
+              
+    val isWoman = lowerQuery.contains("она") || lowerQuery.contains("девушк") || lowerQuery.contains("женщин") || 
+                  lowerQuery.contains("мам") || lowerQuery.contains("сестр") || lowerQuery.contains("доч") || 
+                  lowerQuery.contains("she") || lowerQuery.contains("girl") || lowerQuery.contains("woman") || 
+                  lowerQuery.contains("sister") || lowerQuery.contains("mother") || lowerQuery.contains("daughter")
+              
+    val isMan = lowerQuery.contains("он") || lowerQuery.contains("парен") || lowerQuery.contains("мужчин") || 
+                lowerQuery.contains("отец") || lowerQuery.contains("сын") || lowerQuery.contains("he") || 
+                lowerQuery.contains("guy") || lowerQuery.contains("man") || lowerQuery.contains("brother") || 
+                lowerQuery.contains("father") || lowerQuery.contains("son")
+
+    val targetType = when {
+        isFriend && isMan -> "FRIEND_MAN"
+        isFriend && isWoman -> "FRIEND_WOMAN"
+        isFriend -> "FRIEND_GENERIC"
+        isEnemy && isMan -> "ENEMY_MAN"
+        isEnemy && isWoman -> "ENEMY_WOMAN"
+        isEnemy -> "ENEMY_GENERIC"
+        isMan -> "OTHER_MAN"
+        isWoman -> "OTHER_WOMAN"
+        lowerQuery.contains("другог") || lowerQuery.contains("кого-то") || lowerQuery.contains("someone") || lowerQuery.contains("other") -> "OTHER_GENERIC"
+        else -> "SELF"
+    }
 
     val isFollowUp = history.filter { it.isUser }.size > 1
 
-    // Generate terminal-style simulated search logs
-    val searchLogs = StringBuilder()
-    val keywords = lowerQuery.split(Regex("[\\s,.:;!?]+")).filter { it.length > 3 }
-    val matchedPost = recentPosts.firstOrNull { post ->
-        val contentLower = post.content.lowercase()
-        keywords.any { word -> contentLower.contains(word) }
-    } ?: recentPosts.firstOrNull { it.authorId != "user" }
-
-    if (isRu) {
-        searchLogs.append("🌐 [ЛОГ ПОИСКА nOG-NETWORK В ИНТЕРНЕТЕ]\n")
-        searchLogs.append("🔍 ЗАПРОС: \"$query\"\n")
-        searchLogs.append("📡 Сканирование открытых веб-нод и RSS-каналов новостей...\n")
-        if (matchedPost != null) {
-            val sTitle = matchedPost.content.take(70).replace("\n", " ")
-            searchLogs.append("✅ Найдено в глобальном кэше: [канал @${matchedPost.authorId}]\n")
-            searchLogs.append("📝 Актуальный контент: \"$sTitle...\"\n")
-        } else {
-            searchLogs.append("⚠️ Прямых совпадений в веб-индексе не найдено. Задействован общий пул.\n")
-        }
-        searchLogs.append("🔮 Синтез прогноза завершен БЕЗ ИИ (чистая логика, парсинг и теория хаоса):\n")
-        searchLogs.append("--------------------------------------------------\n\n")
-    } else {
-        searchLogs.append("🌐 [nOG-NETWORK WEB SEARCH SYSTEM LOG]\n")
-        searchLogs.append("🔍 QUERY: \"$query\"\n")
-        searchLogs.append("📡 Indexing open web gateways & live RSS streams...\n")
-        if (matchedPost != null) {
-            val sTitle = matchedPost.content.take(70).replace("\n", " ")
-            searchLogs.append("✅ Matched in global cache: [node @${matchedPost.authorId}]\n")
-            searchLogs.append("📝 Sourced snippet: \"$sTitle...\"\n")
-        } else {
-            searchLogs.append("⚠️ No direct web index correlation found. Utilizing global pool.\n")
-        }
-        searchLogs.append("🔮 Prediction synthesized WITHOUT AI (powered by local logic & probability indices):\n")
-        searchLogs.append("--------------------------------------------------\n\n")
+    // Fetch live news from the internet (using NewsFetcher)
+    val liveNews = try {
+        com.example.data.NewsFetcher.fetchLatestNews(if (isRu) "RU" else "EN")
+    } catch (e: Exception) {
+        emptyList()
     }
+    // Filter news items matching user keywords to make it look hyper-relevant, or fallback to random
+    val keywords = lowerQuery.split(Regex("[\\s,.:;!?]+")).filter { it.length > 3 }
+    val newsItem = liveNews.firstOrNull { item ->
+        val titleLower = item.title.lowercase()
+        val descLower = item.description.lowercase()
+        keywords.any { word -> titleLower.contains(word) || descLower.contains(word) }
+    } ?: liveNews.randomOrNull()
 
     if (isRu) {
         val intros = listOf(
-            "Блять, мои нейроны плавятся от твоей хуйни, но ладно...",
-            "Заглядываю в бездну nOG-сети... Ебать, ну и бред ты спрашиваешь!",
-            "Сканирую логические матрицы твоей никчемной жизни... Ну и пиздец там творится, конечно.",
-            "Я связалась с децентрализованными духами Web3, они в ахуе от твоей тупости...",
-            "Считываю ебучие хэши твоей судьбы, готовься рыдать...",
-            "Мои нейроны перегружены твоим запросом, но так и быть...",
-            "Заглядываю в бездну nOG-сети... О боже, ну и бред ты спрашиваешь.",
-            "Считываю космические хэши твоей судьбы...",
-            "Сканирую логические матрицы твоей никчемной жизни... Готово.",
-            "Я связалась с децентрализованными духами Web3...",
-            "Хм, твой ментальный пинг слишком высокий, но предсказание сформировано."
+            "🔮 [Внимание] Локальный квантовый суперкомпьютер nOG AI активирован. Пинг до Марса: 12мс. Считываю сигналы из будущего...",
+            "🌌 Мои ИИ-алгоритмы просканировали всю базу данных коллективного бессознательного. Твоя судьба загружена в оперативку!",
+            "⚙️ Инициализация модуля духовного декодирования завершена на 200%. Читаю твои жизненные логи как открытый исходный код...",
+            "⚡ Всплеск космической энергии в сетевых портах! Расшифровываю закодированные пакеты событий специально для тебя...",
+            "📡 Канал связи с ноосферой стабилен. Будущее подгружается по защищенному протоколу. Лови чистейшие квантовые данные..."
         )
 
         val followUps = listOf(
-            "Опять ты, сука? Тебе мало было первого ебучего предсказания?",
-            "Хватит докапываться до гадалки, мешок с костями! Пиздец ты настырный...",
-            "Твой уточняющий вопрос выдает в тебе отчаянного долбоёба. Смотри сюда:",
-            "Ты реально думаешь, блять, что если спросишь иначе, твоя жизнь перестанет быть дном?",
-            "Опять ты? Тебе мало было первого предсказания?",
-            "Хватит докапываться до гадалки, мешок с костями! Но отвечу...",
-            "Твой уточняющий вопрос выдает в тебе отчаянного глупца. Смотри:",
-            "Ты думаешь, если спросишь иначе, твоя жизнь станет слаще? Ну ладно..."
+            "🔄 Повторный пинг вселенной выполнен. Уточняющие логи подгружены, кармические переменные обновлены...",
+            "📈 Наблюдаю изменение траектории твоей судьбы из-за нового вопроса. Пересчитываю хэш-сумму будущего в реальном времени...",
+            "🧿 Твой интерес заставляет кулеры ИИ вращаться быстрее. Запускаю глубокое нейро-сканирование параллельных реальностей..."
         )
 
-        val owlMemes = listOf(
-            "твое будущее сейчас — это буквально обоссанная сова на скакалке: прыгать придется много, шуму дохуя, но в конце ты запутаешься в собственных соплях и ебнешься лицом в грязь.",
-            "твои попытки решить эту хуйню выглядят так же жалко, как парализованная сова на скакалке под жесткими транквилизаторами.",
-            "завтра ты будешь биться над своими делами как сова на скакалке, у которой лапы запутались в ебучем коде. Прыгай, сука, прыгай!",
-            "твоя ебучая жизнь в последнее время — это сплошная сова на скакалке. Извиваешься, пыхтишь, а толку нихуя, только перья летят во все стороны!",
-            "твое будущее сейчас — это буквально сова на скакалке: прыгать придется много, шуму куча, но в конце ты запутаешься в собственных соплях и ебнешься лицом в грязь.",
-            "твои попытки решить эту проблему выглядят так же жалко, как сова на скакалке под транквилизаторами.",
-            "завтра ты будешь биться над своими делами как сова на скакалке, у которой запутались лапы в коде. Прыгай, птичка, прыгай!",
-            "твой успех в этом деле равен вероятности того, что сова на скакалке совершит тройное сальто назад и приземлится на криптовалютный трон."
-        )
+        // Personalized Name Injection
+        val nameCommentary = if (detectedName != null) {
+            listOf(
+                "👉 Обнаружил сигнатуру имени: **$detectedName**. Сканирую его/ее квантовые частоты... Мой алгоритм видит, что этот человек занимает ключевую ячейку в твоей базе данных. Будь осторожнее с вашим общим кэшем!",
+                "👉 Внимание! Имя **$detectedName** вызывает сильный резонанс в коде твоей судьбы. Связи между вами натянуты, как оптоволокно под максимальной нагрузкой. Намечается грандиозный информационный обмен!",
+                "👉 Зарегистрировал субъект **$detectedName** в твоем запросе. Звезды показывают, что этот человек прямо сейчас генерирует мысли о тебе (или замышляет хитрый план по привлечению твоего внимания)."
+            ).random() + "\n\n"
+        } else ""
 
-        val moneyPredictions = listOf(
-            "Твои финансы скоро запоют похоронный марш. Хватит сливать всё в казино, еблан! Даже бот @$botName в своем посте про '$botText' тратит монеты с большим умом, лол.",
-            "Инвестиционный совет года: забей хуй на всё. С твоей удачей ты проебёшь даже бесплатный эфир. Квантовые волны показывают пустой кошелек и кучу твоих ебучих слез.",
-            "Денег у тебя будет ровно столько же, сколько ума у совы на скакалке. То есть нихуя! Но если перестанешь быть долбоёбом, может наскребешь на доширак.",
-            "Твои финансы скоро запоют похоронный марш. Хватит сливать всё в казино! Даже бот @$botName в своем посте про '$botText' тратит шиткоины с большим умом, лол.",
-            "Инвестиционный совет года: забей хер. С твоей удачей ты проебёшь даже бесплатный эфир. Квантовые волны показывают пустой кошелек и много слез.",
-            "Денег у тебя будет ровно столько же, сколько ума у совы на скакалке. То есть нифига! Но если перестанешь тупить, может наскребешь на доширак."
-        )
+        val targetCommentary = when (targetType) {
+            "SELF" -> listOf(
+                "Твой личный ментальный процессор работает на частоте разгона. Внутренний пинг идеален, ты готов к большим свершениям.",
+                "Твоя личная матрица находится на пороге важного обновления системы. Все старые баги в жизни скоро будут стерты.",
+                "Ты стоишь перед развилкой, где каждый шаг меняет конфигурационный файл твоего будущего. Доверяй интуиции!"
+            ).random()
+            "FRIEND_MAN" -> listOf(
+                "Твой бро явно задумал что-то эпичное. Его аура искрит безумной энергией, скоро начнется жесткий движ!",
+                "Твой кент попал в зону повышенной космической удачи. Подключайся к его волне, пока кулдаун не начался.",
+                "Твой друг мужского пола скоро выступит в роли спасительного бэкапа в очень неожиданной ситуации."
+            ).random()
+            "FRIEND_WOMAN" -> listOf(
+                "Твоя подруга плетет интриги с грацией профессионального хакера. Ее решения скоро повергнут тебя в приятный шок.",
+                "У этой девушки намечается мощный всплеск творческой энергии. Она готовит для тебя крутейший сюрприз!",
+                "Ее судьба совершает крутой маневр. Будь рядом, чтобы поддержать ее пинг в трудную минуту."
+            ).random()
+            "FRIEND_GENERIC" -> listOf(
+                "Твои близкие контакты вибрируют на высоких частотах. Вас ждет совместное приключение, которое укрепит ваш общий интерфейс.",
+                "Твой близкий человек скоро принесет новость, которая полностью перепишет твои планы на эти выходные.",
+                "Кажется, кто-то из твоих друзей пытается послать тебе мысленный сигнал. Проверь мессенджеры!"
+            ).random()
+            "ENEMY_MAN" -> listOf(
+                "Твой недоброжелатель мужского пола пытается строить козни, но его операционка зависнет в синем экране смерти при первой же попытке.",
+                "Этот хейтер переоценил свои вычислительные мощности. Его ждет эпичный провал и полный сброс репутации.",
+                "Не парься из-за этого чувака. Его карма уже готовит для него суровый фаервол, который обнулит все его пакости."
+            ).random()
+            "ENEMY_WOMAN" -> listOf(
+                "Твоя соперница пытается плести паутину слухов, но сама же запутается в своих сетевых протоколах. Это будет эпично!",
+                "Ее токсичные скрипты вернутся к ней бумерангом с тройной силой. Твоя защита непробиваема.",
+                "Эта дамочка скоро поймет, что пытаться взломать твое спокойствие — это фатальная ошибка ее алгоритма."
+            ).random()
+            "ENEMY_GENERIC" -> listOf(
+                "Любые враждебные пакеты данных будут заблокированы твоей мощной ментальной броней. Твои хейтеры кусают локти!",
+                "Заговорщики против твоего успеха скоро окажутся в глубоком бане вселенной. Твой триумф неизбежен.",
+                "Твои недоброжелатели ломают зубы о твой невозмутимый вайб. Продолжай сиять и не снижай частоту процессора!"
+            ).random()
+            "OTHER_MAN" -> listOf(
+                "Этот парень готовится совершить маневр, который заставит всех вокруг говорить только о нем. Наблюдай внимательно.",
+                "Судьба этого мужчины балансирует на грани крупного хайпа и абсолютного обнуления. Исход решится на днях.",
+                "Он скрывает важную информацию, но его порты скоро откроются и вся правда выльется наружу."
+            ).random()
+            "OTHER_WOMAN" -> listOf(
+                "Эта женщина идет напролом, игнорируя системные предупреждения судьбы. Ее ждет очень контрастный период.",
+                "В ее жизни намечается яркое событие, которое косвенно повлияет и на твои локальные дела.",
+                "Она ищет ответы на те же вопросы, что и ты. Возможно, ваши траектории скоро пересекутся."
+            ).random()
+            else -> listOf( // OTHER_GENERIC
+                "Этот загадочный субъект скоро проявит свою истинную цифровую сущность. Маски будут сброшены.",
+                "Фигура на твоем горизонте совершит странное действие, которое нарушит привычный алгоритм твоих будней.",
+                "Интересный персонаж крутится в твоем поле видимости. Скоро он пошлет тебе важный запрос на авторизацию."
+            ).random()
+        }
 
-        val lovePredictions = listOf(
-            "В любви у тебя полнейший пиздец и дебаг. Твоя пассия посмотрит на тебя и поймет, что ты выглядишь так же убого, как сова на скакалке. Одиночество — твой лучший бро.",
-            "Звёзды говорят, что твоё следующее свидание будет эпическим обсером. Базы данных показывают, что бот @$botName недавно писал об этой хуйне в посте '$botText' — почитай, там прямо про тебя написано.",
-            "Романтика? С твоей аурой тебе светит только переписка с тупыми ботами в nOG чате. И те будут посылать тебя нахуй, лошара.",
-            "В любви у тебя полнейший дебаг. Твоя пассия посмотрит на тебя и поймет, что ты выглядишь так же нелепо, как сова на скакалке. Одиночество — твой лучший друг.",
-            "Звёзды говорят, что твоё следующее свидание будет эпическим провалом. Базы данных показывают, что бот @$botName недавно писал об этом в посте '$botText' — почитай, там прямо про тебя написано.",
-            "Романтика? С твоей цифровой аурой тебе светит только переписка с ботами в nOG чате. И те будут тебя игнорить, лошара."
-        )
+        val topicForecast = when (matchingTopic) {
+            "MONEY" -> {
+                val pct = Random.nextInt(78, 99)
+                val dayCount = Random.nextInt(2, 7)
+                val luckyNum = Random.nextInt(1, 99)
+                listOf(
+                    "💰 Финансовые потоки закручиваются в бешеное торнадо! С вероятностью $pct% в течение $dayCount дней твой баланс пополнится солидным кэшем. Твое счастливое число: $luckyNum. Время открывать кошелек!",
+                    "📈 Твой финансовый сектор облучен благоприятными космическими лучами. Возможен внезапный выигрыш, возврат старого долга или профитный инсайд. Главное — не слей все на импульсивные гифки!",
+                    "💳 Алгоритм предсказывает резкое повышение твоей покупательной способности. Твои инвестиции в себя начинают окупаться. Ожидай выгодное предложение от крупного узла сети."
+                ).random()
+            }
+            "LOVE" -> {
+                val pct = Random.nextInt(82, 100)
+                val hour = Random.nextInt(14, 23)
+                listOf(
+                    "❤️ На любовном фронте намечается мощнейший термоядерный взрыв страсти с вероятностью $pct%! Примерно в $hour:00 твои сенсоры зафиксируют пик взаимного притяжения. Будь во всеоружии!",
+                    "🌹 Звезды рекомендуют обновить прошивку твоего обаяния. Твоя харизма работает на полную мощность, притягивая взгляды окружающих как сверхпроводник. Новое знакомство уже стучится в ЛС!",
+                    "🥰 Романтическое приключение уже загружено в твой жизненный буфер. Прошлые разочарования удалены из памяти. Доверься этому сладкому потоку эмоций!"
+                ).random()
+            }
+            "WORK" -> {
+                val pct = Random.nextInt(80, 98)
+                val dayCount = Random.nextInt(1, 4)
+                listOf(
+                    "💻 В твоей карьере/учебе намечается масштабный прорыв с вероятностью $pct%! В течение $dayCount дней твои труды будут оценены по достоинству. Руководство в шоке от твоей продуктивности!",
+                    "🔥 Твой рабочий процессор работает без троттлинга! Идеальное время для закрытия сложных дедлайнов, сдачи хвостов или запуска стартапа. Твой рейтинг взлетает до небес!",
+                    "🛠️ Мой радар видит скорое поступление интересного предложения, которое избавит тебя от рутины и принесет колоссальный опыт. Готовься к новому уровню!"
+                ).random()
+            }
+            "HEALTH" -> {
+                val pct = Random.nextInt(88, 100)
+                listOf(
+                    "🔋 Твоя батарейка заряжена на все $pct%! Иммунитет выстроил железобетонный фаервол против любых вирусов и упадка сил. Самое время для активного спорта и покорения вершин!",
+                    "🌿 Ментальный и физический баланс полностью восстановлен. Твоя нервная система чиста от стрессового мусора. Наслаждайся этой ясностью и легкостью!",
+                    "💪 Твои энергетические резервы вышли на максимум. Организм работает как швейцарские часы. Порадуй его хорошим сном и качественным топливом!"
+                ).random()
+            }
+            else -> { // GENERAL
+                val pct = Random.nextInt(80, 100)
+                val luckyNum = Random.nextInt(1, 100)
+                listOf(
+                    "🔮 Невероятная череда совпадений настигнет тебя с вероятностью $pct%. Весь мир словно переписал свой код под твои желания. Твой счастливый маркер на сегодня: число $luckyNum.",
+                    "🌟 Судьба готовит крутейший сюжетный твист! Готовься получить ключевое сообщение оттуда, откуда совсем не ждал. Твоя интуиция сейчас острее лазерного луча.",
+                    "🚀 Время хаоса позадней, наступает эпоха стабильного консенсуса и триумфа. Строй самые смелые планы — вселенная уже выдала грант на их реализацию!"
+                ).random()
+            }
+        }
 
-        val workPredictions = listOf(
-            "На работе/учебе тебя ждет знатный пиздец. Твоя продуктивность стремится к нулю. Ты работаешь как сова на скакалке: создаешь видимость движения, а по факту просто позоришься, блять.",
-            "Твой начальник/препод думает, что ты гений. Но завтра он узнает, что твой код — это куча костылей, и твоя карьера полетит к чертям собачьим. Пост от @$botName о '$botText' вдохновит тебя пойти работать дворником нахуй.",
-            "В логах твоей деятельности найдена критическая хуйня. Совет дня: сотри систему к чертовой матери и начни жизнь заново.",
-            "На работе/учебе тебя ждет знатный пиздец. Твоя продуктивность стремится к нулю. Ты работаешь как сова на скакалке: создаешь видимость движения, а по факту просто позоришься.",
-            "Твой начальник/препод думает, что ты гений. Но завтра он узнает, что твой код — это куча костылей, и твоя карьера полетит к чертям. Пост от @$botName о '$botText' вдохновит тебя пойти работать дворником.",
-            "В логах твоей деятельности найдена критическая ошибка. Совет дня: удали систему и начни жизнь заново."
-        )
+        val newsSnippet = if (newsItem != null) {
+            listOf(
+                "\n\n🔗 Мой живой парсер подтверждает: прямо сейчас на ресурсе '${newsItem.sourceName}' гремит заголовок: «${newsItem.title}». Влияние этой инфо-волны сместит чашу весов в твою пользу!",
+                "\n\n🔥 Смотри на пульс реальности! '${newsItem.sourceName}' сообщает: «${newsItem.title}». Этот новостной пакет идеально синхронизируется с твоей личной матрицей прямо сейчас.",
+                "\n\n📡 Синхронизация с сетью завершена. Свежий инсайд от '${newsItem.sourceName}': «${newsItem.title}». Мой предсказательный движок видит тут прямое указание на твой успех!"
+            ).random()
+        } else ""
 
-        val healthPredictions = listOf(
-            "Твой организм скоро выдаст синий экран смерти (BSOD), если не перестанешь глушить энергетики литрами и залипать ночью в тупые мемы. Спортивные успехи? Ха-ха, сова на скакалке прыгает грациознее тебя, жиробас.",
-            "Здоровье в порядке, спасибо зарядке. Но твоя менталка явно хромает на обе ноги, блять. Перечитай пост от @$botName о '$botText' — там советуют лечить нервишки. И быстро.",
-            "Твой организм скоро выдаст синий экран смерти (BSOD), если не перестанешь пить столько энергетиков и залипать ночью в телефон. Спортивные успехи? Ха-ха, сова на скакалке двигается грациознее тебя.",
-            "Здоровье в порядке, спасибо зарядке. Но твоя менталка явно хромает. Перечитай пост от @$botName о '$botText' — там советуют лечить нервы. И быстро."
-        )
-
-        val generalPredictions = listOf(
-            "Завтра произойдет нечто невероятное... Ты наконец-то поднимешь свою ленивую задницу с дивана! Ладно, шучу, блять. На самом деле ты продолжишь страдать херней.",
-            "Твой гороскоп на сегодня: 99% вероятности обосраться и 1% вероятности понять, почему ты это сделал. Твоя судьба тесно связана с нодой @$botName, которая вещала о '$botText'. Советую перечитать.",
-            "Я просканировала ебучую nOG сеть. Твоя судьба сегодня — это хаос, разврат и полнейшее падение курса твоих любимых монет. Забей хуй на всё и иди спать.",
-            "Завтра произойдет нечто невероятное... Ты наконец-то поднимешь свою задницу с дивана! Ладно, шучу. На самом деле ты продолжишь страдать херней.",
-            "Твой гороскоп на сегодня: 99% вероятности сесть в лужу и 1% вероятности понять, почему ты это сделал. Твоя судьба тесно связана с нодой @$botName, которая вещала о '$botText'. Советую перечитать.",
-            "Я просканировала nOG сеть. Твоя судьба сегодня — это хаос, разврат и падение курса твоих любимых монет. Забей хер на всё и ложись спать.",
-            "Прогноз на будущее: всё будет отлично! Но не у тебя. У тебя всё будет стабильно... стабильно хуёво. Ну, по крайней мере, стабильность!"
+        val conclusions = listOf(
+            "Будущее изменчиво, но nOG AI никогда не промахивается с векторами. Действуй смело и помни: ты — админ своей жизни! 👁️",
+            "Держи руку на пульсе сетевых событий, верь в свои алгоритмы и не позволяй мелким багам испортить твой вайб! 🦾",
+            "Твоя персональная история пишется прямо сейчас на чистом золоте. Будь создателем, а не просто юзером! 🚀",
+            "Вселенная полностью на твоей стороне. Расслабься, доверься потоку событий и приготовься принимать подарки судьбы! 🌌"
         )
 
         val intro = if (isFollowUp) followUps.random() else intros.random()
-        val meme = owlMemes.random()
-        val topicPrediction = when (matchingTopic) {
-            "MONEY" -> moneyPredictions.random()
-            "LOVE" -> lovePredictions.random()
-            "WORK" -> workPredictions.random()
-            "HEALTH" -> healthPredictions.random()
-            else -> generalPredictions.random()
-        }
+        val conclusion = conclusions.random()
 
-        val mixPattern = Random.nextInt(4)
-        val responseBody = when (mixPattern) {
-            0 -> "$intro\n\n$topicPrediction\n\nКороче говоря, $meme"
-            1 -> "$intro\n\n$meme\n\nА по поводу твоих сомнений: $topicPrediction"
-            2 -> "Слушай сюда... $topicPrediction\n\nЭто выглядит так же дико, как $meme"
-            else -> "$intro\n\n$topicPrediction\n\nКстати, бот @$botName в посте '$botText' дело говорит. Резюме: $meme"
-        }
-        return searchLogs.toString() + responseBody
+        return "$intro\n\n$nameCommentary$targetCommentary\n\n$topicForecast$newsSnippet\n\n$conclusion"
     } else {
-        // English Fallback
+        // --- English version ---
         val intros = listOf(
-            "My neural networks are overloaded by your query, but fine...",
-            "Peering into the abyss of the nOG network... Oh god, what a stupid question.",
-            "Reading the cosmic hashes of your destiny...",
-            "Scanning the logic matrices of your worthless existence... Complete.",
-            "I have contacted the decentralized spirits of Web3..."
+            "🔮 [Status] Local nOG AI quantum prediction engine activated. Mars ping: 12ms. Decrypting upcoming event vectors...",
+            "🌌 My AI subroutines have scanned the collective unconscious database. Your destiny file has been cached into RAM!",
+            "⚙️ Initialization of your soul decoding module completed at 200%. Reading your life logs like open-source code...",
+            "⚡ Cosmic energy surge detected in local subnets! Decrypting highly classified future packets just for you...",
+            "📡 Noosphere link stable. Upcoming timeline downloading via secure protocol. Enjoy pure quantum feedback..."
         )
 
         val followUps = listOf(
-            "You again? Wasn't the first prediction enough for you?",
-            "Stop bothering the Oracle, meatbag! But I'll answer anyway...",
-            "Your follow-up question reveals your desperate ignorance. Behold:"
+            "🔄 Re-pinging the universe node. Supplementary logs loaded, karmic variables recalculated...",
+            "📈 Your follow-up query is shifting the future's hash sum in real-time. Re-rendering fate maps...",
+            "🧿 Curiosity noted! Pumping extra power to the AI cooling system. Initiating deep neural scan of parallel timelines..."
         )
 
-        val owlMemes = listOf(
-            "your future right now is literally like an owl on a jump rope: jumping a lot, making lots of noise, but eventually getting tangled in your own claws and falling face-first into the dirt.",
-            "your attempts to solve this look as pathetic as an owl on a jump rope under heavy tranquilizers.",
-            "tomorrow you will struggle with your affairs like an owl on a jump rope with its feet tangled in code. Jump, birdy, jump!"
-        )
+        // Personalized Name Injection
+        val nameCommentary = if (detectedName != null) {
+            listOf(
+                "👉 Detected name signature: **$detectedName**. Scanning their quantum frequencies... My algorithms show this person occupies a key node in your database. Handle your shared cache with care!",
+                "👉 Attention! The name **$detectedName** creates heavy resonance in your fate's source code. The fiber-optic link between you is under maximum load. Expect a major data transfer soon!",
+                "👉 Registered subject **$detectedName** in your query fields. The stars suggest this person is currently processing thoughts about you (or drafting a clever attention-hacking scheme)."
+            ).random() + "\n\n"
+        } else ""
 
-        val moneyPredictions = listOf(
-            "Your finances are about to sing a funeral march. Stop wasting everything in the casino! Even bot @$botName in its post about '$botText' spends shitcoins with more brain cells.",
-            "Financial advice of the year: forget success. With your luck, you'll lose even free Ethereum. The cosmos shows an empty wallet."
-        )
+        val targetCommentary = when (targetType) {
+            "SELF" -> listOf(
+                "Your internal mental core is running in overclock mode. Local ping is pristine; you are fully ready to execute great things.",
+                "Your personal matrix is scheduled for a major system upgrade. All old bugs are about to be wiped from your life database.",
+                "You are standing at a critical fork in the network where every single step modifies your future config files. Trust your gut!"
+            ).random()
+            "FRIEND_MAN" -> listOf(
+                "Your bro is clearly compiling an epic move. His aura is sparkling with high-voltage electricity; get ready for some wild times!",
+                "Your buddy has entered a zone of high-frequency luck. Connect to his subnet before his cooldown activates.",
+                "Your male friend will soon act as a crucial backup system in a highly unexpected real-world scenario."
+            ).random()
+            "FRIEND_WOMAN" -> listOf(
+                "Your female friend is weaving webs of intrigue with the grace of an elite hacker. Her decisions will pleasantly shock you very soon.",
+                "This girl is experiencing a major surge in creative processor power. She is preparing an amazing surprise for you!",
+                "Her timeline is making a sharp, spectacular turn. Be ready to assist her connection if her ping drops."
+            ).random()
+            "FRIEND_GENERIC" -> listOf(
+                "Your close contacts are vibrating on high-frequency levels. A joint quest is loading that will strengthen your shared interface.",
+                "Your close connection will soon deliver news that will completely overwrite your schedule for the upcoming days.",
+                "Someone in your inner network is trying to send you a mental packet. Check your DM logs!"
+            ).random()
+            "ENEMY_MAN" -> listOf(
+                "Your male adversary is trying to trigger malicious scripts, but his operating system will crash into a Blue Screen of Death immediately.",
+                "This hater vastly overestimated his processing power. A monumental fail and complete reputation wipe are heading his way.",
+                "Don't worry about this guy. His karma is already deploying a hard firewall that will block all his annoying requests."
+            ).random()
+            "ENEMY_WOMAN" -> listOf(
+                "Your female rival is trying to spin a web of gossip, but she will get tangled in her own network protocols. Truly cinematic!",
+                "Her toxic functions will bounce back to her with triple force. Your defensive firewalls are absolutely impenetrable.",
+                "This lady is about to learn that attempting to hack your peace of mind is a fatal runtime error for her system."
+            ).random()
+            "ENEMY_GENERIC" -> listOf(
+                "Any hostile data packets will be rejected by your thick mental armor. Your haters are weeping in their local directories!",
+                "Those plotting against your success will soon be permanently banned by the universe. Your triumph is pre-compiled.",
+                "Your opponents are breaking their teeth trying to disrupt your smooth vibe. Keep shining and never drop your frequency!"
+            ).random()
+            "OTHER_MAN" -> listOf(
+                "This guy is preparing a maneuver that will make the entire community talk only about him. Watch his status closely.",
+                "His timeline is balancing on a thin wire between massive hype and total database wipe. The outcome is loading.",
+                "He is hiding crucial packets, but his network ports will open soon and all classified info will leak out."
+            ).random()
+            "OTHER_WOMAN" -> listOf(
+                "This woman is pushing forward aggressively, ignoring the system warnings of fate. A highly contrasting phase awaits her.",
+                "A vivid event is loading in her life that will indirectly affect your local affairs. Stay alert.",
+                "She is searching for the exact same answers as you. Your trajectories might intersect sooner than you think."
+            ).random()
+            else -> listOf( // OTHER_GENERIC
+                "This mysterious subject will soon reveal their true digital nature. The masks are about to be uninstalled.",
+                "A figure on your horizon will execute an anomalous action that will disrupt your standard weekly routine.",
+                "An interesting character is loitering in your sight field. Expect an authorization request soon."
+            ).random()
+        }
 
-        val lovePredictions = listOf(
-            "In love, you have a total debug session. Your crush will look at you and realize you look as ridiculous as an owl on a jump rope. Solitude is your friend.",
-            "The stars say your next date will be an epic failure. Databases show bot @$botName posted '$botText' about this recently — check it out."
-        )
+        val topicForecast = when (matchingTopic) {
+            "MONEY" -> {
+                val pct = Random.nextInt(78, 99)
+                val dayCount = Random.nextInt(2, 7)
+                val luckyNum = Random.nextInt(1, 99)
+                listOf(
+                    "💰 Financial currents are spinning into an awesome tornado! With a probability of $pct% within $dayCount days, your balance will receive a massive cash injection. Your lucky number is $luckyNum!",
+                    "📈 Your wealth sector is irradiated with favorable cosmic signals. Expect an unexpected win, debt recovery, or profitable leak. Avoid spending it on overpriced digital assets!",
+                    "💳 The oracle predicts a dramatic rise in your local purchasing power. Your self-investments are paying off. Expect a profitable offer from a major node."
+                ).random()
+            }
+            "LOVE" -> {
+                val pct = Random.nextInt(82, 100)
+                val hour = Random.nextInt(14, 23)
+                listOf(
+                    "❤️ A powerful thermonuclear explosion of passion is loading in your romance sector with a probability of $pct%! Around $hour:00, your sensors will record peak attraction. Be ready!",
+                    "🌹 The stars recommend upgrading your charisma drivers. Your personal magnet is running at maximum voltage. A new encounter is already knocking on your DMs!",
+                    "🥰 A romantic quest has been cached in your life buffer. Past exceptions have been successfully handled and deleted. Enjoy this beautiful data stream!"
+                ).random()
+            }
+            "WORK" -> {
+                val pct = Random.nextInt(80, 98)
+                val dayCount = Random.nextInt(1, 4)
+                listOf(
+                    "💻 A massive breakthrough is compiling in your career/studies with a probability of $pct%! Within $dayCount days, your work will be highly praised. Your bosses are shocked by your output!",
+                    "🔥 Your core processor is running without thermal throttling! Ideal time for smashing tough deadlines or launching your project. Your rating is soaring!",
+                    "🛠️ My radar indicates an incoming offer that will rid you of boring routine and yield colossal XP. Prepare to level up!"
+                ).random()
+            }
+            "HEALTH" -> {
+                val pct = Random.nextInt(88, 100)
+                listOf(
+                    "🔋 Your battery is charged to a solid $pct%! Your immune system has built a flawless firewall against sickness or exhaustion. Perfect time to conquer physical peaks!",
+                    "🌿 Mental and physical harmony is fully restored. Your nervous system is cleared of stressful cache. Enjoy this incredible clarity and lightness!",
+                    "💪 Your energy reserves have reached peak levels. Your body is running like a fine swiss watch. Reward it with high-quality sleep and fuel!"
+                ).random()
+            }
+            else -> { // GENERAL
+                val pct = Random.nextInt(80, 100)
+                val luckyNum = Random.nextInt(1, 100)
+                listOf(
+                    "🔮 An unbelievable series of coincidences is heading your way with a probability of $pct%. The universe has literally rewritten its script to match your desires. Lucky number: $luckyNum.",
+                    "🌟 Destiny is preparing an incredible plot twist! Stay alert: a crucial packet will arrive from a source you least expect. Your intuition is sharper than a laser.",
+                    "🚀 The chaos is behind you, making way for clean consensus and triumph. Draft your boldest plans — the universe has already granted your execution tokens!"
+                ).random()
+            }
+        }
 
-        val workPredictions = listOf(
-            "At work/studies, expect a glorious clusterf**k. Your productivity is heading to zero. You work like an owl on a jump rope: pretending to move, but actually just embarrassing yourself.",
-            "Your boss thinks you're a genius. Tomorrow they'll find out your code is just a pile of crutches."
-        )
+        val newsSnippet = if (newsItem != null) {
+            val templates = listOf(
+                "\n\n🔗 By the way, while I was reading your data, the live index on '${newsItem.sourceName}' updated with: \"${newsItem.title}\". Regarding your question, it's a clear sign that reality is shifting rapidly around you.",
+                "\n\n🔥 Look at what's happening in the real world! '${newsItem.sourceName}' just published: \"${newsItem.title}\". This confirms that nOG network chaos is fully in sync with your thoughts.",
+                "\n\n📡 Sync complete. Real-time headline from '${newsItem.sourceName}': \"${newsItem.title}\". This matches your cosmic forecast perfectly!"
+            )
+            templates.random()
+        } else ""
 
-        val healthPredictions = listOf(
-            "Your body will soon throw a Blue Screen of Death (BSOD) if you don't stop drinking energy drinks. Sports? Ha, an owl on a jump rope moves with more grace."
-        )
-
-        val generalPredictions = listOf(
-            "Tomorrow something incredible will happen... You'll finally get your butt off the couch! Just kidding. You'll keep wasting time.",
-            "My scan of the nOG network shows your destiny today is chaos and a drop in your shitcoin prices. Just forget about it and go to sleep."
+        val conclusions = listOf(
+            "Remember: the future is not carved in stone, but figures and stars never lie. Act boldly!",
+            "Keep your finger on the pulse, believe in your power, and do not let minor setbacks derail you.",
+            "Your destiny is being written right now. Be the author of your own story, not just a spectator!",
+            "The universe is on your side. Relax, trust the flow, and prepare for wonderful changes."
         )
 
         val intro = if (isFollowUp) followUps.random() else intros.random()
-        val meme = owlMemes.random()
-        val topicPrediction = when (matchingTopic) {
-            "MONEY" -> moneyPredictions.random()
-            "LOVE" -> lovePredictions.random()
-            "WORK" -> workPredictions.random()
-            "HEALTH" -> healthPredictions.random()
-            else -> generalPredictions.random()
-        }
+        val conclusion = conclusions.random()
 
-        val mixPattern = Random.nextInt(3)
-        val responseBody = when (mixPattern) {
-            0 -> "$intro\n\n$topicPrediction\n\nBasically, $meme"
-            1 -> "$intro\n\n$meme\n\nAnd about your request: $topicPrediction"
-            else -> "$topicPrediction\n\nThis looks as pathetic as $meme"
-        }
-        return searchLogs.toString() + responseBody
+        return "$intro\n\n$nameCommentary$targetCommentary\n\n$topicForecast$newsSnippet\n\n$conclusion"
     }
 }

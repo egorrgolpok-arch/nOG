@@ -98,6 +98,55 @@ object CooldownNotifier {
                     }
                 }
             }
+            
+            // 4. Oracle cooldown check
+            val oraclePrefs = context.getSharedPreferences("nog_oracle_prefs", Context.MODE_PRIVATE)
+            val usageCount = oraclePrefs.getInt("oracle_usage_count", 0)
+            val windowStart = oraclePrefs.getLong("oracle_window_start", 0L)
+            val notifiedOracle = oraclePrefs.getBoolean("notified_oracle", false)
+            val cooldownPeriod = 10 * 60 * 60 * 1000L // 10 hours in ms
+            
+            if (usageCount >= 3 && windowStart > 0L) {
+                val elapsed = System.currentTimeMillis() - windowStart
+                if (elapsed >= cooldownPeriod) {
+                    if (!notifiedOracle) {
+                        sendPushAndDatabase(
+                            context = context,
+                            db = db,
+                            title = if (isRu) "🔮 ИИ ГАДАЛКА ЖДЕТ ВОПРОСОВ!" else "🔮 AI ORACLE IS READY!",
+                            message = if (isRu) "Твой лимит гаданий полностью восстановился. Заходи узнать свою судьбу!" else "Your oracle prediction limits have fully recovered. Peep into your future right now!"
+                        )
+                        oraclePrefs.edit().putBoolean("notified_oracle", true).apply()
+                    }
+                } else {
+                    if (notifiedOracle) {
+                        oraclePrefs.edit().putBoolean("notified_oracle", false).apply()
+                    }
+                }
+            }
+
+            // 5. AI Avatar Decoration Shop cooldown check
+            val lastGenerated = generalPrefs.getLong("ai_dec_last_generated_time", 0L)
+            if (lastGenerated > 0L) {
+                val notifiedAiDec = generalPrefs.getBoolean("notified_ai_dec", false)
+                val elapsedAiDec = System.currentTimeMillis() - lastGenerated
+                val cooldownMs = 5 * 3600 * 1000L // 5 hours
+                if (elapsedAiDec >= cooldownMs) {
+                    if (!notifiedAiDec) {
+                        sendPushAndDatabase(
+                            context = context,
+                            db = db,
+                            title = if (isRu) "🎨 ДЕКОРАЦИИ ДЛЯ АВАТАРА ГОТОВЫ!" else "🎨 AVATAR DECORATIONS READY!",
+                            message = if (isRu) "Процессор декораций остыл. Заходи синтезировать новую уникальную аватарку со скидкой!" else "Your cybernetic avatar splicer cooled down. Connect to forge a unique high-tech aesthetic piece!"
+                        )
+                        generalPrefs.edit().putBoolean("notified_ai_dec", true).apply()
+                    }
+                } else {
+                    if (notifiedAiDec) {
+                        generalPrefs.edit().putBoolean("notified_ai_dec", false).apply()
+                    }
+                }
+            }
         } catch (e: Exception) {
             // Safe block to handle SQLite/Preference interactions gracefully
         }

@@ -30,6 +30,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.material.icons.filled.SportsEsports
+import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.compose.ui.graphics.vector.rememberVectorPainter
@@ -138,38 +139,38 @@ fun CommunityScreen(viewModel: SocialViewModel, innerPadding: PaddingValues) {
                     }
                 }
                 
-                // Community games selection arranged beautifully in 2 rows (Request 1)
+                // Community games selection arranged beautifully in 3 rows
                 Column(
                     modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     val isRu = lang == "RU"
                     
-                    // Row 1 (Flappy Bot, BlackJack, Chess)
+                    // Row 1 (nOG AI Oracle, BlackJack, Chess)
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        // Flappy Bot
+                        // nOG AI Oracle
                         Box(
                             modifier = Modifier
                                 .weight(1f)
                                 .height(44.dp)
                                 .clip(RoundedCornerShape(4.dp))
                                 .background(DeepGray)
-                                .border(1.dp, AlertRed, RoundedCornerShape(4.dp))
+                                .border(1.dp, PureWhite, RoundedCornerShape(4.dp))
                                 .clickable {
                                     viewModel.vibrate(25)
-                                    showFlappyBotGame = true
+                                    showAiOracle = true
                                 }
                                 .padding(horizontal = 4.dp),
                             contentAlignment = Alignment.Center
                         ) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
-                                Icon(Icons.Filled.SportsEsports, contentDescription = null, tint = AlertRed, modifier = Modifier.size(16.dp))
+                                Icon(Icons.Filled.AutoAwesome, contentDescription = null, tint = PureWhite, modifier = Modifier.size(16.dp))
                                 Spacer(modifier = Modifier.width(4.dp))
                                 Text(
-                                    text = if (isRu) "ФЛАППИ" else "FLAPPY",
+                                    text = if (isRu) "ГАДАЛКА" else "ORACLE",
                                     color = PureWhite,
                                     fontSize = 10.sp,
                                     fontFamily = FontFamily.Monospace,
@@ -235,11 +236,39 @@ fun CommunityScreen(viewModel: SocialViewModel, innerPadding: PaddingValues) {
                         }
                     }
 
-                    // Row 2 (Poker, Match-3, Durak)
+                    // Row 2 (Flappy Bot, Poker, Match-3)
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
+                        // Flappy Bot
+                        Box(
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(44.dp)
+                                .clip(RoundedCornerShape(4.dp))
+                                .background(DeepGray)
+                                .border(1.dp, AlertRed, RoundedCornerShape(4.dp))
+                                .clickable {
+                                    viewModel.vibrate(25)
+                                    showFlappyBotGame = true
+                                }
+                                .padding(horizontal = 4.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(Icons.Filled.SportsEsports, contentDescription = null, tint = AlertRed, modifier = Modifier.size(16.dp))
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text(
+                                    text = if (isRu) "ФЛАППИ" else "FLAPPY",
+                                    color = PureWhite,
+                                    fontSize = 10.sp,
+                                    fontFamily = FontFamily.Monospace,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+                        }
+
                         // Poker
                         Box(
                             modifier = Modifier
@@ -295,37 +324,9 @@ fun CommunityScreen(viewModel: SocialViewModel, innerPadding: PaddingValues) {
                                 )
                             }
                         }
-
-                        // Durak
-                        Box(
-                            modifier = Modifier
-                                .weight(1f)
-                                .height(44.dp)
-                                .clip(RoundedCornerShape(4.dp))
-                                .background(DeepGray)
-                                .border(1.dp, AlertYellow, RoundedCornerShape(4.dp))
-                                .clickable {
-                                    viewModel.vibrate(25)
-                                    showDurakGame = true
-                                }
-                                .padding(horizontal = 4.dp),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Text("♣♠", color = AlertYellow, fontSize = 11.sp, fontWeight = FontWeight.Bold, fontFamily = FontFamily.Monospace)
-                                Spacer(modifier = Modifier.width(4.dp))
-                                Text(
-                                    text = if (isRu) "ДУРАК" else "DURAK",
-                                    color = PureWhite,
-                                    fontSize = 10.sp,
-                                    fontFamily = FontFamily.Monospace,
-                                    fontWeight = FontWeight.Bold
-                                )
-                            }
-                        }
                     }
 
-                    // Row 3 (nOG AI Fortune Teller)
+                    // Row 3 (Durak)
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -336,27 +337,25 @@ fun CommunityScreen(viewModel: SocialViewModel, innerPadding: PaddingValues) {
                                 .height(44.dp)
                                 .clip(RoundedCornerShape(4.dp))
                                 .background(DeepGray)
-                                .border(1.dp, PureWhite, RoundedCornerShape(4.dp))
+                                .border(1.dp, AlertYellow, RoundedCornerShape(4.dp))
                                 .clickable {
-                                    viewModel.vibrate(30)
-                                    showAiOracle = true
+                                    viewModel.vibrate(25)
+                                    showDurakGame = true
                                 }
                                 .padding(horizontal = 8.dp),
                             contentAlignment = Alignment.Center
                         ) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
-                                Text("✧", color = PureWhite, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                                Text("♣♠", color = AlertYellow, fontSize = 11.sp, fontWeight = FontWeight.Bold, fontFamily = FontFamily.Monospace)
                                 Spacer(modifier = Modifier.width(6.dp))
                                 Text(
-                                    text = if (isRu) "nOG AI ГАДАЛКА" else "nOG AI ORACLE",
+                                    text = if (isRu) "ДУРАК" else "DURAK",
                                     color = PureWhite,
                                     fontSize = 10.sp,
                                     fontFamily = FontFamily.Monospace,
                                     fontWeight = FontWeight.Bold,
                                     letterSpacing = 1.sp
                                 )
-                                Spacer(modifier = Modifier.width(6.dp))
-                                Text("✧", color = PureWhite, fontSize = 14.sp, fontWeight = FontWeight.Bold)
                             }
                         }
                     }

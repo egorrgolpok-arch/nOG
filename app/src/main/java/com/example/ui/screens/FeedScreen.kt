@@ -80,6 +80,7 @@ fun FeedScreen(
     
     var showCreatePostDialog by remember { mutableStateOf(false) }
     var showFlappyBotGame by remember { mutableStateOf(false) }
+    var showAiOracle by remember { mutableStateOf(false) }
     var showTamagotchiDialog by remember { mutableStateOf(false) }
     var showDecorationShopDialog by remember { mutableStateOf(false) }
     var zoomImageUrl by remember { mutableStateOf<String?>(null) }
@@ -803,6 +804,22 @@ fun FeedScreen(
                 verticalArrangement = Arrangement.spacedBy(12.dp),
                 horizontalAlignment = Alignment.End
             ) {
+                // --- AI Oracle Dialog FAB ---
+                FloatingActionButton(
+                    onClick = { showAiOracle = true },
+                    containerColor = PureWhite,
+                    contentColor = PureBlack,
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier
+                        .border(2.dp, PureBlack, RoundedCornerShape(12.dp))
+                        .testTag("ai_oracle_fab")
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.AutoAwesome,
+                        contentDescription = if (lang == "RU") "nOG ИИ Гадалка" else "nOG AI Oracle"
+                    )
+                }
+
                 // --- Flappy Bot Game FAB ---
                 FloatingActionButton(
                     onClick = { showFlappyBotGame = true },
@@ -914,6 +931,15 @@ fun FeedScreen(
                 users = users,
                 currentUser = currentUser,
                 onDismiss = { showFlappyBotGame = false }
+            )
+        }
+
+        // --- AI Oracle Dialog ---
+        if (showAiOracle) {
+            AiOracleDialog(
+                onDismiss = { showAiOracle = false },
+                lang = lang,
+                viewModel = viewModel
             )
         }
 

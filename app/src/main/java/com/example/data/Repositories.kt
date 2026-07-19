@@ -12,6 +12,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flowOn
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.util.UUID
@@ -1003,24 +1004,12 @@ class SocialRepository(private val context: Context, private val scope: Coroutin
             ContextCompat.checkSelfPermission(context, Manifest.permission.READ_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED
         }
         
-        val mockGallery = if (hasVideosOnDevice()) {
-            listOf(
-                "https://images.unsplash.com/photo-1517694712202-14dd9538aa97?w=600",
-                "https://images.unsplash.com/photo-1531297484001-80022131f5a1?w=600",
-                "https://storage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4",
-                "https://images.unsplash.com/photo-1498050108023-c5249f4df085?w=600",
-                "https://storage.googleapis.com/gtv-videos-bucket/sample/ForBiggerEscapes.mp4",
-                "https://images.unsplash.com/photo-1550751827-4bd374c3f58b?w=600",
-                "https://storage.googleapis.com/gtv-videos-bucket/sample/ForBiggerFun.mp4"
-            )
-        } else {
-            listOf(
-                "https://images.unsplash.com/photo-1517694712202-14dd9538aa97?w=600",
-                "https://images.unsplash.com/photo-1531297484001-80022131f5a1?w=600",
-                "https://images.unsplash.com/photo-1498050108023-c5249f4df085?w=600",
-                "https://images.unsplash.com/photo-1550751827-4bd374c3f58b?w=600"
-            )
-        }
+        val mockGallery = listOf(
+            "https://images.unsplash.com/photo-1517694712202-14dd9538aa97?w=600",
+            "https://images.unsplash.com/photo-1531297484001-80022131f5a1?w=600",
+            "https://images.unsplash.com/photo-1498050108023-c5249f4df085?w=600",
+            "https://images.unsplash.com/photo-1550751827-4bd374c3f58b?w=600"
+        )
 
         if (!hasGalleryPermission) {
             Log.d(TAG, "No gallery permission, returning simulated local gallery paths")
@@ -1348,7 +1337,7 @@ class SocialRepository(private val context: Context, private val scope: Coroutin
         val fallbacksRu = listOf(
             "Жиза, вчера такое же было на реддите",
             "Опять на Пикабу этот баян форсят, ну сколько можно",
-            "Тред скатился, ОП х**ло, расходимся",
+            "Тред скатился, ОП хуйло, расходимся",
             "Реально умные мысли, заскриню себе",
             "Хабр торт, спасибо за детальный разбор!",
             "На дваче вчера тред удалили за такое",
@@ -1478,17 +1467,17 @@ class SocialRepository(private val context: Context, private val scope: Coroutin
             // Determine attachments BEFORE text generation
             val gallery = getGalleryMediaUrls()
             val galleryVideos = gallery.filter { it.endsWith(".mp4") || it.contains("video", ignoreCase = true) }
-            val hasVideo = galleryVideos.isNotEmpty()
 
-            val attachMedia = Random.nextInt(100) < 70 
-            val rollMedia = Random.nextInt(100)
-            var mediaTypeStr = when {
-                rollMedia < 35 -> "GIF"
-                rollMedia < 70 -> "VIDEO"
-                else -> "IMAGE"
-            }
-            if (mediaTypeStr == "VIDEO" && !hasVideo) {
-                mediaTypeStr = if (Random.nextBoolean()) "GIF" else "IMAGE"
+            // To achieve perfectly equal 1:1:1 distribution between:
+            // 1) Text-only posts
+            // 2) Image/GIF posts
+            // 3) Video posts
+            val rollType = Random.nextInt(3)
+            val attachMedia = (rollType != 0)
+            var mediaTypeStr = when (rollType) {
+                1 -> if (Random.nextBoolean()) "IMAGE" else "GIF"
+                2 -> "VIDEO"
+                else -> "NONE"
             }
             
             var mediaUrl: String? = null
@@ -1500,7 +1489,7 @@ class SocialRepository(private val context: Context, private val scope: Coroutin
                         isFromGallery = true
                     } else {
                         val query = if (selectedSource.contains("X")) "x_feed" else targetCategory
-                        mediaUrl = getDynamicInternetMediaForQuery(query, "IMAGE")
+                        mediaUrl = getDynamicInternetMediaForQuery(query, "VIDEO")
                         isFromGallery = false
                     }
                 } else {
@@ -1555,9 +1544,15 @@ class SocialRepository(private val context: Context, private val scope: Coroutin
                             }
                         }
                     }
-                    val mediaPair = if (Random.nextInt(100) < 45) {
+                    val localRollType = Random.nextInt(3)
+                    val localMediaTypeStr = when (localRollType) {
+                        1 -> if (Random.nextBoolean()) "IMAGE" else "GIF"
+                        2 -> "VIDEO"
+                        else -> null
+                    }
+                    val mediaPair = if (localMediaTypeStr != null) {
                         val galleryFiles = getGalleryMediaUrls()
-                        determineBotPostMedia(galleryFiles, newsImgUrl, mediaTypeStr, chosenCategory)
+                        determineBotPostMedia(galleryFiles, newsImgUrl, localMediaTypeStr, chosenCategory)
                     } else Pair(null, null)
 
                     val finalMediaUrl = mediaPair.first
@@ -1696,7 +1691,7 @@ class SocialRepository(private val context: Context, private val scope: Coroutin
             val postMediaType = if (mediaUrl != null) {
                 val lower = mediaUrl.lowercase()
                 when {
-                    lower.endsWith(".mp4") || lower.endsWith(".mkv") || lower.endsWith(".webm") || lower.contains("video") -> "VIDEO"
+                    hasVideosOnDevice() && (lower.endsWith(".mp4") || lower.endsWith(".mkv") || lower.endsWith(".webm") || (lower.contains("video") && !lower.contains("image") && !lower.endsWith(".jpg") && !lower.endsWith(".png") && !lower.endsWith(".jpeg") && !lower.endsWith(".webp") && !lower.endsWith(".gif"))) -> "VIDEO"
                     lower.endsWith(".gif") -> "GIF"
                     else -> "IMAGE"
                 }
